@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Vennex Mobile",
+    "slug": "vennex-mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0B1220"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vennex.mobileapp"
+    },
+    "android": {
+      "package": "com.vennex.mobileapp",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1220"
+      }
+    },
+    "extra": {
+      "apiBaseUrl": "https://tms.vennex.com.tr"
+    }
+  }
+}
