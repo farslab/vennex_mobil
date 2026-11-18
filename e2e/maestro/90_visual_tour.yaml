@@ -1,7 +1,7 @@
 # Görsel tur: tüm ana ekranların ekran görüntüsünü alır (açık/koyu tema için ayrı çalıştırılır).
 # Önkoşul: yerel backend (backend-local/run.sh server) + seed verisi, oturum açık olabilir/olmayabilir.
 # Çalıştırma: (cd çıktı-klasörü && maestro test <repo>/e2e/maestro/90_visual_tour.yaml)
-appId: com.vennex.mobileapp
+appId: com.vennex.mobile
 ---
 - launchApp
 - runFlow:

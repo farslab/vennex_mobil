@@ -40,6 +40,7 @@ export type RootStackParamList = {
   EditProfile: undefined;
   NotificationSettings: undefined;
   CompanyAccount: undefined;
+  Regions: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;

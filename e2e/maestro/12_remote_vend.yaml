@@ -1,0 +1,53 @@
+# E2E: Uzaktan satış (WebSocket) — gerçek backend kodu + yerel otomat simülatörü
+# Önkoşul:
+#   ../backend-local/run.sh server     (uvicorn/ASGI — WS dahil)
+#   Akış başlarken: SIM_SN=DEMO0001 ../backend-local/run.sh manage shell -c "exec(open('../backend-local/sim_vend.py').read())"
+#   (simülatör ~20 sn sonra müşteri seçimi gönderir, onayı bekler, vend_ended yollar)
+appId: com.vennex.mobile
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Hesabınıza giriş yapın"
+    commands:
+      - tapOn:
+          id: "login-username"
+      - inputText: "demo"
+      - tapOn:
+          id: "login-password"
+      - inputText: "demo1234"
+      - tapOn:
+          id: "login-submit"
+- extendedWaitUntil:
+    visible: "Profil"
+    timeout: 20000
+- runFlow:
+    when:
+      notVisible: ".*Demo Otomat A.Ş.*"
+    commands:
+      - tapOn:
+          id: "company-switcher"
+      - tapOn: "Demo Otomat A.Ş."
+- tapOn: "Cihazlar"
+- tapOn:
+    id: "device-row-DEMO0001"
+# Kart "Genel" sekmesinin altında: görünene kadar kaydır
+- scrollUntilVisible:
+    element:
+      id: "open-remote-sale"
+    timeout: 20000
+- tapOn:
+    id: "open-remote-sale"
+- extendedWaitUntil:
+    visible: "Bağlı"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "remote-sale-approve"
+    timeout: 60000
+- assertVisible: ".*12,50.*"
+- tapOn:
+    id: "remote-sale-approve"
+- extendedWaitUntil:
+    visible: "Satış başarılı — ürün verildi."
+    timeout: 20000

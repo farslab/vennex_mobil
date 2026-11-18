@@ -1,7 +1,7 @@
 /**
  * Cihaz detayı — route "DeviceDetail" { sn, name? }.
  * Sekmeler yetkiye göre: Genel · Nakit & Ciro · Satışlar · Stok · İstatistikler · Ayarlar.
- * Uzaktan satış yalnız WebSocket ile mümkün (§2.6) → bu sürümde yok (Genel'de AppNotice).
+ * Uzaktan satış: Genel sekmesinde, WebSocket kanalı (src/realtime/posVendChannel.ts) — web dashboard ile aynı protokol.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";

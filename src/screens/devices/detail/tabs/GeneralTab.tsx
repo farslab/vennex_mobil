@@ -1,8 +1,9 @@
 /** Genel — yalnız detay/summary/products yanıtlarındaki GERÇEK alanlar; uydurma şirket/SIM/tarih yok */
-import React from "react";
+import React, { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
   AppBadge,
+  AppButton,
   AppCard,
   AppNotice,
   AppSkeleton,
@@ -24,6 +25,7 @@ import { formatCurrency, formatInteger } from "@/utils/number";
 import { formatDateTime, formatRelative } from "@/utils/date";
 import type { PosDeviceDetail } from "@/types/devices";
 import { useDeviceProducts, useDeviceSummary, type DeviceAccess } from "../useDeviceQueries";
+import { RemoteSaleSheet } from "../components/RemoteSaleSheet";
 
 export function GeneralTab({
   sn,
@@ -42,6 +44,7 @@ export function GeneralTab({
   const { colors } = useTheme();
   const summary = useDeviceSummary(sn, access.sales);
   const products = useDeviceProducts(sn);
+  const [remoteOpen, setRemoteOpen] = useState(false);
 
   const conn = connectivityInfo(detail.is_online);
   const macStatus = machineStatusInfo(detail.act_macstat);
@@ -172,11 +175,21 @@ export function GeneralTab({
       </AppCard>
 
       {access.remoteVend ? (
-        <AppNotice
-          tone="info"
-          title="Uzaktan satış"
-          message="Uzaktan satış bu sürümde desteklenmiyor. Bu özellik yalnızca canlı bağlantı (WebSocket) üzerinden çalışır."
-        />
+        <AppCard title="Uzaktan satış" subtitle="Müşterinin seçtiği ürünü uzaktan onaylayın">
+          <AppButton
+            testID="open-remote-sale"
+            title="Uzaktan satışı başlat"
+            icon="radio"
+            variant="outline"
+            onPress={() => setRemoteOpen(true)}
+          />
+          <RemoteSaleSheet
+            visible={remoteOpen}
+            onClose={() => setRemoteOpen(false)}
+            sn={detail.sn}
+            deviceName={detail.pos_name}
+          />
+        </AppCard>
       ) : null}
     </ScrollView>
   );

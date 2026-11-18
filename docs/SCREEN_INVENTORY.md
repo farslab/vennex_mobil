@@ -21,6 +21,7 @@
 | Security | `screens/account/SecurityScreen.tsx` | Şifre, 2FA, hesap kapatma/silme | `auth/change-password/`, `auth/2fa/*`, `auth/deactivate/`, `auth/delete/` | — |
 | NotificationSettings | `screens/account/NotificationSettingsScreen.tsx` | Bildirim tercihleri | `me/notification-preferences/` | — |
 | CompanyAccount | `screens/account/CompanyAccountScreen.tsx` | Şirket ve cari | `companies/`, `cari/*` | owner |
+| Regions | `screens/account/RegionsScreen.tsx` | Bölge ve konum yönetimi (oluştur/düzenle/sil) | `regions/…`, `locations/…` | sunucu modülü `regions` (owner) |
 | Users / UserForm | `screens/users/*` | Teknisyen yönetimi | `users/…` | owner |
 | Reports / NewReport / ReportDetail | `screens/reports/*` | Asenkron raporlar | `reports/…` | `view_sales` |
 | Notifications | `screens/notifications/NotificationsScreen.tsx` | Bildirim merkezi | `notifications/…` | — |

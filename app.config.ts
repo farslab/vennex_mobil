@@ -67,8 +67,12 @@ const config: ExpoConfig = {
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.vennex.mobileapp",
+    bundleIdentifier: "com.vennex.mobile",
+    // Firebase (FCM) istemci yapılandırması — proje "vennexmobile" (backend fcm_service ile aynı proje)
+    googleServicesFile: "./firebase/GoogleService-Info.plist",
     config: { usesNonExemptEncryption: false },
+    // Push: APNs yeteneği (EAS imzalarken etkinleştirir)
+    entitlements: { "aps-environment": APP_ENV === "production" ? "production" : "development" },
     // App Store gizlilik manifesti: izleme yok, veri toplama yalnız uygulama işlevi için
     privacyManifests: {
       NSPrivacyTracking: false,
@@ -87,16 +91,20 @@ const config: ExpoConfig = {
         APP_ENV === "development"
           ? { NSAllowsArbitraryLoads: false, NSAllowsLocalNetworking: true }
           : { NSAllowsArbitraryLoads: false },
+      // Bildirim geldiğinde uygulama arka plandayken veri işleyebilsin
+      UIBackgroundModes: ["remote-notification"],
     },
   },
   android: {
-    package: "com.vennex.mobileapp",
+    package: "com.vennex.mobile",
+    googleServicesFile: "./firebase/google-services.json",
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#1C5A96",
     },
     // Yalnızca gerekli izinler
-    permissions: ["INTERNET"],
+    // Android 13+ bildirim izni çalışma anında ayrıca istenir
+    permissions: ["INTERNET", "android.permission.POST_NOTIFICATIONS"],
     blockedPermissions: [
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -107,6 +115,10 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-sharing",
     "expo-updates",
+    "@react-native-firebase/app",
+    "@react-native-firebase/messaging",
+    // RN Firebase 27: Firebase iOS SDK yalnız SPM ile gelir ve dinamik framework bağlaması ister
+    ["expo-build-properties", { ios: { useFrameworks: "dynamic" } }],
     [
       "expo-splash-screen",
       {

@@ -3,7 +3,8 @@ import { fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { useAuthStore } from "@/store/authStore";
 import { useThemePreference } from "@/design-system";
 import ProfileScreen from "@/screens/profile/ProfileScreen";
-import { makeUser, renderWithProviders } from "@/test/utils";
+import { createTestQueryClient, makeUser, renderWithProviders } from "@/test/utils";
+import { queryKeys } from "@/api/queryKeys";
 
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 
@@ -33,7 +34,10 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Cari: Temiz")).toBeOnTheScreen();
     expect(screen.getByTestId("row-users")).toBeOnTheScreen();
     expect(screen.getByTestId("row-company-account")).toBeOnTheScreen();
+    expect(screen.getByTestId("row-regions")).toBeOnTheScreen();
 
+    await fireEvent.press(screen.getByTestId("row-regions"));
+    expect(mockNavigate).toHaveBeenCalledWith("Regions");
     await fireEvent.press(screen.getByTestId("row-legal-kvkk"));
     expect(mockNavigate).toHaveBeenCalledWith("LegalDocument", { slug: "kvkk" });
   });
@@ -44,7 +48,18 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Teknisyen")).toBeOnTheScreen();
     expect(screen.queryByTestId("row-users")).toBeNull();
     expect(screen.queryByTestId("row-company-account")).toBeNull();
+    expect(screen.queryByTestId("row-regions")).toBeNull();
     expect(screen.getByTestId("row-reports")).toBeOnTheScreen();
+  });
+
+  it("bölge satırı sunucudaki modül listesine uyar (web ile aynı kaynak)", async () => {
+    const queryClient = createTestQueryClient();
+    // Sunucu modülü kapattıysa sahipte bile gizlenir
+    queryClient.setQueryData(queryKeys.appConfig(), { modules: [{ key: "devices" }], capabilities: {}, enums: {}, features: {} });
+    useAuthStore.setState({ status: "authenticated" });
+    await renderWithProviders(<ProfileScreen />, { queryClient });
+    expect(screen.getByTestId("row-company-account")).toBeOnTheScreen();
+    expect(screen.queryByTestId("row-regions")).toBeNull();
   });
 
   it("çıkış onay ister; vazgeçince çıkış yapılmaz, onaylayınca logout çağrılır", async () => {

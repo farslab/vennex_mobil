@@ -13,6 +13,12 @@
 - Mağaza hazırlığı: iOS gizlilik manifesti, şifreleme beyanı, minimum Android izinleri, uygulama içi hesap silme.
 - Yerel mock sunucu (`mock-server/`) ve gerçek backend kodunun izole yerel kurulumu (`../backend-local`).
 
+### Yeni özellikler (2026-11-18, ikinci tur)
+- **Push bildirimleri** (RN Firebase 27, `com.vennex.mobile`): izin (Android 13+ dahil), FCM token kaydı ve yenilenmesi, çıkışta kaydın silinmesi, ön planda bildirim, bildirime dokununca ilgili ekran.
+- **Uzaktan satış**: cihaz detayında canlı WebSocket kanalı (web ile aynı protokol), müşteri seçimi → onay → sonuç; yetkisiz/ağ hatası ayrımı, otomatik yeniden bağlanma.
+- **Bölge ve konum yönetimi** (Profil → Şirket): bölge/konum oluşturma, düzenleme, silme; koordinat girişi (Türkçe ondalık); silmenin etkisi onayda açıklanır.
+- Cihaz komutları sunucudaki `send_device_commands` yetkisine bağlandı (web ile aynı kural).
+
 ### Ekranlar (tamamı yeniden yazıldı)
 - **Giriş:** yeni tasarım, alan doğrulaması, şifre göster/gizle, şifremi unuttum, 6 haneli OTP (otomatik doldurma), ortam rozeti.
 - **Panel:** tek istekli dashboard, dönem ve özel aralık, lokasyon filtresi, KPI'lar, SVG ciro grafiği, ödeme ve başarısızlık dağılımı, en iyi cihazlar, son işlemler. Uydurma "grup dağılımı" kaldırıldı.

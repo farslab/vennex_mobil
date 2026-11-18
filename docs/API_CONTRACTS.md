@@ -401,7 +401,7 @@ Tümü `IsOwner` (`BE:views/users.py:55,…`). Yalnız `master_user=request.user
 | Grup | Endpoint |
 |---|---|
 | Auth | `PATCH auth/me/`, `change-password/`, `password-reset/`, `password-reset/confirm/`, `deactivate/`, `delete/`, `2fa/status|setup|enable|disable/` (hepsi kullanmıyor) |
-| Push | `device/register/`, `device/unregister/` (kullanmıyor) |
+| Push | `device/register/`, `device/unregister/` (2026-11-18 itibarıyla kullanılıyor, bkz. §8) |
 | Overview | `summary/`, `revenue-timeseries/`, `payment-breakdown/`, `top-devices/`, `error-breakdown/` (RN'de yok); `recent-transactions/`, `locations/` (kullanmıyor) |
 | POS | `sort/` (kullanmıyor), `sort/reset/`, `export/` (⚠ gölgeli), `products/{id}/` PATCH/DELETE, `save-as-template/`, `export-products/` (RN'de yok); `bulk-quantities/`, `fill-all-stock/` (kullanmıyor) |
 | Kartlar | `cards/bulk/`, `cards/import/`, `cards/export/`, `cards/template/`, `GET cards/{id}/` (RN'de yok); `PATCH cards/{id}/`, `reject-all-pending/`, `cards/{id}/transactions/`, `bulk/balance|delete|groups/` (kullanmıyor) |
@@ -460,3 +460,13 @@ Tümü `IsOwner` (`BE:views/users.py:55,…`). Yalnız `master_user=request.user
 | `GET /app/min-version/?platform=&version=` | Yok | Eski alanlar + `platforms{ios,android}{min_version, latest_version, force_update, store_url, message}` + `status{update_required, update_available}` | Admin → Mobil Sürüm Politikaları |
 
 Yetki listesine `send_device_commands` eklendi (mevcut kural: cihaza erişimi olan her yönetim kullanıcısı; web ile aynı).
+
+## 8. Mobilin yeni kullandığı mevcut uçlar (2026-11-18)
+
+| Uç | Auth | İstek → Yanıt | Not |
+|---|---|---|---|
+| `GET /regions/` | `IsOwner` | → `{results: [{id, name, description\|null, total_pos_device_count, locations: [{id, name, address, latitude\|null, longitude\|null, is_active, pos_device_count}], created_at}]}` | 600 sn önbellek; her yazmada şirket önbellek sürümü artar (liste hemen taze) |
+| `POST /regions/` · `PATCH/DELETE /regions/{id}/` | `IsOwner` | `{name (≤70), description}` → 201/200 bölge (oluşturmada `total_pos_device_count` yok → istemci 0 sayar) · 204 | Aynı ad → 400 `{detail}`. Silme konumları da siler (CASCADE), cihazların konumu boşalır (SET_NULL) |
+| `POST /locations/` · `PATCH/DELETE /locations/{id}/` | `IsOwner` | `{region, name (≤100), address, latitude, longitude (decimal 9,6 string\|null), is_active}` → 201/200 konum (`pos_device_count` yok) · 204 | Alan hataları DRF biçiminde (`{name: [...], latitude: [...]}`) |
+| `POST /device/register/` · `POST /device/unregister/` | Oturum | `{fcm_token, platform, device_id}` · `{fcm_token}` | FCM kaydı; çıkışta silinir |
+| `WS /ws/dashboard/pos/{SN}/?token=` | JWT + `remote_vend` + cihaza erişim | ← `vend_pending {tx_id, amount (kuruş), item}` · → `remote_decision {tx_id, decision: "approve"}` · ← `remote_decision_ack`, `vend_ended {result}`, `error` | Yetkisiz bağlantı el sıkışmada reddedilir (istemci 1006 görür) |

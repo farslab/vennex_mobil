@@ -16,11 +16,12 @@
 
 | Alan | Değer |
 |---|---|
-| iOS bundle id | `com.vennex.mobileapp` |
-| Android paket | `com.vennex.mobileapp` |
+| iOS bundle id | `com.vennex.mobile` |
+| Android paket | `com.vennex.mobile` |
 | URL şeması | `vennex://` (yalnız oturum açıkken) |
 | iOS | ATS açık (`NSAllowsArbitraryLoads=false`), `usesNonExemptEncryption=false` |
-| Android izinleri | yalnız `INTERNET`; depolama/overlay izinleri engelli |
+| Android izinleri | `INTERNET`, `POST_NOTIFICATIONS`; depolama/overlay izinleri engelli |
+| Firebase | proje `vennexmobile`; `firebase/google-services.json` + `GoogleService-Info.plist` (yalnız istemci yapılandırması, gizli anahtar yok) |
 
 ## Görseller
 
@@ -41,7 +42,9 @@
 | iOS simülatör debug build | ✔ iPhone 16 Pro / iOS 18.5; gerçek backend koduna karşı E2E |
 | Release build ölçümleri (açılış, geçiş) | **Yapılmadı** — gerçek cihazda `eas build --profile production` sonrası ölçülmeli |
 | App Store / Play gereksinimi: uygulama içi hesap silme | Profil → Güvenlik (backend `POST /auth/delete/`) |
-| Push bildirimleri (FCM/APNs) | **Yapılmadı**: Firebase yapılandırması (`google-services.json`, APNs anahtarı) ve `expo-notifications` gerekir; backend uçları hazır |
+| Push bildirimleri (FCM/APNs) | ✔ İstemci (RN Firebase 27): izin, token kaydı/yenileme, çıkışta kayıt silme, bildirimden ekrana yönlendirme. **Mağaza öncesi:** Firebase konsoluna APNs anahtarı (.p8) yüklenmeli ve gerçek cihazda teslim denenmeli |
+| Uzaktan satış (WebSocket) | ✔ Web ile aynı protokol ve yetki (`remote_vend`); gerçek backend + otomat simülatörüyle E2E PASS |
+| Bölge ve konum yönetimi | ✔ Owner; görünürlük sunucudaki `regions` modülünden |
 | Zorunlu güncelleme (admin politikası) | ✔ İstemci + backend dalı; E2E `11_force_update.yaml` PASS |
 | OTA güncellemeleri (Xavia, POS ile ortak sunucu) | ✔ İstemci + yayın betiği; ilk yayın backend dalı canlıya alındıktan sonra. Bkz. [`OTA_AND_RELEASE.md`](OTA_AND_RELEASE.md) |
 | iOS gizlilik manifesti / şifreleme beyanı | ✔ |
@@ -49,7 +52,7 @@
 
 ## Bilinen sınırlamalar
 
-- Uzaktan satış yalnız WebSocket ile destekleniyor; bu sürümde yok (kullanıcıya açıkça belirtilir).
-- Push bildirimleri ve bildirimden ekrana derin bağlantı, push altyapısı kurulunca etkinleşir; uygulama içi bildirim merkezi çalışır.
+- Uzaktan satış bağlantısı yalnız sayfa açıkken tutulur; sayfa açılmadan önce gelen müşteri seçimi gösterilmez (backend bekleyen isteği yeniden yollamıyor — web ile aynı davranış).
+- Push teslimi simülatörde doğrulanamadı; gerçek cihazda denenmeli.
 - Uçtan uca doğrulama **gerçek backend koduyla** (aynı commit + bu dal) yerelde, kurgusal verili izole veritabanında yapıldı. Canlı veritabanına karşı yapılmadı (canlı sunucu kuralı). Mağaza incelemesi öncesi canlıda ayrı bir demo şirketiyle salt okuma turu önerilir.
 - Android cihaz/emülatörde çalıştırılmadı.

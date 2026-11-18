@@ -1,6 +1,6 @@
 # E2E (gerçek backend kodu, yerel izole DB): giriş → sunucu modülleri → şirket değişimi → oturum geri yükleme
 # Önkoşul: backend-local/run.sh server + seed (demo/demo1234)
-appId: com.vennex.mobileapp
+appId: com.vennex.mobile
 ---
 - launchApp:
     clearState: true

@@ -1,0 +1,189 @@
+import React, { useEffect, useRef, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import {
+  AppBadge,
+  AppButton,
+  AppIcon,
+  AppNotice,
+  AppSheet,
+  AppText,
+  makeStyles,
+  toast,
+} from "@/design-system";
+import { formatCurrency } from "@/utils/number";
+import { kurusToLira, PosVendChannel, type ChannelState, type VendEvent } from "@/realtime/posVendChannel";
+
+type Pending = { txId: string; amount: number; item: number | null };
+type Phase = "waiting" | "pending" | "approving" | "approved" | "result";
+
+const STATE_LABEL: Record<ChannelState, { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
+  connecting: { label: "Bağlanıyor", tone: "warning" },
+  open: { label: "Bağlı", tone: "success" },
+  reconnecting: { label: "Yeniden bağlanıyor", tone: "warning" },
+  closed: { label: "Bağlantı kapalı", tone: "neutral" },
+  unauthorized: { label: "Yetki yok", tone: "danger" },
+};
+
+const ERROR_TEXT: Record<string, string> = {
+  tx_not_found: "Satış isteğinin süresi doldu veya zaten işlendi.",
+  tx_pos_mismatch: "Satış isteği bu cihaza ait değil.",
+  invalid_decision: "Geçersiz onay isteği.",
+  tx_corrupted: "Satış isteği okunamadı.",
+};
+
+/**
+ * Uzaktan satış: müşteri otomatta ürün seçince istek buraya düşer; kullanıcı onaylarsa cihaz ürünü verir.
+ * Red mesajı yoktur — onaylanmazsa cihaz kendi zaman aşımıyla (~15 sn) iptal eder.
+ * Sayfa kapanınca bağlantı kapatılır (cihaza "izleme bitti" sinyali gider).
+ */
+export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
+  visible: boolean;
+  onClose: () => void;
+  sn: string;
+  deviceName?: string | null;
+}) {
+  const styles = useStyles();
+  const channelRef = useRef<PosVendChannel | null>(null);
+  const [state, setState] = useState<ChannelState>("connecting");
+  const [phase, setPhase] = useState<Phase>("waiting");
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [result, setResult] = useState<{ tone: "success" | "danger" | "neutral"; text: string } | null>(null);
+
+  // Sayfa her açılışta temiz başlar (effect içinde setState yerine render sırasında önceki değere göre)
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) {
+      setState("connecting");
+      setPhase("waiting");
+      setPending(null);
+      setResult(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!visible) return;
+    const onEvent = (ev: VendEvent) => {
+      switch (ev.type) {
+        case "vend_pending":
+          // Geç katılımda aynı istek tekrar gelebilir — tek kez göster
+          setPending((cur) => (cur?.txId === ev.tx_id ? cur : { txId: ev.tx_id, amount: ev.amount, item: ev.item }));
+          setPhase((p) => (p === "approving" || p === "approved" ? p : "pending"));
+          setResult(null);
+          break;
+        case "remote_decision_ack":
+          setPhase(ev.ok ? "approved" : "pending");
+          break;
+        case "vend_ended": {
+          const map = {
+            success: { tone: "success" as const, text: "Satış başarılı — ürün verildi." },
+            failure: { tone: "danger" as const, text: "Satış başarısız — ürün verilemedi." },
+            cancelled: { tone: "neutral" as const, text: "Satış iptal edildi." },
+          };
+          const r = map[ev.result as keyof typeof map] ?? { tone: "neutral" as const, text: "Satış sonuçlandı." };
+          setResult(r);
+          setPending(null);
+          setPhase("result");
+          if (ev.result === "success") toast.success("Uzaktan satış tamamlandı");
+          break;
+        }
+        case "error":
+          toast.error(ERROR_TEXT[ev.error] ?? "Uzaktan satış hatası.");
+          setPhase((p) => (p === "approving" ? "pending" : p));
+          break;
+      }
+    };
+    const ch = new PosVendChannel(sn, { onEvent, onState: setState });
+    channelRef.current = ch;
+    ch.connect();
+    return () => {
+      ch.close();
+      channelRef.current = null;
+    };
+  }, [visible, sn]);
+
+  const approve = () => {
+    if (!pending || phase !== "pending") return;
+    setPhase("approving");
+    if (!channelRef.current?.approve(pending.txId)) {
+      setPhase("pending");
+      toast.error("Bağlantı yok; onay gönderilemedi.");
+    }
+  };
+
+  const st = STATE_LABEL[state];
+
+  return (
+    <AppSheet
+      visible={visible}
+      onClose={onClose}
+      title="Uzaktan satış"
+      subtitle={deviceName ? `${deviceName} · ${sn}` : sn}
+      testID="remote-sale-sheet"
+      footer={
+        pending && (phase === "pending" || phase === "approving") ? (
+          <>
+            <AppButton title="Bekle" variant="outline" onPress={onClose} style={styles.flex} />
+            <AppButton
+              testID="remote-sale-approve"
+              title="Satışı onayla"
+              icon="check"
+              onPress={approve}
+              loading={phase === "approving"}
+              style={styles.flex}
+            />
+          </>
+        ) : (
+          <AppButton title="Kapat" variant="outline" onPress={onClose} style={styles.flex} />
+        )
+      }
+    >
+      <View style={styles.statusRow}>
+        <AppText variant="callout" color="textSecondary">
+          Canlı bağlantı
+        </AppText>
+        <AppBadge label={st.label} tone={st.tone} dot />
+      </View>
+
+      {state === "unauthorized" ? (
+        <AppNotice
+          tone="danger"
+          title="Uzaktan satış yetkiniz yok"
+          message="Bu cihaz için uzaktan satış yetkisi gerekiyor. Yöneticinizden 'Remote Vend' yetkisini isteyin."
+        />
+      ) : pending ? (
+        <View style={styles.pending} accessibilityLiveRegion="assertive">
+          <AppText variant="overline" color="textTertiary">
+            Müşteri ürün seçti
+          </AppText>
+          <AppText variant="metricLg" testID="remote-sale-amount">
+            {formatCurrency(kurusToLira(pending.amount))}
+          </AppText>
+          <AppText variant="body" color="textSecondary">
+            {pending.item != null ? `Ürün no ${pending.item}` : "Ürün"}
+            {phase === "approved" ? " · onay gönderildi, cihaz ürünü veriyor…" : ""}
+          </AppText>
+          <AppNotice tone="info" message="Onaylarsanız ürün ücretsiz verilir. Onaylamazsanız cihaz kısa süre sonra işlemi iptal eder." />
+        </View>
+      ) : result ? (
+        <AppNotice tone={result.tone === "neutral" ? "info" : result.tone} message={result.text} />
+      ) : (
+        <View style={styles.waiting}>
+          <AppIcon name="radio" size={22} color="textTertiary" />
+          <AppText variant="body" color="textSecondary" align="center">
+            Müşterinin otomatta ürün seçmesi bekleniyor. İstek geldiğinde burada görünür.
+          </AppText>
+        </View>
+      )}
+    </AppSheet>
+  );
+}
+
+const useStyles = makeStyles((t) =>
+  StyleSheet.create({
+    flex: { flex: 1 },
+    statusRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    pending: { gap: t.spacing.sm, alignItems: "flex-start" },
+    waiting: { alignItems: "center", gap: t.spacing.sm, paddingVertical: t.spacing.xl },
+  })
+);

@@ -2,7 +2,7 @@
 # Önkoşul (yerel backend):
 #   backend-local/run.sh manage shell -c "from vennex_mobile.models import MobileAppVersionPolicy as P; P.objects.filter(platform='ios').update(min_version='9.0.0', force_update=True)"
 # Sonrası: min_version='1.0.0' geri alınır.
-appId: com.vennex.mobileapp
+appId: com.vennex.mobile
 ---
 - launchApp
 - extendedWaitUntil:

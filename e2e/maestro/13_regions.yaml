@@ -1,0 +1,73 @@
+# E2E: Bölge & konum yönetimi (owner) — yerel gerçek backend (../backend-local/run.sh server)
+# Oluşturduğu bölgeyi sonunda siler (veritabanı temiz kalır).
+appId: com.vennex.mobile
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Hesabınıza giriş yapın"
+    commands:
+      - tapOn:
+          id: "login-username"
+      - inputText: "demo"
+      - tapOn:
+          id: "login-password"
+      - inputText: "demo1234"
+      - tapOn:
+          id: "login-submit"
+- extendedWaitUntil:
+    visible: "Profil"
+    timeout: 20000
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element:
+      id: "row-regions"
+- tapOn:
+    id: "row-regions"
+- extendedWaitUntil:
+    visible: "Bölge ve konumlar"
+    timeout: 10000
+
+# Not: bölge satırının birleşik erişilebilirlik etiketi ("Ad, N konum, M cihaz") alt metinleri gizler → regex
+# Bölge oluştur
+- tapOn:
+    id: "add-region"
+- tapOn:
+    id: "region-name"
+- inputText: "E2E Bolge"
+- tapOn:
+    id: "region-save"
+- extendedWaitUntil:
+    visible: "Bölge oluşturuldu"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "E2E Bolge, 0 konum, 0 cihaz"
+    timeout: 10000
+
+# Konum ekle
+- tapOn: "E2E Bolge, 0 konum, 0 cihaz"
+- tapOn: "Konum ekle"
+- tapOn:
+    id: "location-name"
+- inputText: "E2E Konum"
+- tapOn:
+    id: "location-save"
+- extendedWaitUntil:
+    visible: "Konum eklendi"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "E2E Bolge, 1 konum, 0 cihaz"
+    timeout: 10000
+- assertVisible: "E2E Konum, 0 cihaz"
+- takeScreenshot: regions_created
+
+# Temizlik: bölgeyi (ve konumunu) sil
+- tapOn: "E2E Bolge bölgesini sil"
+- extendedWaitUntil:
+    visible: ".*altındaki 1 konum silinecek.*"
+    timeout: 5000
+- tapOn: "Sil"
+- extendedWaitUntil:
+    visible: "Bölge silindi"
+    timeout: 10000
+- assertNotVisible: ".*E2E Bolge.*"

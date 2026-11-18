@@ -66,7 +66,7 @@ Sunucuya ulaşılamazsa uygulama **engellenmez** (çevrimdışı kullanım). Uç
 
 | Madde | Durum |
 |---|---|
-| Bundle id / paket: `com.vennex.mobileapp` | ✔ |
+| Bundle id / paket: `com.vennex.mobile` | ✔ |
 | Uygulama adı: production `Vennex` | ✔ |
 | İkon (1024², alfa yok), Android adaptive ikon, açık/koyu splash | ✔ |
 | iOS gizlilik manifesti (izleme yok; UserDefaults CA92.1, FileTimestamp C617.1) | ✔ `app.config.ts` |

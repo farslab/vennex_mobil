@@ -8,10 +8,10 @@ Canlı sunucuya (`tms.vennex.com.tr`) hiçbir test isteği atılmadı.
 | Katman | Sonuç | Kanıt |
 |---|---|---|
 | TypeScript (`tsc --noEmit`, strict) | **PASS**: 0 hata | `npm run typecheck` |
-| ESLint | **PASS**: 0 hata (başlangıç: 18 hata / 166 uyarı → az sayıda uyarı) | `npm run lint` |
-| Mobil unit + bileşen + ekran (Jest) | **PASS**: **485/485**, 47 dosya | `npx jest --forceExit` |
+| ESLint | **PASS**: 0 hata (başlangıç: 18 hata / 166 uyarı → 11 uyarı, tamamı eski/miras dosyalarda) | `npm run lint` |
+| Mobil unit + bileşen + ekran (Jest) | **PASS**: **517/517**, 51 dosya | `npx jest --forceExit` |
 | Backend (Django, yerel izole DB) | **PASS**: **107/107** (`vennex_mobile`, `dashboard_v2`, `nexus`, `api.test_ota_runtime`) | `../backend-local/run.sh test …` |
-| E2E: gerçek backend kodu + iOS simülatör (Maestro) | **PASS**: 2 akış | aşağıda |
+| E2E: gerçek backend kodu + iOS simülatör (Maestro + simülatör) | **PASS**: 4 akış (uzaktan satış WebSocket dahil) | aşağıda |
 | E2E: yerel mock sunucu akışları (`01`, `02`) | **NOT TESTED** (son hâli): ilk sürüm mock'a göre yazıldı; asıl doğrulama gerçek backend akışlarıyla yapıldı | |
 | Görsel tur (açık + koyu tema) | **PASS** (ana ekranlar), bkz. aşağıdaki not | `e2e/maestro/90_visual_tour.yaml` |
 | Canlı sunucu (salt okuma) | **BLOCKED**: canlı hesaba ait şifreyi yazmak güvenlik kuralı gereği yapılmadı; giriş kullanıcı tarafından yapılırsa salt okuma turu yürütülebilir | |
@@ -49,6 +49,9 @@ Ortam: `scc_lith` `feature/mobil-ortak-yetki-ota` dalı, Postgres 17 (`vennex_lo
 | Panel (gerçek hesaplama) | **PASS** (görsel) | KPI'lar (129 işlem, ₺3.715), saatlik ciro grafiği, başarısızlık nedenleri, ödeme tipi dağılımı, en çok satan cihazlar, son işlemler |
 | Cihaz listesi → detay | **PASS** (görsel) | Sunucu tarafı sayaçlar, ciro, son iletişim; detay sekmeleri; dönem ciroları (bugün/dün/bu ay/geçen ay) |
 | Kartlar, Stok, Profil, Raporlar, Bildirimler | **PASS** (görsel) | Boş/dolu durumlar, sekmeler |
+| `12_remote_vend.yaml` + `backend-local/sim_vend.py` | **PASS** (Maestro + simülatörde elle tamamlandı) | Uvicorn/ASGI üzerinde gerçek `DashboardPosConsumer`: sayfa açılır → "Bağlı" → otomat simülatörü `vend_pending` (₺12,50, ürün 7) → onay → simülatör `remote_decision (approve)` alır → `vend_ended: success` → "Satış başarılı — ürün verildi." Teknisyen (yetkisiz) ve geçersiz token bağlantıları reddedilir |
+| `13_regions.yaml` | **PASS** (Maestro + simülatörde elle tamamlandı) | Profil → Bölge ve konumlar → bölge oluştur → konum ekle (liste anında güncellenir) → silme onayı etkisini açıklar → sil; kayıt kalmaz. API: aynı ad 400, teknisyen 403, `regions` modülü `/app/config/`'ten |
+| Firebase'li iOS derlemesi | **PASS** | RN Firebase 27 + `useFrameworks: "dynamic"`, `com.vennex.mobile`, simülatörde açılır |
 
 ### Görsel denetimde bulunup düzeltilenler
 
@@ -61,6 +64,8 @@ Ortam: `scc_lith` `feature/mobil-ortak-yetki-ota` dalı, Postgres 17 (`vennex_lo
 
 - Maestro, erişilebilirlik etiketi birleştirilmiş satırların (cihaz satırı, şirket seçici) içindeki metni ayrı göremiyor. Akışlarda `id` veya regex seçici kullanılmalı. Bu bir uygulama hatası değil.
 - Görsel turun Kartlar adımı, seçili şirkette Kartlar modülü olmadığında beklendiği gibi durur.
+- Xcode 26.3 / iOS 18.5'te Maestro'nun XCUITest sürücüsü uzun akışlarda zaman zaman kopuyor (`Connection refused`). Akışların kalan adımları simülatörde aynı sırayla elle tamamlandı; uygulama tarafında hata yok. CI'da akış başına yeniden deneme önerilir.
+- Push bildirimi teslimi simülatörde doğrulanamaz (gerçek FCM/APNs gerekir). Kayıt/izin/yönlendirme mantığı birim testlerle (7) doğrulandı; gerçek cihazda kontrol edilmeli.
 
 ## Backend testleri
 

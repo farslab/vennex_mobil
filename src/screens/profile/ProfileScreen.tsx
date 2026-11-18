@@ -14,7 +14,8 @@ import {
   makeStyles,
 } from "@/design-system";
 import { useAuthStore, useSelectedCompany } from "@/store/authStore";
-import { canManageUsers, isOwner } from "@/auth/permissions";
+import { canManageUsers, isOwner, moduleVisible } from "@/auth/permissions";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { APP_ENV } from "@/config/env";
 import { LEGAL_DEFAULT_TITLES, LEGAL_SLUGS } from "@/types/legal";
@@ -42,6 +43,9 @@ export default function ProfileScreen() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const owner = isOwner(user);
+  const { data: config } = useAppConfig();
+  // Sunucudaki modül listesi (web ile aynı kaynak); yoksa yerel kural
+  const regionsVisible = moduleVisible(config?.modules, "regions", () => owner);
   const version = Constants.expoConfig?.version;
 
   const doLogout = async () => {
@@ -84,17 +88,29 @@ export default function ProfileScreen() {
         </AppCard>
       </AppSection>
 
-      {owner ? (
+      {owner || regionsVisible ? (
         <AppSection title="Şirket">
           <AppCard padded={false}>
-            <AppListRow
-              icon="briefcase"
-              title="Şirket bilgileri ve cari"
-              subtitle={company?.name ?? "Seçili şirket yok"}
-              onPress={() => navigation.navigate("CompanyAccount")}
-              last
-              testID="row-company-account"
-            />
+            {owner ? (
+              <AppListRow
+                icon="briefcase"
+                title="Şirket bilgileri ve cari"
+                subtitle={company?.name ?? "Seçili şirket yok"}
+                onPress={() => navigation.navigate("CompanyAccount")}
+                last={!regionsVisible}
+                testID="row-company-account"
+              />
+            ) : null}
+            {regionsVisible ? (
+              <AppListRow
+                icon="map-pin"
+                title="Bölge ve konumlar"
+                subtitle="Cihazların bağlı olduğu yerler"
+                onPress={() => navigation.navigate("Regions")}
+                last
+                testID="row-regions"
+              />
+            ) : null}
           </AppCard>
         </AppSection>
       ) : null}

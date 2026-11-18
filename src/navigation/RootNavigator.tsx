@@ -11,6 +11,8 @@ import { VennexLogo } from "@/components/brand/VennexLogo";
 import type { AuthStackParamList, RootStackParamList, TabParamList } from "./types";
 import { TabHeader } from "./TabHeader";
 import { linking } from "./linking";
+import { flushPendingNavigation, navigationRef } from "./navigationRef";
+import { startPush, stopPushListeners } from "@/push/pushService";
 
 import LoginScreen from "@/screens/auth/LoginScreen";
 import TwoFactorScreen from "@/screens/auth/TwoFactorScreen";
@@ -92,6 +94,15 @@ export function RootNavigator() {
     bootstrap();
   }, [bootstrap, hydrateTheme]);
 
+  // Push: oturum açık ve yasal onaylar tamamken başlar; kullanıcı değişince yeniden kaydolur
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const pushReady = status === "authenticated" && pendingLegal === 0;
+  useEffect(() => {
+    if (!pushReady) return;
+    startPush(() => useAuthStore.getState().user);
+    return () => stopPushListeners();
+  }, [pushReady, userId]);
+
   const navTheme: NavTheme = useMemo(() => {
     const base = theme.isDark ? DarkTheme : DefaultTheme;
     return {
@@ -124,7 +135,12 @@ export function RootNavigator() {
   if (status === "booting") return <BootScreen />;
 
   return (
-    <NavigationContainer theme={navTheme} linking={status === "authenticated" ? linking : undefined}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={flushPendingNavigation}
+      theme={navTheme}
+      linking={status === "authenticated" ? linking : undefined}
+    >
       {status === "authenticated" ? (
         pendingLegal > 0 ? (
           <LegalConsentGateScreen />

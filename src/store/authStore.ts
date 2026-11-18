@@ -4,6 +4,7 @@ import { authApi } from "@/api/auth";
 import { registerCompanyProvider, registerUnauthorizedHandler } from "@/api/client";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { queryClient } from "@/store/queryClient";
+import { stopPush } from "@/push/pushService";
 import type { AuthUser, Company } from "@/types/auth";
 
 type AuthStatus = "booting" | "unauthenticated" | "requires_2fa" | "authenticated";
@@ -145,6 +146,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
     cancel2FA: () => set({ ...initialSession, status: "unauthenticated" }),
 
     logout: async () => {
+      // Push kaydı oturum token'ı geçerliyken silinir (aksi halde cihaz bildirim almaya devam eder)
+      await stopPush();
       const refresh = await tokenStorage.getRefresh();
       // Backend refresh token'ı blacklist'e alır; başarısız olsa da istemci çıkışı tamamlanır
       if (refresh) authApi.logout(refresh).catch(() => {});
