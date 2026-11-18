@@ -7,6 +7,7 @@ import React, { useMemo, useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
 import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import {
   AppButton,
   AppConfirmSheet,
@@ -86,6 +87,9 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
       onClose();
     },
   });
+  // Çift dokunuşta ikinci POST gitmesin
+  const saveOnce = useSingleFlight(save.mutateAsync);
+  const resetOnce = useSingleFlight(reset.mutateAsync);
 
   const busy = save.isPending || reset.isPending;
   const total = list.total;
@@ -105,7 +109,7 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
           <AppButton
             testID="device-order-save"
             title="Kaydet"
-            onPress={() => save.mutate()}
+            onPress={saveOnce}
             disabled={!dirty || order.length === 0}
             loading={save.isPending}
             style={styles.flex}
@@ -171,7 +175,7 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
         destructive
         loading={reset.isPending}
         error={reset.error ? errorMessage(reset.error) : null}
-        onConfirm={() => reset.mutate()}
+        onConfirm={resetOnce}
         onCancel={() => {
           setConfirmReset(false);
           reset.reset();

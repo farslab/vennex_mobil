@@ -96,4 +96,8 @@ export const queryKeys = {
     all: ["regions"] as const,
     list: () => ["regions", "list"] as const,
   },
+  feedback: {
+    all: ["feedback"] as const,
+    list: () => ["feedback", "list"] as const,
+  },
 } as const;

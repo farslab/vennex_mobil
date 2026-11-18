@@ -10,6 +10,8 @@ import {
   AppText,
   makeStyles,
   toast,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { stockApi } from "@/api/stock";
 import { errorMessage, type ApiError } from "@/api/client";
@@ -151,6 +153,9 @@ function SkuForm({ visible, onClose, sku }: SkuFormSheetProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, form);
+  const guardedClose = useGuardedClose(dirty, onClose);
 
 
   const original = useMemo(() => (sku ? buildSkuPayload(initialState(sku)).payload : null), [sku]);
@@ -214,13 +219,14 @@ function SkuForm({ visible, onClose, sku }: SkuFormSheetProps) {
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={editing ? "Ürünü düzenle" : "Yeni ürün"}
       subtitle={editing ? sku?.sku_code : "Stok kataloğuna SKU ekleyin"}
       dismissible={!busy}
       testID="sku-form"
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={busy} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={busy} style={styles.flex} />
           <AppButton title="Kaydet" onPress={save} loading={saveMutation.isPending} disabled={deleteMutation.isPending} style={styles.flex} testID="sku-save" />
         </>
       }
@@ -258,6 +264,8 @@ function SkuForm({ visible, onClose, sku }: SkuFormSheetProps) {
         value={form.kind}
         onChange={(k) => {
           setForm((f) => ({ ...f, kind: k, base_unit: k === "ingredient" ? f.base_unit : "piece" }));
+          // Tür değişince kurallar değişir (paket boyutu tam sayı, alış/satış alanı kilidi): eski hatalar geçersiz
+          setErrors({});
         }}
         testID="sku-kind"
       />

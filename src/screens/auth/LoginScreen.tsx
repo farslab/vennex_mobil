@@ -1,14 +1,10 @@
 import React, { useRef, useState } from "react";
-import { Pressable, type TextInput } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { TextInput } from "react-native";
 import { AppButton, AppInput, AppNotice, AppText } from "@/design-system";
 import { useAuthStore } from "@/store/authStore";
-import type { AuthStackParamList } from "@/navigation/types";
 import { AuthLayout } from "./AuthLayout";
 
 export default function LoginScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const login = useAuthStore((s) => s.login);
   const sessionMessage = useAuthStore((s) => s.errorMessage);
   const clearError = useAuthStore((s) => s.clearError);
@@ -91,16 +87,10 @@ export default function LoginScreen() {
         testID="login-password"
       />
       <AppButton title="Giriş Yap" onPress={handleLogin} loading={loading} fullWidth testID="login-submit" />
-      <Pressable
-        onPress={() => navigation.navigate("ForgotPassword")}
-        accessibilityRole="link"
-        hitSlop={8}
-        style={{ alignSelf: "center" }}
-      >
-        <AppText variant="calloutStrong" color="primary">
-          Şifremi unuttum
-        </AppText>
-      </Pressable>
+      {/* Kendi kendine parola sıfırlama yok (web paneliyle aynı): parolayı şirket sahibi / Vennex desteği yeniler */}
+      <AppText variant="caption" color="textTertiary" align="center" testID="login-forgot-hint">
+        Şifrenizi unuttuysanız şirket yöneticinize veya Vennex desteğine başvurun.
+      </AppText>
     </AuthLayout>
   );
 }

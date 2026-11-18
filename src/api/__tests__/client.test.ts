@@ -136,6 +136,16 @@ describe("normalizeError", () => {
     expect(err.message).toBe("Bu parola çok kısa.");
   });
 
+  it("`message` adlı ALANIN DRF hatasını (dizi) alan hatası sayar; düz metin `message` genel mesajdır", () => {
+    const fieldErr = normalizeError(makeError(400, { message: ["Bu alanın en az 10 karakter içerdiğinden emin olun."] }));
+    expect(fieldErr.fieldErrors).toEqual({ message: "Bu alanın en az 10 karakter içerdiğinden emin olun." });
+    expect(fieldErr.message).toBe("Bu alanın en az 10 karakter içerdiğinden emin olun.");
+
+    const general = normalizeError(makeError(400, { message: "Genel hata" }));
+    expect(general.fieldErrors).toBeUndefined();
+    expect(general.message).toBe("Genel hata");
+  });
+
   it("iç içe non_field_errors mesajını bulur", () => {
     expect(normalizeError(makeError(400, { non_field_errors: [["İç hata"]] })).message).toBe("İç hata");
   });

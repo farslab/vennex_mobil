@@ -106,3 +106,23 @@ Modül çalışanlarının kod incelemesinde bulundu; ayrıntı ve satır numara
 - Rapor uçları: `str(None)` → "None", geçersiz `report_type` sessizce `pos_detail` oluyor, eşzamanlı iş kontrolü kilitsiz, eksik dosyada 500 dönüyor.
 - `overview.py`: sayısal olmayan `top_limit` 500 veriyor; özel aralık sınırsız.
 - Kullanıcı listesine `?q=` araması; e-posta benzersizlik kontrolü.
+
+
+---
+
+# İkinci dal — `feature/mobil-geri-bildirim` (2026-11-18) · **canlıda DEĞİL, commit edilmedi**
+
+| Parça | Dosya | Açıklama |
+|---|---|---|
+| Model | `vennex_mobile/models.py` → `MobileFeedback` + `migrations/0010_mobil_geri_bildirim.py` | Kaynak (app/web), tür (öneri/hata/soru/diğer/hesap silme), mesaj, kullanıcı/şirket (SET_NULL), iletişim, platform/sürüm, IP (yalnız web), durum, dahili not, okuyan |
+| Mobil API | `vennex_mobile/views/feedback.py`, `urls.py` | `GET/POST /feedback/` (saatte 10 gönderim) |
+| Herkese açık sayfalar | `vennex_mobile/views/public_pages.py`, `public_urls.py`, `templates/vennex_mobile/public/*` | `/vennexmobile/yasal/<slug>/`, `/vennexmobile/hesap-silme/` |
+| Kök URL | `core/urls.py` | `path("vennexmobile/", include("vennex_mobile.public_urls"))` |
+| Panel kapısı | `dashboard/middleware.py` | `/vennexmobile/` oturumsuz muafiyet (yalnız bu önek) |
+| Yasal API | `vennex_mobile/views/legal.py` | `web_url` boşsa herkese açık sayfanın mutlak adresi |
+| Nexus | `nexus/views/mobile_feedback.py`, `urls.py`, `templatetags/nexus_extras.py`, `theme/templates/nexus/pages/mobile_feedback_*.html`, `components/sidebar.html` | Liste (arama/durum/tür), detay (okundu işareti), durum + dahili not, okunmamış rozeti; yalnız superuser; LogEntry kaydı |
+| Admin | `vennex_mobile/admin.py` | Salt okunur kayıt + durum/not |
+| Testler | `vennex_mobile/test_feedback.py` | 16 test |
+
+Doğrulama (yerel izole DB): `vennex_mobile`, `nexus`, `dashboard_v2`, `api.test_ota_runtime` → **123/123 OK**.
+Canlıya alma: migration `vennex_mobile.0010` (yalnız yeni tablo, mevcut veriye dokunmaz) + web yeniden başlatma. **Kullanıcı onayı bekliyor.**

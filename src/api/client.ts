@@ -120,7 +120,9 @@ export function normalizeError(error: AxiosError<ApiErrorBody>): ApiError {
   let fieldErrors: Record<string, string> | undefined;
   if (body && typeof body === "object" && !Array.isArray(body)) {
     for (const [key, val] of Object.entries(body)) {
-      if (["detail", "message", "error", "code"].includes(key)) continue;
+      // Genel mesaj anahtarları yalnız düz metinken genel sayılır; DRF'de aynı adlı bir ALANIN
+      // doğrulama hatası dizi olarak gelir (ör. geri bildirimdeki `message` alanı) → alan hatası.
+      if (["detail", "message", "error", "code"].includes(key) && typeof val === "string") continue;
       const msg = firstMessage(val);
       if (msg) (fieldErrors ??= {})[key] = msg;
     }

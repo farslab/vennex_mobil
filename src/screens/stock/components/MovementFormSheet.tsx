@@ -14,6 +14,8 @@ import {
   toast,
   type ConfirmSummaryItem,
   type SelectOption,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { stockApi, validateMovementInput } from "@/api/stock";
 import { errorMessage } from "@/api/client";
@@ -82,6 +84,9 @@ function MovementForm({ visible, mode, onClose, presetLocationId }: MovementForm
   const [errors, setErrors] = useState<Errors>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { sku: sku?.id ?? null, fromId, toId, locationId, qtyText, direction, reason });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
 
   const locationsQuery = useStockLocations({}, visible);
@@ -221,13 +226,14 @@ function MovementForm({ visible, mode, onClose, presetLocationId }: MovementForm
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={text.title}
       subtitle={text.subtitle}
       dismissible={!mutation.isPending}
       testID={`movement-sheet-${mode}`}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={mutation.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={mutation.isPending} style={styles.flex} />
           <AppButton title="Devam" onPress={onContinue} disabled={mutation.isPending} style={styles.flex} testID="movement-continue" />
         </>
       }

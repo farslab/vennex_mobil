@@ -19,6 +19,7 @@ import {
   AppText,
   makeStyles,
   toast,
+  useFormDirty,
 } from "@/design-system";
 import { templatesApi } from "@/api/templates";
 import { errorMessage, type ApiError } from "@/api/client";
@@ -113,6 +114,8 @@ export function TemplateItemSheet({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [skuOpen, setSkuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, form);
 
   useOnOpen(visible, () => {
       setForm(itemFormFrom(item));
@@ -156,6 +159,7 @@ export function TemplateItemSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={item ? "Kalemi düzenle" : "Yeni kalem"}
       subtitle={displayName || undefined}
       dismissible={!save.isPending && !remove.isPending}

@@ -1,6 +1,6 @@
 # E2E: Bölge & konum yönetimi (owner) — yerel gerçek backend (../backend-local/run.sh server)
 # Oluşturduğu bölgeyi sonunda siler (veritabanı temiz kalır).
-appId: com.vennex.mobile
+appId: tr.com.vennex
 ---
 - launchApp
 - runFlow:

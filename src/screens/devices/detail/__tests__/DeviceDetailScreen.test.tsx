@@ -8,6 +8,13 @@ import DeviceDetailScreen from "@/screens/devices/detail/DeviceDetailScreen";
 import type { RootScreenProps } from "@/navigation/types";
 import type { Permission } from "@/auth/permissions";
 
+const mockPreventRemove = jest.fn();
+jest.mock("@react-navigation/native", () => ({
+  ...jest.requireActual("@react-navigation/native"),
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn(), setOptions: jest.fn(), dispatch: jest.fn() }),
+  usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
+}));
+
 const SN = "PAV1";
 const navigation = { setOptions: jest.fn(), navigate: jest.fn(), goBack: jest.fn() };
 const props = { route: { key: "k", name: "DeviceDetail", params: { sn: SN } }, navigation } as unknown as RootScreenProps<"DeviceDetail">;

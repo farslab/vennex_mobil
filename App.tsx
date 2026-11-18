@@ -8,11 +8,12 @@ import { RootNavigator } from "@/navigation/RootNavigator";
 import { AppToastHost, useTheme } from "@/design-system";
 import { VersionGate } from "@/updates/VersionGate";
 import { Platform } from "react-native";
+import { PUSH_ENABLED } from "@/config/env";
 import { getMessaging, setBackgroundMessageHandler } from "@react-native-firebase/messaging";
 
 // Arka planda gelen bildirimler: görünür bildirimi işletim sistemi gösterir; veri tazelemesi
 // uygulama ön plana gelince React Query ile yapılır. İşleyici yine de kayıtlı olmalı (RNFB uyarısı).
-if (Platform.OS === "ios" || Platform.OS === "android") {
+if (PUSH_ENABLED && (Platform.OS === "ios" || Platform.OS === "android")) {
   try {
     setBackgroundMessageHandler(getMessaging(), async () => {});
   } catch {

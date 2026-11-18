@@ -76,11 +76,6 @@ module.exports = [
       return [200, { detail: "Parola güncellendi." }];
     },
   },
-  {
-    method: "POST",
-    path: "/auth/password-reset/",
-    handler: () => [200, { detail: "Eğer e-posta sistemde kayıtlıysa, sıfırlama bağlantısı gönderildi." }],
-  },
   { method: "GET", path: "/auth/2fa/status/", handler: ({ user }) => [200, { is_enabled: !!user.twoFactor }] },
   {
     method: "POST",

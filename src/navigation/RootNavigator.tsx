@@ -16,7 +16,6 @@ import { startPush, stopPushListeners } from "@/push/pushService";
 
 import LoginScreen from "@/screens/auth/LoginScreen";
 import TwoFactorScreen from "@/screens/auth/TwoFactorScreen";
-import ForgotPasswordScreen from "@/screens/auth/ForgotPasswordScreen";
 import LegalConsentGateScreen from "@/screens/legal/LegalConsentGateScreen";
 import LegalDocumentScreen from "@/screens/legal/LegalDocumentScreen";
 
@@ -139,7 +138,7 @@ export function RootNavigator() {
       ref={navigationRef}
       onReady={flushPendingNavigation}
       theme={navTheme}
-      linking={status === "authenticated" ? linking : undefined}
+      linking={linking}
     >
       {status === "authenticated" ? (
         pendingLegal > 0 ? (
@@ -176,7 +175,6 @@ export function RootNavigator() {
           ) : (
             <>
               <AuthStack.Screen name="Login" component={LoginScreen} />
-              <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             </>
           )}
         </AuthStack.Navigator>

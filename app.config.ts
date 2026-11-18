@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import type { ExpoConfig } from "expo/config";
 
 /**
@@ -44,6 +46,39 @@ const APP_VERSION = "1.0.0";
 const RUNTIME_VERSION = `vm-${APP_VERSION}${APP_ENV === "staging" ? "-stg" : ""}`;
 const OTA_URL = "https://ota.vennex.com.tr/api/manifest";
 
+/**
+ * Mağaza kimliği (Android paket adı = iOS bundle id). Yayından sonra DEĞİŞTİRİLEMEZ.
+ * Eski Flutter uygulaması `com.vennex.mobile` kullanır; çakışmaması için bu uygulama farklıdır.
+ */
+const APP_ID = "tr.com.vennex";
+
+/**
+ * Firebase (push) istemci dosyaları yalnız bu uygulamanın kimliğine aitse kullanılır.
+ * Başka uygulamanın dosyası (ör. Flutter'ınki) sessizce kullanılmasın diye eşleşme zorunludur.
+ * Dosyalar yokken geliştirme/staging derlemesi push'suz çalışır; production derlemesi durur.
+ */
+const FIREBASE_FILES = {
+  android: { file: "./firebase/google-services.json", marker: `"package_name": "${APP_ID}"` },
+  ios: { file: "./firebase/GoogleService-Info.plist", marker: `<string>${APP_ID}</string>` },
+} as const;
+
+function firebaseFile(platform: keyof typeof FIREBASE_FILES): string | undefined {
+  const { file, marker } = FIREBASE_FILES[platform];
+  const abs = path.join(__dirname, file);
+  if (!fs.existsSync(abs)) return undefined;
+  if (!fs.readFileSync(abs, "utf8").includes(marker)) {
+    throw new Error(`${file} başka bir uygulamaya ait: Firebase'de ${APP_ID} için kayıtlı uygulamanın dosyasını kullanın`);
+  }
+  return file;
+}
+
+const googleServicesAndroid = firebaseFile("android");
+const googleServicesIos = firebaseFile("ios");
+const PUSH_ENABLED = Boolean(googleServicesAndroid && googleServicesIos);
+if (APP_ENV === "production" && !PUSH_ENABLED) {
+  throw new Error(`Production derlemesi için firebase/ altında ${APP_ID} kimliğine ait Firebase dosyaları gerekli`);
+}
+
 const config: ExpoConfig = {
   name: APP_ENV === "production" ? "Vennex" : `Vennex (${APP_ENV === "staging" ? "Test" : "Dev"})`,
   slug: "vennex-mobile-app",
@@ -67,9 +102,9 @@ const config: ExpoConfig = {
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.vennex.mobile",
-    // Firebase (FCM) istemci yapılandırması — proje "vennexmobile" (backend fcm_service ile aynı proje)
-    googleServicesFile: "./firebase/GoogleService-Info.plist",
+    bundleIdentifier: APP_ID,
+    // Firebase (FCM) istemci yapılandırması — yalnız APP_ID'ye aitse (bkz. FIREBASE_FILES)
+    ...(googleServicesIos ? { googleServicesFile: googleServicesIos } : {}),
     config: { usesNonExemptEncryption: false },
     // Push: APNs yeteneği (EAS imzalarken etkinleştirir)
     entitlements: { "aps-environment": APP_ENV === "production" ? "production" : "development" },
@@ -96,8 +131,8 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: "com.vennex.mobile",
-    googleServicesFile: "./firebase/google-services.json",
+    package: APP_ID,
+    ...(googleServicesAndroid ? { googleServicesFile: googleServicesAndroid } : {}),
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#1C5A96",
@@ -115,8 +150,8 @@ const config: ExpoConfig = {
     "expo-secure-store",
     "expo-sharing",
     "expo-updates",
-    "@react-native-firebase/app",
-    "@react-native-firebase/messaging",
+    // Push yalnız Firebase dosyaları varken (eklentiler dosyasız derlemeyi durdurur)
+    ...(PUSH_ENABLED ? ["@react-native-firebase/app", "@react-native-firebase/messaging"] : []),
     // RN Firebase 27: Firebase iOS SDK yalnız SPM ile gelir ve dinamik framework bağlaması ister
     ["expo-build-properties", { ios: { useFrameworks: "dynamic" } }],
     [
@@ -134,6 +169,8 @@ const config: ExpoConfig = {
     appEnv: APP_ENV,
     apiBaseUrl,
     runtimeVersion: RUNTIME_VERSION,
+    // Firebase dosyaları bu kimliğe ait değilse push kodu hiç çalışmaz (izin de sorulmaz)
+    pushEnabled: PUSH_ENABLED,
   },
 };
 

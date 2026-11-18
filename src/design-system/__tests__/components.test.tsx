@@ -11,6 +11,8 @@ import {
   AppInput,
   AppKpi,
   AppSegmented,
+  AppText,
+  AppSheet,
   AppSelect,
   AppToastHost,
   getTheme,
@@ -209,6 +211,36 @@ describe("durum bileşenleri", () => {
     await render(<AppKpi label="Ciro" value="₺1.200,00" caption="12 işlem" delta={-12.5} />);
     expect(screen.getByLabelText("Ciro: ₺1.200,00, 12 işlem")).toBeOnTheScreen();
     expect(screen.getByText("▼ %12,5")).toBeOnTheScreen();
+  });
+
+  it("alt yazıyı tek satıra sıkıştırıp kesmez; sığmazsa alt satıra kayar", async () => {
+    await render(<AppKpi label="Bu ay" value="₺6.387,50" caption="Geçen ay ₺11.560,00" delta={-44.7} testID="kpi" />);
+    const caption = screen.getByTestId("kpi-caption");
+    expect(caption.props.numberOfLines).toBe(2);
+    // Alt yazının ilk sarmalayan üst öğesi satırı sarmalamalı (flexWrap: wrap)
+    let node = caption.parent;
+    let wraps = false;
+    while (node && !wraps) {
+      const flat = Object.assign({}, ...[node.props?.style].flat(Infinity).filter(Boolean));
+      wraps = flat.flexWrap === "wrap";
+      node = node.parent;
+    }
+    expect(wraps).toBe(true);
+  });
+});
+
+describe("AppSheet iç içe", () => {
+  const flat = (style: unknown) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean));
+  it("içteki sayfa arka planı yarım karartır, dıştaki tam", async () => {
+    await render(
+      <AppSheet visible onClose={() => {}} title="Form" testID="outer">
+        <AppSheet visible onClose={() => {}} title="Onay" testID="inner">
+          <AppText>içerik</AppText>
+        </AppSheet>
+      </AppSheet>
+    );
+    expect(flat(screen.getByTestId("outer-backdrop", { includeHiddenElements: true }).props.style).opacity).toBeUndefined();
+    expect(flat(screen.getByTestId("inner-backdrop", { includeHiddenElements: true }).props.style).opacity).toBe(0.5);
   });
 });
 

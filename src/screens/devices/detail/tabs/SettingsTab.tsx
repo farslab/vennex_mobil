@@ -36,6 +36,7 @@ import type { DeviceCommandKey, PosDeviceDetail } from "@/types/devices";
 import { deviceLocationOptionsKey } from "../../list/DeviceFiltersSheet";
 import { OperatingHoursEditor } from "../components/OperatingHoursEditor";
 import { buildSettingsPatch, formFromDetail, isDirty, type SettingsForm } from "../settingsForm";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useInvalidateDevices, type DeviceAccess } from "../useDeviceQueries";
 
 export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDeviceDetail; access: DeviceAccess }) {
@@ -50,6 +51,8 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
   const [command, setCommand] = useState<DeviceCommandKey | null>(null);
 
   const dirty = isDirty(baseline, form);
+  // Kaydedilmemiş ayar varken cihaz detayından çıkış onay ister
+  useUnsavedChangesGuard(dirty);
 
   // Sunucudan yeni detay gelirse ve kullanıcı düzenleme yapmıyorsa formu güncelle
   const [syncedDetail, setSyncedDetail] = useState(detail);

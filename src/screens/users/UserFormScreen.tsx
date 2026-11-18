@@ -32,6 +32,7 @@ import { errorStatus, splitApiError } from "@/components/account/formErrors";
 import { PASSWORD_MIN_LENGTH } from "@/utils/validation";
 import { fullName } from "@/utils/text";
 import type { RootStackParamList } from "@/navigation/types";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { stockLocationTypeLabel, type AssignableOptions, type StaffUser } from "@/types/users";
 import {
   USER_FORM_FIELDS,
@@ -159,6 +160,9 @@ function UserFormBody({
 
   const patch = useMemo(() => (user ? buildUpdatePatch(initial, values) : null), [user, initial, values]);
   const dirty = mode === "create" || Object.keys(patch ?? {}).length > 0;
+  // Geri çıkış uyarısı: yalnız kullanıcı gerçekten bir şey değiştirdiyse (oluşturmada boş form uyarmaz)
+  const changed = JSON.stringify(values) !== JSON.stringify(initial);
+  const { leave } = useUnsavedChangesGuard(changed);
 
   const handleError = (error: unknown) => {
     const { fieldErrors, general } = splitApiError(error, USER_FORM_FIELDS);
@@ -179,7 +183,7 @@ function UserFormBody({
       queryClient.setQueryData(queryKeys.users.detail(saved.id), saved);
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success(user ? "Kullanıcı güncellendi." : "Teknisyen oluşturuldu.");
-      onDone();
+      leave(onDone);
     },
     onError: handleError,
   });
@@ -191,7 +195,7 @@ function UserFormBody({
       queryClient.removeQueries({ queryKey: queryKeys.users.detail((user as StaffUser).id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       toast.success("Kullanıcı silindi.");
-      onDone();
+      leave(onDone);
     },
   });
 

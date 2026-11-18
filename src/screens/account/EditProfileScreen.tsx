@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import {
   AppButton,
   AppCard,
@@ -71,6 +72,7 @@ export default function EditProfileScreen() {
 
   const patch = useMemo(() => buildProfilePatch(initial, values), [initial, values]);
   const dirty = Object.keys(patch).length > 0;
+  const { leave } = useUnsavedChangesGuard(dirty);
 
   const mutation = useMutation({
     mutationFn: (body: ProfileUpdatePayload) => authApi.updateMe(body),
@@ -78,7 +80,7 @@ export default function EditProfileScreen() {
       setUser(updated);
       queryClient.setQueryData(queryKeys.me(), updated);
       toast.success("Profiliniz güncellendi.");
-      navigation.goBack();
+      leave(() => navigation.goBack());
     },
     onError: (error) => {
       const { fieldErrors, general } = splitApiError(error, FIELDS);

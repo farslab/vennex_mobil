@@ -4,7 +4,6 @@
 |---|---|---|---|---|
 | Login | `screens/auth/LoginScreen.tsx` | Giriş | `POST auth/login/` | — |
 | TwoFactor | `screens/auth/TwoFactorScreen.tsx` | TOTP doğrulama | `POST auth/2fa/verify/` | 2FA açık hesap |
-| ForgotPassword | `screens/auth/ForgotPasswordScreen.tsx` | Sıfırlama bağlantısı | `POST auth/password-reset/` | — |
 | (kapı) | `screens/legal/LegalConsentGateScreen.tsx` | Bekleyen yasal onaylar | `GET legal/{slug}/`, `POST legal/accept/` | `pending_legal_docs` |
 | (kapı) | `updates/VersionGate.tsx` | Zorunlu güncelleme, OTA bandı | `GET app/min-version/` | Sürüm politikası |
 | Tabs › Dashboard | `screens/dashboard/DashboardScreen.tsx` | Özet, KPI, grafik | `GET overview/dashboard/`, `overview/locations/` | Ciro: `view_sales` |
@@ -22,6 +21,7 @@
 | NotificationSettings | `screens/account/NotificationSettingsScreen.tsx` | Bildirim tercihleri | `me/notification-preferences/` | — |
 | CompanyAccount | `screens/account/CompanyAccountScreen.tsx` | Şirket ve cari | `companies/`, `cari/*` | owner |
 | Regions | `screens/account/RegionsScreen.tsx` | Bölge ve konum yönetimi (oluştur/düzenle/sil) | `regions/…`, `locations/…` | sunucu modülü `regions` (owner) |
+| Feedback | `screens/account/FeedbackScreen.tsx` | Geri bildirim ve destek (öneri/hata/soru) + önceki bildirimlerin durumu | `GET/POST feedback/` | oturum açık her kullanıcı |
 | Users / UserForm | `screens/users/*` | Teknisyen yönetimi | `users/…` | owner |
 | Reports / NewReport / ReportDetail | `screens/reports/*` | Asenkron raporlar | `reports/…` | `view_sales` |
 | Notifications | `screens/notifications/NotificationsScreen.tsx` | Bildirim merkezi | `notifications/…` | — |

@@ -10,6 +10,8 @@ import {
   AppSheet,
   makeStyles,
   toast,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { cardsApi } from "@/api/cards";
 import { formatCurrency, toApiDecimal } from "@/utils/number";
@@ -77,6 +79,9 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
   const [form, setForm] = useState<FormState>(() => initialState(card));
   const [errors, setErrors] = useState<Errors>({});
   const [confirmPayload, setConfirmPayload] = useState<CardCreatePayload | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, form);
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
     setForm(initialState(card));
@@ -164,11 +169,12 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={isCreate ? "Yeni kart" : "Kartı düzenle"}
       dismissible={!mutation.isPending}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={mutation.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={mutation.isPending} style={styles.flex} />
           <AppButton
             title={isCreate ? "Kartı oluştur" : "Kaydet"}
             onPress={submit}

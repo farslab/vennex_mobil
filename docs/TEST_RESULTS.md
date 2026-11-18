@@ -9,14 +9,21 @@ Canlı sunucuya (`tms.vennex.com.tr`) hiçbir test isteği atılmadı.
 |---|---|---|
 | TypeScript (`tsc --noEmit`, strict) | **PASS**: 0 hata | `npm run typecheck` |
 | ESLint | **PASS**: 0 hata (başlangıç: 18 hata / 166 uyarı → 11 uyarı, tamamı eski/miras dosyalarda) | `npm run lint` |
-| Mobil unit + bileşen + ekran (Jest) | **PASS**: **517/517**, 51 dosya | `npx jest --forceExit` |
-| Backend (Django, yerel izole DB) | **PASS**: **107/107** (`vennex_mobile`, `dashboard_v2`, `nexus`, `api.test_ota_runtime`) | `../backend-local/run.sh test …` |
+| Mobil unit + bileşen + ekran (Jest) | **PASS**: **722/722**, 61 dosya | `npx jest --forceExit` |
+| Backend (Django, yerel izole DB) | **PASS**: **123/123** (`vennex_mobile` + geri bildirim/herkese açık sayfalar, `dashboard_v2`, `nexus`, `api.test_ota_runtime`) | `../backend-local/run.sh test …` |
 | E2E: gerçek backend kodu + iOS simülatör (Maestro + simülatör) | **PASS**: 4 akış (uzaktan satış WebSocket dahil) | aşağıda |
 | E2E: yerel mock sunucu akışları (`01`, `02`) | **NOT TESTED** (son hâli): ilk sürüm mock'a göre yazıldı; asıl doğrulama gerçek backend akışlarıyla yapıldı | |
 | Görsel tur (açık + koyu tema) | **PASS** (ana ekranlar), bkz. aşağıdaki not | `e2e/maestro/90_visual_tour.yaml` |
 | Canlı sunucu (salt okuma) | **BLOCKED**: canlı hesaba ait şifreyi yazmak güvenlik kuralı gereği yapılmadı; giriş kullanıcı tarafından yapılırsa salt okuma turu yürütülebilir | |
 | Android | **NOT TESTED**: yalnız iOS simülatörde çalıştırıldı | |
-| Release build performans ölçümü | **NOT TESTED** | |
+| Release build (iOS simülatör) | **PASS**: `tr.com.vennex` Release derlemesi; soğuk açılış ~1,77 sn; giriş, panel ve geri bildirim gönderimi (`15_release_check.yaml`) | PERFORMANCE_AUDIT |
+| Release build (gerçek cihaz) | **NOT TESTED** | |
+
+## Üçüncü tur ek testleri (2026-11-18)
+
+- Testsiz 23 ekran/sayfaya **196 test** (stok 58, cihaz 52, kart/kullanıcı/rapor 86) + kaydedilmemiş değişiklik (4), iç içe sayfa (1), KPI (1), geri bildirim (5), istemci hata dönüşümü (1).
+- Bu testlerin bulduğu ve düzeltilen gerçek hatalar: nakit toplama/ciro sayımı çift POST, özel sıralama çift POST, şablon formunda görünmeyen hata, SKU türü değişince kalan eski hatalar, silinen raporun yeniden istenmesi, istihkak toplu sayfasının açık bağlanınca boş başlaması, `message` alanı hata dönüşümü.
+- Kararsızlık: makine yükündeyken ilk testlerde 5 sn zaman aşımı → `testTimeout: 20000`.
 
 ## Mobil test dağılımı (Jest)
 
@@ -50,6 +57,7 @@ Ortam: `scc_lith` `feature/mobil-ortak-yetki-ota` dalı, Postgres 17 (`vennex_lo
 | Cihaz listesi → detay | **PASS** (görsel) | Sunucu tarafı sayaçlar, ciro, son iletişim; detay sekmeleri; dönem ciroları (bugün/dün/bu ay/geçen ay) |
 | Kartlar, Stok, Profil, Raporlar, Bildirimler | **PASS** (görsel) | Boş/dolu durumlar, sekmeler |
 | `12_remote_vend.yaml` + `backend-local/sim_vend.py` | **PASS** (Maestro + simülatörde elle tamamlandı) | Uvicorn/ASGI üzerinde gerçek `DashboardPosConsumer`: sayfa açılır → "Bağlı" → otomat simülatörü `vend_pending` (₺12,50, ürün 7) → onay → simülatör `remote_decision (approve)` alır → `vend_ended: success` → "Satış başarılı — ürün verildi." Teknisyen (yetkisiz) ve geçersiz token bağlantıları reddedilir |
+| `15_release_check.yaml` (Release) | **PASS** | 3 soğuk açılış, "Şifremi unuttum" yok + yönetici yönlendirmesi, giriş → panel (gerçek veri), Profil → Geri bildirim → gönder → geçmişte "Yeni"; kayıt DB'de doğru kullanıcı/şirket/platform/sürümle |
 | `13_regions.yaml` | **PASS** (Maestro + simülatörde elle tamamlandı) | Profil → Bölge ve konumlar → bölge oluştur → konum ekle (liste anında güncellenir) → silme onayı etkisini açıklar → sil; kayıt kalmaz. API: aynı ad 400, teknisyen 403, `regions` modülü `/app/config/`'ten |
 | Firebase'li iOS derlemesi | **PASS** | RN Firebase 27 + `useFrameworks: "dynamic"`, `com.vennex.mobile`, simülatörde açılır |
 

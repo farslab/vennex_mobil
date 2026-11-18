@@ -3,10 +3,12 @@ import { Platform } from "react-native";
 
 export type AppEnv = "development" | "staging" | "production";
 
-const extra = (Constants.expoConfig?.extra ?? {}) as { appEnv?: AppEnv; apiBaseUrl?: string };
+const extra = (Constants.expoConfig?.extra ?? {}) as { appEnv?: AppEnv; apiBaseUrl?: string; pushEnabled?: boolean };
 
 export const APP_ENV: AppEnv = extra.appEnv ?? "development";
 export const IS_PRODUCTION = APP_ENV === "production";
+/** Derlemede bu uygulamaya ait Firebase dosyaları var mı (app.config.ts → FIREBASE_FILES) */
+export const PUSH_ENABLED = extra.pushEnabled !== false;
 
 /**
  * Geliştirmede "localhost" mock sunucusu:

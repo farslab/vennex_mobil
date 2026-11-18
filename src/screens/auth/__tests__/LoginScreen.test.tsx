@@ -74,10 +74,12 @@ describe("LoginScreen", () => {
     expect(screen.getByText("Oturumunuz sona erdi, lütfen tekrar giriş yapın.")).toBeOnTheScreen();
   });
 
-  it("şifremi unuttum ekranına gider", async () => {
+  it("kendi kendine parola sıfırlama sunmaz; yöneticiye yönlendirir", async () => {
     await render(<LoginScreen />);
-    await fireEvent.press(screen.getByText("Şifremi unuttum"));
-    expect(mockNavigate).toHaveBeenCalledWith("ForgotPassword");
+    expect(screen.queryByText("Şifremi unuttum")).toBeNull();
+    expect(screen.getByTestId("login-forgot-hint")).toHaveTextContent(
+      "Şifrenizi unuttuysanız şirket yöneticinize veya Vennex desteğine başvurun."
+    );
   });
 
   it("şifre göster/gizle düğmesi çalışır", async () => {

@@ -10,6 +10,8 @@ import {
   AppSwitchRow,
   makeStyles,
   toast,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { stockApi } from "@/api/stock";
 import { errorMessage, type ApiError } from "@/api/client";
@@ -49,6 +51,9 @@ function LocationForm({ visible, onClose, location }: LocationFormSheetProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { name, type, active });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
 
   const mutation = useStockMutation((payload: StockLocationWritePayload) =>
@@ -100,13 +105,14 @@ function LocationForm({ visible, onClose, location }: LocationFormSheetProps) {
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={editing ? "Lokasyonu düzenle" : "Yeni lokasyon"}
       subtitle="Otomat lokasyonları senkronizasyonla oluşur"
       dismissible={!busy}
       testID="location-form"
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={busy} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={busy} style={styles.flex} />
           <AppButton
             title="Kaydet"
             onPress={save}

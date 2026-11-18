@@ -7,7 +7,6 @@ import type { LegalDocumentSlug } from "@/types/legal";
 export type AuthStackParamList = {
   Login: undefined;
   TwoFactor: undefined;
-  ForgotPassword: undefined;
 };
 
 export type TabParamList = {
@@ -41,6 +40,7 @@ export type RootStackParamList = {
   NotificationSettings: undefined;
   CompanyAccount: undefined;
   Regions: undefined;
+  Feedback: undefined;
 };
 
 export type RootScreenProps<T extends keyof RootStackParamList> = NativeStackScreenProps<RootStackParamList, T>;

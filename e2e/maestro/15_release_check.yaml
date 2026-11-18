@@ -1,0 +1,48 @@
+# Release derlemesi kontrolü + kaba açılış ölçümü (simülatör; gerçek cihaz sayısı değildir)
+# Önkoşul: ../backend-local/run.sh server · APP_ENV=development, --configuration Release
+appId: tr.com.vennex
+---
+# Soğuk açılış ×3 (uygulama durdurulup açılır; giriş ekranı görünene kadar)
+- repeat:
+    times: 3
+    commands:
+      - launchApp:
+          stopApp: true
+      - extendedWaitUntil:
+          visible: "Hesabınıza giriş yapın"
+          timeout: 20000
+# Kendi kendine parola sıfırlama yok; yöneticiye yönlendirme var
+- assertNotVisible: "Şifremi unuttum"
+- assertVisible:
+    id: "login-forgot-hint"
+- tapOn:
+    id: "login-username"
+- inputText: "demo"
+- tapOn:
+    id: "login-password"
+- inputText: "demo1234"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible: "Ciro trendi"
+    timeout: 20000
+- takeScreenshot: release_panel
+# Geri bildirim: gönder → geçmişte "Yeni" durumuyla görünür
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element:
+      id: "row-feedback"
+- tapOn:
+    id: "row-feedback"
+- tapOn: "Hata"
+- tapOn:
+    id: "feedback-message"
+- inputText: "Release kontrolu: rapor ekraninda test geri bildirimi"
+- hideKeyboard
+- tapOn:
+    id: "feedback-submit"
+- extendedWaitUntil:
+    visible: ".*Release kontrolu.*"
+    timeout: 10000
+- assertVisible: "Yeni"
+- takeScreenshot: release_feedback

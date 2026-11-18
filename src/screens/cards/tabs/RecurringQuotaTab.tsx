@@ -17,6 +17,8 @@ import {
   makeStyles,
   toast,
   useTheme,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { cardsApi } from "@/api/cards";
 import { errorMessage } from "@/api/client";
@@ -151,6 +153,9 @@ export function RecurringQuotaFormSheet({
   const [f, setF] = useState<FormState>(() => initial(rule));
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [deleting, setDeleting] = useState(false);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, f);
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
     setF(initial(rule));
@@ -245,6 +250,7 @@ export function RecurringQuotaFormSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={rule ? "Yenileme kuralını düzenle" : "Yeni istihkak yenileme kuralı"}
       dismissible={!save.isPending}
       footer={
@@ -262,7 +268,7 @@ export function RecurringQuotaFormSheet({
               testID="rq-delete"
             />
           ) : (
-            <AppButton title="Vazgeç" variant="outline" onPress={onClose} style={styles.flex} />
+            <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} style={styles.flex} />
           )}
           <AppButton title="Kaydet" onPress={submit} loading={save.isPending} style={styles.flex} testID="rq-submit" />
         </>

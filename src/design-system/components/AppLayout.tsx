@@ -223,7 +223,8 @@ export function AppKpi({ label, value, caption, delta, icon, onPress, testID }: 
           </AppText>
         ) : null}
         {caption ? (
-          <AppText variant="caption" color="textTertiary" numberOfLines={1} style={styles.flex}>
+          // Dar kartta kesilmez: değişim rozetinin yanına sığmazsa alt satıra geçer (en fazla 2 satır)
+          <AppText variant="caption" color="textTertiary" numberOfLines={2} style={styles.kpiCaption} testID={testID ? `${testID}-caption` : undefined}>
             {caption}
           </AppText>
         ) : null}
@@ -310,6 +311,7 @@ const useStyles = makeStyles((t) =>
       gap: t.spacing.xs,
     },
     kpiHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
-    kpiFooter: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 16 },
+    kpiFooter: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 6, rowGap: 2, minHeight: 16 },
+    kpiCaption: { flexShrink: 1, maxWidth: "100%" },
   })
 );

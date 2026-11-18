@@ -16,6 +16,8 @@ import {
   makeStyles,
   toast,
   useTheme,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { cardsApi } from "@/api/cards";
 import { errorMessage } from "@/api/client";
@@ -203,6 +205,9 @@ function GroupFormSheet({ state, onClose }: { state: { group: CardGroupDetail | 
   const [name, setName] = useState("");
   const [deviceIds, setDeviceIds] = useState<number[]>([]);
   const [nameError, setNameError] = useState<string | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { name, deviceIds });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
     setName(group?.name ?? "");
@@ -263,11 +268,12 @@ function GroupFormSheet({ state, onClose }: { state: { group: CardGroupDetail | 
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={group ? "Grubu düzenle" : "Yeni kart grubu"}
       dismissible={!save.isPending}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={save.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={save.isPending} style={styles.flex} />
           <AppButton title="Kaydet" onPress={submit} loading={save.isPending} style={styles.flex} testID="group-form-submit" />
         </>
       }

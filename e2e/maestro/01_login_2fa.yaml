@@ -1,7 +1,7 @@
 # E2E: giriş, hatalı şifre, 2FA, yasal onay kapısı
 # Önkoşul: `npm run mock` (yerel mock backend) + development build (APP_ENV=development)
 # ÇALIŞTIRMA: maestro test e2e/maestro/01_login_2fa.yaml
-appId: com.vennex.mobile
+appId: tr.com.vennex
 ---
 - launchApp:
     clearState: true

@@ -23,6 +23,8 @@ import {
   makeStyles,
   toast,
   useTheme,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { errorMessage, type ApiError } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
@@ -230,6 +232,9 @@ function RegionFormSheet({ form, onClose, onSaved }: { form: RegionForm | null; 
   const [description, setDescription] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const [lastForm, setLastForm] = useState<RegionForm | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(!!form, { name, description });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   const save = useMutation({
     mutationFn: () =>
@@ -262,11 +267,12 @@ function RegionFormSheet({ form, onClose, onSaved }: { form: RegionForm | null; 
     <AppSheet
       visible={!!form}
       onClose={onClose}
+      dirty={dirty}
       dismissible={!save.isPending}
       title={editing ? "Bölgeyi düzenle" : "Yeni bölge"}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={save.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={save.isPending} style={styles.flex} />
           <AppButton title="Kaydet" onPress={submit} loading={save.isPending} style={styles.flex} testID="region-save" />
         </>
       }
@@ -305,6 +311,9 @@ function LocationFormSheet({
   const [active, setActive] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lastForm, setLastForm] = useState<LocationForm | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(!!form, { regionId, name, address, lat, lng, active });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   const coord = (v: string, min: number, max: number): { value: string | null; error?: string } => {
     if (!v.trim()) return { value: null };
@@ -353,6 +362,7 @@ function LocationFormSheet({
     <AppSheet
       visible={!!form}
       onClose={onClose}
+      dirty={dirty}
       dismissible={!save.isPending}
       title={editing ? "Konumu düzenle" : "Yeni konum"}
       footer={
@@ -360,7 +370,7 @@ function LocationFormSheet({
           {editing ? (
             <AppIconButton icon="trash-2" tone="danger" label="Konumu sil" onPress={() => onDelete(editing)} />
           ) : null}
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={save.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={save.isPending} style={styles.flex} />
           <AppButton title="Kaydet" onPress={submit} loading={save.isPending} style={styles.flex} testID="location-save" />
         </>
       }

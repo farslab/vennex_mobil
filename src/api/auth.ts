@@ -43,11 +43,7 @@ export const authApi = {
       .post<DetailResponse>("/auth/change-password/", { current_password, new_password })
       .then((r) => r.data),
 
-  passwordReset: (email: string) =>
-    apiClient.post<DetailResponse>("/auth/password-reset/", { email }, { skipAuth: true }),
 
-  passwordResetConfirm: (uid: string, token: string, new_password: string) =>
-    apiClient.post<DetailResponse>("/auth/password-reset/confirm/", { uid, token, new_password }, { skipAuth: true }),
 
   /** 200 {detail}; parola hatalıysa 400 {password:["Parola hatalı."]} */
   deactivate: (password: string) =>

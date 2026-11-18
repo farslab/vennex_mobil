@@ -56,7 +56,7 @@ npx expo start
 - `npm run ios` veya `npm run android`, ilgili simülatörde ya da emülatörde açar.
 - Backend adresi `app.json` içinde `expo.extra.apiBaseUrl` alanında tanımlı. Varsayılanı `https://tms.vennex.com.tr`.
 - Bütün istekler `https://tms.vennex.com.tr/api/v1/vennexmobile/...` altına gider (`API_PREFIX`).
-- Bundle id / paket adı: `com.vennex.mobileapp`.
+- Bundle id / paket adı: `tr.com.vennex` (2026-11-18; Flutter uygulaması `com.vennex.mobile` kullanır).
 - Import alias'ı: `@/` → `src/` (`babel-plugin-module-resolver` ve `tsconfig.paths`).
 
 **Tip kontrolü** (`npx tsc --noEmit`) şu an **1 hata** veriyor: `src/api/reports.ts` içinde `FileSystem.documentDirectory` yok. Ayrıntısı §9'da.

@@ -16,6 +16,8 @@ import {
   makeStyles,
   toast,
   useTheme,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { cardsApi } from "@/api/cards";
 import { errorMessage } from "@/api/client";
@@ -166,6 +168,9 @@ export function RecurringBalanceFormSheet({
   const [errors, setErrors] = useState<Errors>({});
   const [pending, setPending] = useState<{ payload: Partial<RecurringBalancePayload>; full: RecurringBalancePayload } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, f);
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
     setF(initial(rule));
@@ -266,6 +271,7 @@ export function RecurringBalanceFormSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={rule ? "Bakiye kuralını düzenle" : "Yeni bakiye yükleme kuralı"}
       dismissible={!save.isPending}
       footer={
@@ -283,7 +289,7 @@ export function RecurringBalanceFormSheet({
               testID="rb-delete"
             />
           ) : (
-            <AppButton title="Vazgeç" variant="outline" onPress={onClose} style={styles.flex} />
+            <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} style={styles.flex} />
           )}
           <AppButton title="Devam" onPress={submit} style={styles.flex} testID="rb-submit" />
         </>

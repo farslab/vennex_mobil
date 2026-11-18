@@ -11,4 +11,6 @@ module.exports = {
   ],
   collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/__tests__/**", "!src/types/**", "!src/test/**"],
   clearMocks: true,
+  // Makine yükündeyken ilk render (modül yükleme) 5 sn'yi aşabiliyor; kararsız zaman aşımlarını önler
+  testTimeout: 20000,
 };

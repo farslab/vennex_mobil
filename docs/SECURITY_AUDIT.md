@@ -28,6 +28,11 @@
 | S19 | Periyodik bakiye kuralı oluşturmada `change_card_balance` kontrolü yok (`views/personnel_cards.py:593-695`); toplu bakiyede satır kilidi yok (`:325`) | Backend | Orta | Backend'e öneri (istemci gizliyor) |
 | S20 | Şablon gönderimi şirket kapsamında değil (`views/product_templates.py:288`); şablon oluşturmada yazma yetkisi yok (`:54`) | Backend | Orta | Backend'e öneri |
 | S21 | Rapor `filter-options` `X-Company-Id`'yi yok sayıyor, admin tüm şirketleri görüyor (`views/reporting.py:239-245`); bazı uçlarda ham istisna metni dönüyor (`views/payments.py:~101`) | Backend | Düşük | Backend'e öneri |
+| S22 | E-posta gönderimi `core/settings.py:641`'de sabit `console.EmailBackend`: `auth/password-reset/` geçerli sıfırlama linklerini **sunucu loguna** yazıyor (e-posta hiç gitmiyor); link adresi de backend'de tanımlı değildi | Backend | Orta | Mobil sıfırlama akışı **kaldırıldı** (karar: web gibi kendi kendine sıfırlama yok). Öneri: `auth/password-reset/` ve `/confirm/` uçları kapatılmalı |
+| S23 | Nakit toplama / ciro sayımı onayına hızlı ikinci dokunuş **ikinci POST** atıyordu (`CashTab`); özel sıralama kaydı/sıfırlamada da aynısı | Mobil | Orta | **Düzeltildi** — `useSingleFlight` (senkron ref kilidi) + test |
+| S24 | Hata dönüştürücü `message` adlı ALANIN DRF hatasını (dizi) genel mesaj sayıp atıyordu → kullanıcı "Request failed with status code 400" görüyordu | Mobil | Düşük | **Düzeltildi** + test |
+| S25 | Projede Flutter uygulamasına (`com.vennex.mobile`) ait Firebase istemci dosyaları vardı; yeni kimlikle (`tr.com.vennex`) eşleşmiyordu | Mobil | Orta | **Düzeltildi** — dosyalar kaldırıldı; `app.config.ts` kimlik eşleşmesi olmayan dosyayı reddeder, production Firebase'siz derlenmez |
+| S26 | Herkese açık yeni sayfalar (gizlilik, hesap silme talebi) | Backend | — | Tasarım: hesap varlığı açığa çıkmaz, CSRF zorunlu, IP başına saatte 5 talep, markdown ham HTML kapalı + `javascript:` linkleri reddedilir, `X-Frame-Options: DENY`; talepler kimlik doğrulanmadan hesaba bağlanmaz (Nexus'ta doğrulama notu) |
 
 \* Bu paketler yalnız geliştirme/derleme zamanında çalışır; uygulama paketine girmez.
 
@@ -86,7 +91,10 @@
 
 **S12 — Test push ucu.** `views/app.py:36` production'da `DEBUG` veya admin ile sınırlanmalı.
 
-## Bağımlılıklar (`npm audit --omit=dev`, axios güncellemesi sonrası)
+## Bağımlılıklar (`npm audit --omit=dev`, 2026-11-18 güncel)
 
-- Toplam 49 (5 orta, 43 yüksek, 1 kritik) — tamamı Expo/React Native/Jest derleme zinciri içindeki geçişli bağımlılıklar (metro, glob, micromatch, shell-quote, @xmldom, decode-uri-component). `npm audit fix --force` Expo'yu 52'ye **düşürmeyi** önerdiğinden uygulanmadı. Expo SDK yama sürümleri çıktıkça `npx expo install --fix` ile güncellenmeli.
-- Çalışma zamanında uygulamaya giren doğrudan bağımlılıklarda bilinen açık yok (axios 1.21.1).
+- **12** bulgu (4 orta, 8 yüksek, **0 kritik**); önceki tarama 49'du. Güvenli yamalar uygulandı (`shell-quote`, `@xmldom/xmldom`).
+- **Firebase zinciri** (`@grpc/grpc-js`, `@firebase/firestore`, `firebase`): RN Firebase'in web uyumluluk paketi üzerinden geliyor. Üretilmiş iOS production paketinde (`expo export`) `grpc-js` / Firestore **0 kez** geçiyor → çalışma zamanına girmiyor. Önerilen düzeltme RNFB'yi 20'ye düşürmek olduğundan uygulanmadı.
+- **`markdown-it` / `linkify-it`** (yasal metin gösterimi, `react-native-markdown-display`): yalnız admin'in yazdığı güvenilir içerik işleniyor; kullanıcı girdisi yok → düşük risk. Paket güncellenince yükseltilmeli.
+- **`expo` / `@expo/fingerprint` / `minimatch`**: yalnız derleme aracı; `npm audit fix --force` Expo'yu 52'ye düşürmeyi önerdiği için uygulanmadı.
+- Production paketinde canlı dışı adres yok: `tms.vennex.com.tr` gömülü yapılandırmadan gelir; `localhost` yalnız geliştirme yedeği ve production'da `http` adresi uygulamayı durdurur.

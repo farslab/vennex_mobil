@@ -470,3 +470,14 @@ Yetki listesine `send_device_commands` eklendi (mevcut kural: cihaza erişimi ol
 | `POST /locations/` · `PATCH/DELETE /locations/{id}/` | `IsOwner` | `{region, name (≤100), address, latitude, longitude (decimal 9,6 string\|null), is_active}` → 201/200 konum (`pos_device_count` yok) · 204 | Alan hataları DRF biçiminde (`{name: [...], latitude: [...]}`) |
 | `POST /device/register/` · `POST /device/unregister/` | Oturum | `{fcm_token, platform, device_id}` · `{fcm_token}` | FCM kaydı; çıkışta silinir |
 | `WS /ws/dashboard/pos/{SN}/?token=` | JWT + `remote_vend` + cihaza erişim | ← `vend_pending {tx_id, amount (kuruş), item}` · → `remote_decision {tx_id, decision: "approve"}` · ← `remote_decision_ack`, `vend_ended {result}`, `error` | Yetkisiz bağlantı el sıkışmada reddedilir (istemci 1006 görür) |
+
+## 9. Geri bildirim ve herkese açık sayfalar (backend dalı `feature/mobil-geri-bildirim`, canlıda DEĞİL)
+
+| Uç | Auth | İstek → Yanıt | Not |
+|---|---|---|---|
+| `GET /feedback/` | Oturum | → `{results: [{id, category, category_display, message, status, status_display, created_at}]}` | Yalnız kullanıcının kendi son 50 kaydı |
+| `POST /feedback/` | Oturum, saatte 10 | `{category: suggestion\|bug\|question\|other, message (10–2000), platform?, app_version?}` → 201 | Kullanıcı + seçili şirket otomatik eklenir; 400 `{message: [...]}` alan hatası |
+| `GET /vennexmobile/yasal/<slug>/` | Yok (web sayfası) | HTML | `LegalDocument`'tan (tek kaynak). `GET legal/<slug>/` `web_url` boşsa bu adresi döndürür |
+| `GET/POST /vennexmobile/hesap-silme/` | Yok (web formu, CSRF) | 302 → `/hesap-silme/alindi/` | Google Play web silme talebi; IP başına saatte 5; hesap varlığı açığa çıkmaz |
+
+Kullanılmayan: `auth/password-reset/`, `auth/password-reset/confirm/` (karar: kendi kendine parola sıfırlama yok; e-posta altyapısı da `console` — bkz. SECURITY S22).

@@ -13,6 +13,20 @@
 - Mağaza hazırlığı: iOS gizlilik manifesti, şifreleme beyanı, minimum Android izinleri, uygulama içi hesap silme.
 - Yerel mock sunucu (`mock-server/`) ve gerçek backend kodunun izole yerel kurulumu (`../backend-local`).
 
+### Üçüncü tur (2026-11-18) — eksik tamamlama, mağaza uygunluğu
+- **Paket adı `tr.com.vennex`** (iOS + Android): Flutter uygulamasının `com.vennex.mobile` kimliğiyle çakışmaz. Flutter'a ait Firebase dosyaları kaldırıldı; `app.config.ts` kimliği eşleşmeyen Firebase dosyasını reddeder, production derlemesi Firebase'siz başlamaz, dosyalar yokken push kodu hiç çalışmaz.
+- **Geri bildirim ve destek** (Profil): öneri/hata/soru gönderme, önceki bildirimlerin durumu. Ekip tarafı Nexus → Mobil Geri Bildirim (backend dalı).
+- **Mağaza uygunluğu**: herkese açık gizlilik ve hesap silme talebi sayfaları (backend dalı), [`STORE_COMPLIANCE.md`](STORE_COMPLIANCE.md).
+- **Kendi kendine parola sıfırlama kaldırıldı** (web paneliyle aynı karar): giriş ekranında yöneticiye yönlendirme metni.
+- **Kaydedilmemiş değişiklik uyarısı**: 16 form sayfası (X/arka plan/geri/Vazgeç) ve 3 tam ekran (profil düzenleme, teknisyen formu, cihaz ayarları) çıkmadan önce onay ister.
+- **Çift istek koruması**: nakit toplama/ciro sayımı ve özel sıralama kaydı/sıfırlaması (`useSingleFlight`).
+- **Derin bağlantılar** her zaman etkin tek yapılandırma (önceden giriş/çıkıştan sonra devreye girmiyordu).
+- KPI alt yazıları dar kartta kesilmez; iç içe sayfalarda arka plan iki kat kararmaz.
+- Hata dönüştürücü: `message` adlı alanın doğrulama hatası artık alan hatası olarak gösterilir.
+- Rapor silindikten sonra silinen rapor yeniden istenmez; SKU formunda tür değişince eski hatalar temizlenir; şablon formunda formda karşılığı olmayan hata artık görünür.
+- Ölü kod: eski `src/theme` ve `src/components/Common.tsx` (any içeren geçiş köprüsü) silindi.
+- Testler: 23 testsiz ekran/sayfaya 196 test (+ yeni özellik testleri); test zaman aşımı 20 sn.
+
 ### Yeni özellikler (2026-11-18, ikinci tur)
 - **Push bildirimleri** (RN Firebase 27, `com.vennex.mobile`): izin (Android 13+ dahil), FCM token kaydı ve yenilenmesi, çıkışta kaydın silinmesi, ön planda bildirim, bildirime dokununca ilgili ekran.
 - **Uzaktan satış**: cihaz detayında canlı WebSocket kanalı (web ile aynı protokol), müşteri seçimi → onay → sonuç; yetkisiz/ağ hatası ayrımı, otomatik yeniden bağlanma.

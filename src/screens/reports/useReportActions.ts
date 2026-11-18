@@ -78,11 +78,15 @@ export function useReportActions(opts: { onRetried?: (job: ReportJob) => void; o
     onSuccess: (_, id) => {
       toast.success("Rapor silindi.");
       setConfirm(null);
+      // Silinen raporun detayı yeniden istenmesin (404 + gereksiz istek); yalnız liste tazelenir
       queryClient.removeQueries({ queryKey: queryKeys.reports.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.list() });
       onDeleted?.(id);
     },
-    onError: (e) => toast.error(errorMessage(e, "Rapor silinemedi.")),
-    onSettled: invalidate,
+    onError: (e) => {
+      toast.error(errorMessage(e, "Rapor silinemedi."));
+      invalidate();
+    },
   });
 
   return {

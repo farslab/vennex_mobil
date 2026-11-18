@@ -10,6 +10,8 @@ import {
   AppText,
   makeStyles,
   type ConfirmSummaryItem,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { cardsApi } from "@/api/cards";
 import { formatCurrency } from "@/utils/number";
@@ -48,6 +50,9 @@ export function BalanceOperationSheet({ visible, cards, onClose, onDone }: Balan
   const [amountText, setAmountText] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
   const [confirmAmount, setConfirmAmount] = useState<number | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { operation, amountText });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
     setOperation("add");
@@ -114,12 +119,13 @@ export function BalanceOperationSheet({ visible, cards, onClose, onDone }: Balan
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={single ? "Bakiye işlemi" : "Toplu bakiye işlemi"}
       subtitle={single ? cardDisplayName(single) : `${count} kart seçili`}
       dismissible={!mutation.isPending}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} style={styles.flex} />
           <AppButton title="Devam" onPress={submit} style={styles.flex} testID="balance-continue" disabled={count === 0} />
         </>
       }

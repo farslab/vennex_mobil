@@ -32,6 +32,7 @@ import { toast } from "@/design-system";
 import { navigateWhenReady } from "@/navigation/navigationRef";
 import { resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
 import type { AuthUser } from "@/types/auth";
+import { PUSH_ENABLED } from "@/config/env";
 
 const DEVICE_ID_KEY = "vennex.push.deviceId";
 const REGISTERED_TOKEN_KEY = "vennex.push.registeredToken";
@@ -46,7 +47,7 @@ let unsubscribers: (() => void)[] = [];
 let currentUser: (() => AuthUser | null) | null = null;
 
 function isSupported() {
-  return Platform.OS === "ios" || Platform.OS === "android";
+  return PUSH_ENABLED && (Platform.OS === "ios" || Platform.OS === "android");
 }
 
 /** Kuruluma özgü, kişisel veri içermeyen cihaz kimliği */

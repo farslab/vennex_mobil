@@ -28,7 +28,19 @@
 - Sistem fontu (font yükleme gecikmesi yok). İkonlar tek set (Feather).
 - OTA kontrolü açılışı bekletmiyor (`fallbackToCacheTimeout: 0`).
 
-## Ölçülmesi gerekenler (NOT TESTED)
+## Release ölçümü — iOS simülatör (2026-11-18)
+
+iOS 18.5 simülatör (iPhone 16 Pro), **Release** yapılandırması (Hermes, gömülü JS paketi, Metro yok), yerel backend. Ölçüm: Maestro günlüğündeki zaman damgaları — uygulama süreci başlatıldıktan sonra ilk ekranın erişilebilirlik ağacında görünmesine kadar (Maestro yoklama aralığı dahil, yani üst sınır).
+
+| Metrik | Ölçüm | Hedef | Durum |
+|---|---|---|---|
+| Soğuk açılış → giriş ekranı | 1,85 / 1,72 / 1,73 sn (ort. ~1,77 sn) | ~2 sn | **PASS (simülatör)** |
+| Production JS paketi (iOS, bytecode'suz) | 2,9 MB | — | ölçüldü |
+| Giriş → panel (gerçek hesaplama, 7.771 işlem) | yükleme göstergesi kısa; panel tam veriyle açıldı | — | gözlem |
+
+Simülatör, Mac CPU'sunda çalıştığı için **gerçek cihazdan hızlı** sonuç verir. Orta seviye Android ve eski iPhone'da ölçüm hâlâ gerekli (aşağıda).
+
+## Ölçülmesi gerekenler (gerçek cihaz — NOT TESTED)
 
 | Metrik | Hedef | Nasıl |
 |---|---|---|
@@ -37,7 +49,7 @@
 | Liste kaydırma | 60 FPS | Perf Monitor, 500+ cihazlı hesap |
 | JS thread | uzun blok yok | Hermes profiler |
 
-Debug build ölçümleri production performansı yerine kullanılmamalıdır. Gözlem: iOS simülatörde (debug) ilk detay ekranı açılışı yaklaşık 1 sn (geç yükleme); sonraki geçişler anlık. Release build'de tekrar ölçülmeli.
+Debug build ölçümleri production performansı yerine kullanılmamalıdır.
 
 ## Backend için önerilen yük azaltmaları
 

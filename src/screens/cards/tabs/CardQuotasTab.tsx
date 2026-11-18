@@ -18,6 +18,8 @@ import {
   makeStyles,
   toast,
   useTheme,
+  useFormDirty,
+  useGuardedClose,
 } from "@/design-system";
 import { cardsApi } from "@/api/cards";
 import { errorMessage } from "@/api/client";
@@ -145,6 +147,8 @@ function QuotaEditSheet({ quota, onClose }: { quota: CardQuota | null; onClose: 
   const [active, setActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(quota != null, { quantity, active });
 
   useOnValueChange(quota, (q) => {
     if (!q) return;
@@ -192,6 +196,7 @@ function QuotaEditSheet({ quota, onClose }: { quota: CardQuota | null; onClose: 
     <AppSheet
       visible={quota != null}
       onClose={onClose}
+      dirty={dirty}
       title="İstihkakı düzenle"
       subtitle={quota ? `${quota.card_uid ?? `Kart #${quota.card}`} · ${quota.group_name ?? ""}` : undefined}
       dismissible={!save.isPending}
@@ -265,6 +270,9 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [batch, setBatch] = useState<{ cards: PersonnelCard[]; base: Omit<CardQuotaCreatePayload, "card"> } | null>(null);
   const [loadingCards, setLoadingCards] = useState(false);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { group: group?.id ?? null, mode, card: card?.id ?? null, productNo, period, quantity, active });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
     setGroup(null);
@@ -327,11 +335,12 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title="Yeni istihkak"
       dismissible={!save.isPending && !loadingCards}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} style={styles.flex} />
           <AppButton
             title={mode === "group_all" ? "Devam" : "Oluştur"}
             onPress={submit}

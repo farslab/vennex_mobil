@@ -16,8 +16,10 @@ function makeClient() {
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 
 const mockGoBack = jest.fn();
+const mockPreventRemove = jest.fn();
 jest.mock("@react-navigation/native", () => ({
   ...jest.requireActual("@react-navigation/native"),
+  usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
   useNavigation: () => ({ navigate: jest.fn(), goBack: mockGoBack, setOptions: jest.fn() }),
 }));
 
@@ -39,8 +41,12 @@ describe("EditProfileScreen", () => {
     await renderWithProviders(<EditProfileScreen />, { queryClient: makeClient() });
 
     expect(screen.getByTestId("profile-save")).toBeDisabled();
+    // Değişiklik yokken geri çıkış serbest
+    expect(mockPreventRemove).toHaveBeenLastCalledWith(false, expect.any(Function));
     await fireEvent.changeText(screen.getByTestId("input-first-name"), "Yeni");
     await fireEvent.changeText(screen.getByTestId("input-phone"), "0532 123 45 67");
+    // Kaydedilmemiş değişiklik varken çıkış onaya bağlanır
+    expect(mockPreventRemove).toHaveBeenLastCalledWith(true, expect.any(Function));
     await fireEvent.press(screen.getByTestId("profile-save"));
 
     await waitFor(() => expect(mockGoBack).toHaveBeenCalled());

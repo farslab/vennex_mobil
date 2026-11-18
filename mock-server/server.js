@@ -60,7 +60,7 @@ function readBody(req) {
   });
 }
 
-const PUBLIC = new Set(["/auth/login/", "/auth/2fa/verify/", "/auth/refresh/", "/auth/password-reset/", "/auth/password-reset/confirm/", "/app/min-version/", "/app/ping/"]);
+const PUBLIC = new Set(["/auth/login/", "/auth/2fa/verify/", "/auth/refresh/", "/app/min-version/", "/app/ping/"]);
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204);

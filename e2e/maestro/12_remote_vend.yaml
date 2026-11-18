@@ -3,7 +3,7 @@
 #   ../backend-local/run.sh server     (uvicorn/ASGI — WS dahil)
 #   Akış başlarken: SIM_SN=DEMO0001 ../backend-local/run.sh manage shell -c "exec(open('../backend-local/sim_vend.py').read())"
 #   (simülatör ~20 sn sonra müşteri seçimi gönderir, onayı bekler, vend_ended yollar)
-appId: com.vennex.mobile
+appId: tr.com.vennex
 ---
 - launchApp
 - runFlow:

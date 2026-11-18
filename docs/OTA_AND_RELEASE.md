@@ -66,7 +66,7 @@ Sunucuya ulaşılamazsa uygulama **engellenmez** (çevrimdışı kullanım). Uç
 
 | Madde | Durum |
 |---|---|
-| Bundle id / paket: `com.vennex.mobile` | ✔ |
+| Bundle id / paket: `tr.com.vennex` (Flutter `com.vennex.mobile` ile çakışmaz) | ✔ |
 | Uygulama adı: production `Vennex` | ✔ |
 | İkon (1024², alfa yok), Android adaptive ikon, açık/koyu splash | ✔ |
 | iOS gizlilik manifesti (izleme yok; UserDefaults CA92.1, FileTimestamp C617.1) | ✔ `app.config.ts` |
@@ -78,4 +78,4 @@ Sunucuya ulaşılamazsa uygulama **engellenmez** (çevrimdışı kullanım). Uç
 | Test hesabı (App Review) | Mağaza incelemesi için canlıda ayrı bir demo şirketi ve hesabı oluşturulmalı (gerçek müşteri verisi olmadan) |
 | `eas.json` submit: `ascAppId`, `appleTeamId`, Play servis hesabı | **Doldurulacak** (hesap bilgileri) |
 | Staging API adresi | **Doldurulacak** (ayrı test sunucusu varsa) |
-| Push bildirimleri (FCM/APNs) | **Yapılmadı**: `google-services.json`, APNs anahtarı ve `expo-notifications` gerekir; backend uçları hazır |
+| Push bildirimleri (FCM/APNs) | İstemci hazır (RN Firebase 27). Firebase'de `tr.com.vennex` uygulamaları eklenip dosyalar `firebase/` altına konmalı (bkz. `firebase/README.md`); production derlemesi dosyasız başlamaz |

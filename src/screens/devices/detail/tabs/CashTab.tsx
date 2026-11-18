@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import {
   AppButton,
   AppCard,
@@ -79,6 +80,8 @@ export function CashTab({
   });
 
   const active = pending === "collect" ? collect : count;
+  // Çift dokunuşta ikinci POST gitmesin (nakit/ciro kaydı kalıcıdır)
+  const confirmActive = useSingleFlight(active.mutateAsync);
   const deviceName = detail.pos_name || sn;
   const summary = [
     { label: "Cihaz", value: deviceName },
@@ -222,7 +225,7 @@ export function CashTab({
         irreversible
         loading={active.isPending}
         error={active.error ? errorMessage(active.error) : null}
-        onConfirm={() => active.mutate()}
+        onConfirm={confirmActive}
         onCancel={() => setPending(null)}
       />
     </ScrollView>

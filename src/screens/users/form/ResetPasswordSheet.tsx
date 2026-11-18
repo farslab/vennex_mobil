@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet } from "react-native";
 import { useMutation } from "@tanstack/react-query";
-import { AppButton, AppInput, AppNotice, AppSheet, AppText, makeStyles, toast } from "@/design-system";
+import { AppButton, AppInput, AppNotice, AppSheet, AppText, makeStyles, toast, useFormDirty, useGuardedClose } from "@/design-system";
 import { usersApi } from "@/api/users";
 import { PASSWORD_MIN_LENGTH, validatePassword } from "@/utils/validation";
 import { splitApiError } from "@/components/account/formErrors";
@@ -23,6 +23,9 @@ export function ResetPasswordSheet({
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({});
   const [general, setGeneral] = useState<string | null>(null);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { password, confirm });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   // Her açılışta temiz form (render sırasında durum ayarlama — effect gerektirmez)
   const [wasVisible, setWasVisible] = useState(visible);
@@ -64,12 +67,13 @@ export function ResetPasswordSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title="Şifreyi sıfırla"
       subtitle={`@${username}`}
       dismissible={!mutation.isPending}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={mutation.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={mutation.isPending} style={styles.flex} />
           <AppButton
             title="Şifreyi sıfırla"
             onPress={submit}

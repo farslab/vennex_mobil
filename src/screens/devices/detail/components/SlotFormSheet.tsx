@@ -20,6 +20,7 @@ import {
   AppText,
   makeStyles,
   toast,
+  useFormDirty,
 } from "@/design-system";
 import { devicesApi } from "@/api/devices";
 import { errorMessage, type ApiError } from "@/api/client";
@@ -127,6 +128,8 @@ export function SlotFormSheet({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [skuOpen, setSkuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, form);
 
   useOnOpen(visible, () => {
       setForm(initialState(item));
@@ -170,6 +173,7 @@ export function SlotFormSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={title}
       subtitle={item ? productDisplayName(item) : undefined}
       dismissible={!save.isPending && !remove.isPending}

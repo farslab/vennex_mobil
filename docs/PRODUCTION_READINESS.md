@@ -16,8 +16,8 @@
 
 | Alan | Değer |
 |---|---|
-| iOS bundle id | `com.vennex.mobile` |
-| Android paket | `com.vennex.mobile` |
+| iOS bundle id | `tr.com.vennex` |
+| Android paket | `tr.com.vennex` (Flutter uygulaması `com.vennex.mobile` ile çakışmaz) |
 | URL şeması | `vennex://` (yalnız oturum açıkken) |
 | iOS | ATS açık (`NSAllowsArbitraryLoads=false`), `usesNonExemptEncryption=false` |
 | Android izinleri | `INTERNET`, `POST_NOTIFICATIONS`; depolama/overlay izinleri engelli |
@@ -42,7 +42,8 @@
 | iOS simülatör debug build | ✔ iPhone 16 Pro / iOS 18.5; gerçek backend koduna karşı E2E |
 | Release build ölçümleri (açılış, geçiş) | **Yapılmadı** — gerçek cihazda `eas build --profile production` sonrası ölçülmeli |
 | App Store / Play gereksinimi: uygulama içi hesap silme | Profil → Güvenlik (backend `POST /auth/delete/`) |
-| Push bildirimleri (FCM/APNs) | ✔ İstemci (RN Firebase 27): izin, token kaydı/yenileme, çıkışta kayıt silme, bildirimden ekrana yönlendirme. **Mağaza öncesi:** Firebase konsoluna APNs anahtarı (.p8) yüklenmeli ve gerçek cihazda teslim denenmeli |
+| Push bildirimleri (FCM/APNs) | ✔ İstemci (RN Firebase 27). **Mağaza öncesi:** Firebase'e `tr.com.vennex` uygulamaları eklenmeli, dosyalar `firebase/` altına konmalı, APNs anahtarı yüklenmeli; gerçek cihazda teslim denenmeli |
+| Mağaza gereksinimleri (Apple/Google) | Bkz. [`STORE_COMPLIANCE.md`](STORE_COMPLIANCE.md) |
 | Uzaktan satış (WebSocket) | ✔ Web ile aynı protokol ve yetki (`remote_vend`); gerçek backend + otomat simülatörüyle E2E PASS |
 | Bölge ve konum yönetimi | ✔ Owner; görünürlük sunucudaki `regions` modülünden |
 | Zorunlu güncelleme (admin politikası) | ✔ İstemci + backend dalı; E2E `11_force_update.yaml` PASS |

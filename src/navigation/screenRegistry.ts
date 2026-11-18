@@ -26,6 +26,7 @@ import SecurityScreen from "@/screens/account/SecurityScreen";
 import NotificationSettingsScreen from "@/screens/account/NotificationSettingsScreen";
 import CompanyAccountScreen from "@/screens/account/CompanyAccountScreen";
 import RegionsScreen from "@/screens/account/RegionsScreen";
+import FeedbackScreen from "@/screens/account/FeedbackScreen";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyScreen = React.ComponentType<any>;
@@ -66,6 +67,7 @@ export const screenRegistry: {
     { name: "NotificationSettings", component: NotificationSettingsScreen, title: "Bildirim tercihleri" },
     { name: "CompanyAccount", component: CompanyAccountScreen, title: "Şirket ve cari" },
     { name: "Regions", component: RegionsScreen, title: "Bölge ve konumlar" },
+    { name: "Feedback", component: FeedbackScreen, title: "Geri bildirim" },
     { name: "StockLocationDetail", component: StockLocationDetailScreen, title: "Lokasyon" },
   ],
 };

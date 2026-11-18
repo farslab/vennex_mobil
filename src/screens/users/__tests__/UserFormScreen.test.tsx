@@ -17,8 +17,10 @@ jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 
 const mockGoBack = jest.fn();
 let mockParams: { userId?: number } | undefined;
+const mockPreventRemove = jest.fn();
 jest.mock("@react-navigation/native", () => ({
   ...jest.requireActual("@react-navigation/native"),
+  usePreventRemove: (...args: unknown[]) => mockPreventRemove(...args),
   useNavigation: () => ({ navigate: jest.fn(), goBack: mockGoBack, setOptions: jest.fn() }),
   useRoute: () => ({ key: "UserForm", name: "UserForm", params: mockParams }),
 }));

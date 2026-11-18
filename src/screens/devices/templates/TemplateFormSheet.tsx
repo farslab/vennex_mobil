@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
 import { StyleSheet, View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
-import { AppButton, AppInput, AppNotice, AppSegmented, AppSheet, AppText, makeStyles, toast } from "@/design-system";
+import { AppButton, AppInput, AppNotice, AppSegmented, AppSheet, AppText, makeStyles, toast, useFormDirty, useGuardedClose } from "@/design-system";
 import { templatesApi } from "@/api/templates";
 import { errorMessage, type ApiError } from "@/api/client";
 import type { ProductTemplateDetail, ProductTemplateSummary, TemplateMachineType } from "@/types/templates";
 
 /** Yeni şablon / yeniden adlandır. Cihazlara eşli şablonun makine tipi değiştirilemez (backend 400). */
+/** Alanın altında hata gösterilebilen form alanları */
+const FORM_FIELDS = ["name", "description", "machine_type"];
+
 export function TemplateFormSheet({
   visible,
   template,
@@ -25,6 +28,9 @@ export function TemplateFormSheet({
   const [description, setDescription] = useState("");
   const [machineType, setMachineType] = useState<TemplateMachineType>(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Kaydedilmemiş değişiklik: kapatırken onay iste
+  const dirty = useFormDirty(visible, { name, description, machineType });
+  const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
       setName(template?.name ?? "");
@@ -64,17 +70,21 @@ export function TemplateFormSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
+      dirty={dirty}
       title={template ? "Şablonu düzenle" : "Yeni şablon"}
       dismissible={!save.isPending}
       testID="template-form"
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={save.isPending} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} disabled={save.isPending} style={styles.flex} />
           <AppButton title={template ? "Kaydet" : "Oluştur"} onPress={submit} loading={save.isPending} style={styles.flex} testID="template-form-submit" />
         </>
       }
     >
-      {save.error && !(save.error as ApiError).fieldErrors ? <AppNotice tone="danger" message={errorMessage(save.error)} /> : null}
+      {/* Formda bir alanın altında gösterilemeyen hata (ör. non_field_errors, detail) üstte görünür */}
+      {save.error && !Object.keys((save.error as ApiError).fieldErrors ?? {}).some((k) => FORM_FIELDS.includes(k)) ? (
+        <AppNotice tone="danger" message={errorMessage(save.error)} />
+      ) : null}
       <AppInput label="Şablon adı" required value={name} onChangeText={setName} maxLength={100} error={errors.name} testID="template-name" />
       <AppInput label="Açıklama" value={description} onChangeText={setDescription} multiline error={errors.description} />
       <View style={styles.field}>

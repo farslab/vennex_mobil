@@ -47,7 +47,10 @@ export function QuotaBatchSheet({
 }) {
   const styles = useStyles();
   const queryClient = useQueryClient();
-  const [items, setItems] = useState<ItemResult[]>([]);
+  // Açık bağlanırsa da (useOnOpen yalnız kapalı→açık geçişte çalışır) liste dolu başlasın
+  const [items, setItems] = useState<ItemResult[]>(() =>
+    visible ? cards.map((card) => ({ card, status: "waiting" as ItemStatus })) : []
+  );
   const [started, setStarted] = useState(false);
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);

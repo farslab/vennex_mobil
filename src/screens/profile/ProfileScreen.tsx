@@ -132,8 +132,15 @@ export default function ProfileScreen() {
             title="Bildirimler"
             value={unread > 0 ? `${unread > 99 ? "99+" : unread} okunmamış` : undefined}
             onPress={() => navigation.navigate("Notifications")}
-            last
             testID="row-notifications"
+          />
+          <AppListRow
+            icon="message-square"
+            title="Geri bildirim ve destek"
+            subtitle="Öneri, hata veya soru iletin"
+            onPress={() => navigation.navigate("Feedback")}
+            last
+            testID="row-feedback"
           />
         </AppCard>
       </AppSection>

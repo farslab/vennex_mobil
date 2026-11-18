@@ -1,4 +1,4 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { makeStyles } from "../theme";
 import { AppText } from "./AppText";
 import { AppIconButton } from "./AppIconButton";
+import { confirmDiscard } from "../hooks/useUnsavedChanges";
 
 export interface AppSheetProps {
   visible: boolean;
@@ -25,8 +26,17 @@ export interface AppSheetProps {
   scrollable?: boolean;
   /** İşlem sürerken arka plana dokunarak kapatmayı engelle */
   dismissible?: boolean;
+  /** Kaydedilmemiş değişiklik var: X / arka plan / geri tuşu önce onay ister (`useFormDirty`) */
+  dirty?: boolean;
   testID?: string;
 }
+
+/**
+ * İç içe sayfa derinliği. Bir sayfanın içinden açılan ikinci sayfa (ör. form → silme onayı)
+ * kendi tam koyu arka planını çizerse kararma ikiye katlanır ve alttaki form kaybolur;
+ * iç sayfa bu yüzden arka planını hafif çizer.
+ */
+const SheetDepthContext = createContext(0);
 
 /**
  * Alttan açılan sayfa (bottom sheet). Ek native bağımlılık gerektirmez;
@@ -41,12 +51,16 @@ export function AppSheet({
   footer,
   scrollable = true,
   dismissible = true,
+  dirty = false,
   testID,
 }: AppSheetProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const depth = useContext(SheetDepthContext);
   const close = () => {
-    if (dismissible) onClose();
+    if (!dismissible) return;
+    if (dirty) confirmDiscard(onClose);
+    else onClose();
   };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
@@ -54,7 +68,13 @@ export function AppSheet({
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Kapat" accessibilityRole="button" />
+        <Pressable
+          style={[styles.backdrop, depth > 0 && styles.backdropNested]}
+          onPress={close}
+          accessibilityLabel="Kapat"
+          accessibilityRole="button"
+          testID={testID ? `${testID}-backdrop` : undefined}
+        />
         <View
           testID={testID}
           style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}
@@ -80,12 +100,18 @@ export function AppSheet({
               contentContainerStyle={styles.bodyContent}
               keyboardShouldPersistTaps="handled"
             >
-              {children}
+              <SheetDepthContext.Provider value={depth + 1}>{children}</SheetDepthContext.Provider>
             </ScrollView>
           ) : (
-            <View style={[styles.body, styles.bodyContent]}>{children}</View>
+            <View style={[styles.body, styles.bodyContent]}>
+              <SheetDepthContext.Provider value={depth + 1}>{children}</SheetDepthContext.Provider>
+            </View>
           )}
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
+          {footer ? (
+            <View style={styles.footer}>
+              <SheetDepthContext.Provider value={depth + 1}>{footer}</SheetDepthContext.Provider>
+            </View>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -96,6 +122,8 @@ const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1 },
     backdrop: { ...StyleSheet.absoluteFill, backgroundColor: t.colors.overlay },
+    /** İç içe sayfa: alttaki sayfa zaten karartıyor → yarım kararma yeter */
+    backdropNested: { opacity: 0.5 },
     sheet: {
       marginTop: "auto",
       maxHeight: "90%",

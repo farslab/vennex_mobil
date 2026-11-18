@@ -2,8 +2,11 @@ import type { LinkingOptions } from "@react-navigation/native";
 import type { RootStackParamList } from "./types";
 
 /**
- * Derin bağlantılar (vennex://...). Yalnızca oturum açıkken etkin; parametreler
- * ekranlarda doğrulanır (ör. seri no formatı) ve yetki backend'de yeniden kontrol edilir.
+ * Derin bağlantılar (vennex://...). Tek ve her zaman etkin bir yapılandırma: NavigationContainer
+ * `linking`'i yalnız ilk bağlanışta okur; oturum açılıp kapandığında değiştirmek etkisizdir.
+ * Güvenlik, o an kayıtlı ekranlarla sağlanır: yollar yalnız oturum açıkken kayıtlı olan uygulama
+ * ekranlarına karşılık gelir; oturum kapalıyken gelen bağlantılar yok sayılır (giriş ekranı açık kalır). Parametreler ekranlarda
+ * doğrulanır, yetki backend'de yeniden kontrol edilir.
  */
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ["vennex://"],
