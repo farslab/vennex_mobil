@@ -1,35 +1,56 @@
 import { useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { reportsApi } from "@/api/reports";
-import { normalizeReportStatus } from "@/types/reports";
+import { normalizeReportStatus, type ReportJob } from "@/types/reports";
 
-const POLL_INTERVAL_MS = 4000;
+/** Artan aralık: 3 sn → 5 sn → 10 sn → 15 sn (üst sınır) */
+export const REPORT_POLL_DELAYS_MS = [3_000, 5_000, 10_000, 15_000] as const;
 
-/**
- * Rapor listesinde "pending" veya "running" durumundaki job'lar varsa
- * belirli aralıklarla listeyi yeniden çeker (dokümandaki polling akışı).
- */
-export function useReportsPolling(hasActiveJobs: boolean) {
-  const queryClient = useQueryClient();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (hasActiveJobs && !intervalRef.current) {
-      intervalRef.current = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: ["reports"] });
-      }, POLL_INTERVAL_MS);
-    }
-    if (!hasActiveJobs && intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [hasActiveJobs, queryClient]);
+export function jobIsActive(job: Pick<ReportJob, "status" | "is_active">): boolean {
+  if (job.is_active) return true;
+  const s = normalizeReportStatus(job.status);
+  return s === "pending" || s === "running";
 }
 
-export function jobIsActive(status: string): boolean {
-  const s = normalizeReportStatus(status);
-  return s === "pending" || s === "running";
+export function nextPollDelay(attempt: number): number {
+  return REPORT_POLL_DELAYS_MS[Math.min(Math.max(attempt, 0), REPORT_POLL_DELAYS_MS.length - 1)];
+}
+
+/**
+ * Bekleyen/çalışan iş varken ve ekran odaktayken artan aralıkla yeniden çeker.
+ * - Her başarılı/başarısız yanıttan sonra bir sonraki zamanlayıcı kurulur (üst üste istek yok).
+ * - Aktif iş kalmayınca, ekran odaktan çıkınca veya `enabled=false` iken durur ve aralık sıfırlanır.
+ */
+export function useReportsPolling({
+  hasActive,
+  isFocused,
+  enabled = true,
+  updatedAt,
+  refetch,
+}: {
+  hasActive: boolean;
+  isFocused: boolean;
+  enabled?: boolean;
+  /** dataUpdatedAt + errorUpdatedAt — her yanıtta değişir */
+  updatedAt: number;
+  refetch: () => unknown;
+}) {
+  const attempt = useRef(0);
+  const refetchRef = useRef(refetch);
+  useEffect(() => {
+    refetchRef.current = refetch;
+  }, [refetch]);
+
+  const active = enabled && isFocused && hasActive;
+
+  useEffect(() => {
+    if (!active) {
+      attempt.current = 0;
+      return;
+    }
+    const delay = nextPollDelay(attempt.current);
+    const timer = setTimeout(() => {
+      attempt.current += 1;
+      refetchRef.current();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [active, updatedAt]);
 }

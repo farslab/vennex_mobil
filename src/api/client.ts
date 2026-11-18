@@ -1,10 +1,8 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios";
-import Constants from "expo-constants";
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
+import { API_BASE_URL } from "@/config/env";
 import { tokenStorage } from "@/utils/tokenStorage";
 import type { ApiErrorBody } from "@/types/auth";
 
-const API_BASE_URL =
-  (Constants.expoConfig?.extra?.apiBaseUrl as string) ?? "https://tms.vennex.com.tr";
 export const API_PREFIX = "/api/v1/vennexmobile";
 
 // skipAuth: true işaretli isteklere Authorization header eklenmez
@@ -20,14 +18,7 @@ declare module "axios" {
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}${API_PREFIX}`,
   timeout: 20000,
-  headers: { "Content-Type": "application/json" },
-});
-
-// Wallet servisi vennexmobile prefix'i DIŞINDA (ör. /api/wallet/complaint/)
-export const rootApiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 20000,
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
 });
 
 let onUnauthorized: (() => void) | null = null;
@@ -35,92 +26,132 @@ export function registerUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
-function attachAuthInterceptor(instance: AxiosInstance) {
-  instance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-    if (config.skipAuth) return config;
-    const access = await tokenStorage.getAccess();
-    if (access) {
-      config.headers.Authorization = `Bearer ${access}`;
-    }
-    return config;
-  });
-
-  // --- Refresh reentrancy guard ---
-  let isRefreshing = false;
-  let refreshWaiters: Array<(token: string | null) => void> = [];
-
-  function subscribeRefresh(cb: (token: string | null) => void) {
-    refreshWaiters.push(cb);
-  }
-  function notifyRefreshed(token: string | null) {
-    refreshWaiters.forEach((cb) => cb(token));
-    refreshWaiters = [];
-  }
-
-  instance.interceptors.response.use(
-    (res) => res,
-    async (error: AxiosError<ApiErrorBody>) => {
-      const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
-
-      if (error.response?.status === 401 && original && !original._retry && !original.skipAuth) {
-        const refreshToken = await tokenStorage.getRefresh();
-        if (!refreshToken) {
-          onUnauthorized?.();
-          return Promise.reject(normalizeError(error));
-        }
-
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            subscribeRefresh((newToken) => {
-              if (!newToken) {
-                reject(normalizeError(error));
-                return;
-              }
-              original._retry = true;
-              original.headers.Authorization = `Bearer ${newToken}`;
-              resolve(instance(original));
-            });
-          });
-        }
-
-        isRefreshing = true;
-        try {
-          const { data } = await apiClient.post<{ access: string; refresh: string }>(
-            "/auth/refresh/",
-            { refresh: refreshToken },
-            { skipAuth: true }
-          );
-          await tokenStorage.setTokens(data.access, data.refresh ?? refreshToken);
-          isRefreshing = false;
-          notifyRefreshed(data.access);
-
-          original._retry = true;
-          original.headers.Authorization = `Bearer ${data.access}`;
-          return instance(original);
-        } catch (refreshError) {
-          isRefreshing = false;
-          notifyRefreshed(null);
-          await tokenStorage.clear();
-          onUnauthorized?.();
-          return Promise.reject(normalizeError(error));
-        }
-      }
-
-      return Promise.reject(normalizeError(error));
-    }
-  );
+/** Seçili şirket → X-Company-Id header (backend mixins.CompanyContextMixin) */
+let companyProvider: (() => number | null) | null = null;
+export function registerCompanyProvider(provider: () => number | null) {
+  companyProvider = provider;
 }
 
-export function normalizeError(error: AxiosError<ApiErrorBody>): Error & { status?: number; body?: ApiErrorBody } {
+// --- Refresh reentrancy guard: eşzamanlı 401'lerde tek refresh isteği ---
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = await tokenStorage.getRefresh();
+  if (!refreshToken) return null;
+  try {
+    const { data } = await apiClient.post<{ access: string; refresh?: string }>(
+      "/auth/refresh/",
+      { refresh: refreshToken },
+      { skipAuth: true }
+    );
+    await tokenStorage.setTokens(data.access, data.refresh ?? refreshToken);
+    return data.access;
+  } catch {
+    await tokenStorage.clear();
+    return null;
+  }
+}
+
+apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+  if (config.skipAuth) return config;
+  const access = await tokenStorage.getAccess();
+  if (access) config.headers.Authorization = `Bearer ${access}`;
+  const companyId = companyProvider?.();
+  if (companyId != null && !config.headers["X-Company-Id"]) {
+    config.headers["X-Company-Id"] = String(companyId);
+  }
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  async (error: AxiosError<ApiErrorBody>) => {
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+
+    if (error.response?.status === 401 && original && !original._retry && !original.skipAuth) {
+      original._retry = true;
+      refreshPromise ??= refreshAccessToken().finally(() => {
+        refreshPromise = null;
+      });
+      const newToken = await refreshPromise;
+      if (!newToken) {
+        onUnauthorized?.();
+        return Promise.reject(normalizeError(error));
+      }
+      original.headers.Authorization = `Bearer ${newToken}`;
+      return apiClient(original);
+    }
+
+    return Promise.reject(normalizeError(error));
+  }
+);
+
+export type ApiError = Error & {
+  status?: number;
+  body?: ApiErrorBody;
+  /** DRF alan bazlı doğrulama hataları: { alan: "mesaj" } */
+  fieldErrors?: Record<string, string>;
+  /** İstek hiç sunucuya ulaşamadı (ağ yok / zaman aşımı) */
+  isNetworkError?: boolean;
+};
+
+const STATUS_MESSAGES: Record<number, string> = {
+  403: "Bu işlem için yetkiniz yok.",
+  404: "Kayıt bulunamadı.",
+  429: "Çok fazla istek gönderildi. Lütfen biraz sonra tekrar deneyin.",
+  500: "Sunucuda bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+  502: "Sunucuya şu anda ulaşılamıyor.",
+  503: "Servis geçici olarak kullanılamıyor.",
+  504: "Sunucu zamanında yanıt vermedi.",
+};
+
+function firstMessage(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(firstMessage).find(Boolean) ?? null;
+  if (value && typeof value === "object") return Object.values(value).map(firstMessage).find(Boolean) ?? null;
+  return null;
+}
+
+/** Backend hatasını kullanıcıya gösterilebilir, alan bazlı bilgi içeren tek tip hataya çevirir */
+export function normalizeError(error: AxiosError<ApiErrorBody>): ApiError {
   const status = error.response?.status;
   const body = error.response?.data;
-  const message =
-    body?.detail || body?.message || body?.error || error.message || "Bilinmeyen bir hata oluştu";
-  const err = new Error(message) as Error & { status?: number; body?: ApiErrorBody };
+
+  let fieldErrors: Record<string, string> | undefined;
+  if (body && typeof body === "object" && !Array.isArray(body)) {
+    for (const [key, val] of Object.entries(body)) {
+      if (["detail", "message", "error", "code"].includes(key)) continue;
+      const msg = firstMessage(val);
+      if (msg) (fieldErrors ??= {})[key] = msg;
+    }
+  }
+
+  const isNetworkError = !error.response;
+  let message: string | null =
+    (typeof body?.detail === "string" && body.detail) ||
+    (typeof body?.message === "string" && body.message) ||
+    (typeof body?.error === "string" && body.error) ||
+    (fieldErrors ? Object.values(fieldErrors)[0] : null) ||
+    (status ? STATUS_MESSAGES[status] : null) ||
+    null;
+
+  if (!message && isNetworkError) {
+    message =
+      error.code === "ECONNABORTED" || error.code === "ETIMEDOUT"
+        ? "İstek zaman aşımına uğradı. Bağlantınızı kontrol edip tekrar deneyin."
+        : "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.";
+  }
+
+  const err = new Error(message || error.message || "Bilinmeyen bir hata oluştu") as ApiError;
   err.status = status;
   err.body = body;
+  err.fieldErrors = fieldErrors;
+  err.isNetworkError = isNetworkError;
   return err;
 }
 
-attachAuthInterceptor(apiClient);
-attachAuthInterceptor(rootApiClient);
+/** UI tarafında güvenli hata mesajı */
+export function errorMessage(error: unknown, fallback = "Bir hata oluştu."): string {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}

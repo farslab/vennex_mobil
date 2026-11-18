@@ -1,30 +1,19 @@
-import { create } from "zustand";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+/**
+ * GEÇİŞ KÖPRÜSÜ — eski `useThemeStore` API'sini yeni tema tercihine yönlendirir.
+ * @deprecated `useThemePreference` (design-system/theme) kullanın.
+ */
+import { useThemePreference } from "@/design-system/theme";
 
-type ThemeMode = "light" | "dark";
+type Legacy = { mode: "light" | "dark"; toggleTheme: () => void; loadTheme: () => Promise<void> };
 
-interface ThemeState {
-  mode: ThemeMode;
-  toggleTheme: () => void;
-  setTheme: (mode: ThemeMode) => void;
-  loadTheme: () => Promise<void>;
+export function useThemeStore<T>(selector: (s: Legacy) => T): T {
+  const preference = useThemePreference((s) => s.preference);
+  const setPreference = useThemePreference((s) => s.setPreference);
+  const hydrate = useThemePreference((s) => s.hydrate);
+  const mode = preference === "dark" ? "dark" : "light";
+  return selector({
+    mode,
+    toggleTheme: () => setPreference(mode === "dark" ? "light" : "dark"),
+    loadTheme: hydrate,
+  });
 }
-
-export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: "dark", // varsayılan tema
-  toggleTheme: async () => {
-    const nextMode = get().mode === "light" ? "dark" : "light";
-    set({ mode: nextMode });
-    await AsyncStorage.setItem("app_theme", nextMode);
-  },
-  setTheme: async (mode) => {
-    set({ mode });
-    await AsyncStorage.setItem("app_theme", mode);
-  },
-  loadTheme: async () => {
-    const saved = await AsyncStorage.getItem("app_theme");
-    if (saved === "light" || saved === "dark") {
-      set({ mode: saved });
-    }
-  },
-}));

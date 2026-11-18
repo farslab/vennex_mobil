@@ -1,81 +1,198 @@
-import React from "react";
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+/**
+ * Bildirim gelen kutusu — backend `views/notifications.py`, docs/API_CONTRACTS.md §2.11, §3.14.
+ * Sayfalı (25), `unread=true` filtresi, tekil/toplu okundu işaretleme, event'e göre derin bağlantı.
+ */
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import {
+  AppButton,
+  AppEmptyState,
+  AppErrorState,
+  AppIcon,
+  AppListSkeleton,
+  AppSegmented,
+  AppText,
+  makeStyles,
+  toast,
+  useTheme,
+} from "@/design-system";
+import { errorMessage } from "@/api/client";
 import { notificationsApi } from "@/api/notifications";
-import { useAppTheme } from "@/theme/colors";
-import { radius, spacing } from "@/theme/spacing";
-import { EmptyState, ErrorView, LoadingView } from "@/components/Common";
-import type { NotificationItem } from "@/types/notifications";
+import { queryKeys } from "@/api/queryKeys";
+import { usePagedList } from "@/hooks/usePagedList";
+import { useAuthStore } from "@/store/authStore";
+import { formatRelative } from "@/utils/date";
+import type { RootStackParamList } from "@/navigation/types";
+import type { NotificationItem, NotificationsPage } from "@/types/notifications";
+import { notificationIcon, resolveNotificationTarget, type NotificationTarget } from "./notificationTarget";
+
+type Filter = "all" | "unread";
 
 export default function NotificationsScreen() {
-  const { colors, isDark } = useAppTheme();
+  const styles = useStyles();
+  const { colors } = useTheme();
   const queryClient = useQueryClient();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const user = useAuthStore((s) => s.user);
+  const [filter, setFilter] = useState<Filter>("all");
+  const unreadOnly = filter === "unread";
 
-  const { data, isLoading, isRefetching, error, refetch } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => notificationsApi.list({ page: 1 }),
+  const list = usePagedList<NotificationItem, NotificationsPage>({
+    queryKey: queryKeys.notifications.list({ unread: unreadOnly }),
+    fetchPage: (page, signal) => notificationsApi.list({ page, unreadOnly }, signal),
   });
+  const unreadCount = list.firstPage?.unread_count ?? 0;
 
-  const markReadMutation = useMutation({
+  const invalidate = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all }),
+    [queryClient]
+  );
+
+  const markRead = useMutation({
     mutationFn: (id: number) => notificationsApi.markRead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+    onMutate: (id) => {
+      // İyimser: satırı hemen okunmuş göster (hata olursa invalidate ile geri gelir)
+      queryClient.setQueriesData<InfiniteData<NotificationsPage>>(
+        { queryKey: [...queryKeys.notifications.all, "list"] },
+        (old) =>
+          old && {
+            ...old,
+            pages: old.pages.map((p) => ({
+              ...p,
+              results: p.results.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+            })),
+          }
+      );
     },
+    onError: (e) => toast.error(errorMessage(e, "Bildirim okundu işaretlenemedi.")),
+    onSettled: invalidate,
   });
 
-  const markAllReadMutation = useMutation({
-    mutationFn: notificationsApi.markAllRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+  const markAll = useMutation({
+    mutationFn: () => notificationsApi.markAllRead(),
+    onSuccess: (res) => {
+      toast.success(res.count > 0 ? `${res.count} bildirim okundu işaretlendi.` : "Tüm bildirimler okundu.");
     },
+    onError: (e) => toast.error(errorMessage(e, "Bildirimler okundu işaretlenemedi.")),
+    onSettled: invalidate,
   });
 
-  if (isLoading) return <LoadingView label="Bildirimler yükleniyor..." />;
-  if (error) return <ErrorView message={(error as Error).message} onRetry={refetch} />;
+  const go = useCallback(
+    (target: NotificationTarget) => {
+      switch (target.name) {
+        case "DeviceDetail":
+          navigation.navigate("DeviceDetail", target.params);
+          break;
+        case "CardDetail":
+          navigation.navigate("CardDetail", target.params);
+          break;
+        case "Reports":
+          navigation.navigate("Reports");
+          break;
+        case "CompanyAccount":
+          navigation.navigate("CompanyAccount");
+          break;
+      }
+    },
+    [navigation]
+  );
 
-  const items = data?.results ?? [];
-  const hasUnread = items.some((n) => n.unread);
+  const onPressItem = useCallback(
+    (item: NotificationItem) => {
+      if (item.unread) markRead.mutate(item.id);
+      const target = resolveNotificationTarget(item, user);
+      if (target) go(target);
+    },
+    [go, markRead, user]
+  );
+
+  const header = (
+    <View style={styles.header}>
+      <AppSegmented<Filter>
+        items={[
+          { key: "all", label: "Tümü" },
+          { key: "unread", label: "Okunmamış", count: list.firstPage ? unreadCount : undefined },
+        ]}
+        value={filter}
+        onChange={setFilter}
+        testID="notification-filter"
+      />
+      {unreadCount > 0 ? (
+        <View style={styles.headerRow}>
+          <AppText variant="caption" color="textSecondary">
+            {unreadCount} okunmamış bildirim
+          </AppText>
+          <AppButton
+            title="Tümünü okundu işaretle"
+            icon="check-circle"
+            variant="ghost"
+            size="sm"
+            loading={markAll.isPending}
+            onPress={() => markAll.mutate()}
+            testID="mark-all-read"
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const empty = list.isLoading ? (
+    <AppListSkeleton rows={6} />
+  ) : list.isError ? (
+    <AppErrorState
+      message={errorMessage(list.error, "Bildirimler yüklenemedi.")}
+      onRetry={() => list.refetch()}
+      compact
+    />
+  ) : (
+    <AppEmptyState
+      compact
+      icon={unreadOnly ? "check-circle" : "bell"}
+      title={unreadOnly ? "Okunmamış bildirim yok" : "Henüz bildirim yok"}
+      description={
+        unreadOnly
+          ? "Tüm bildirimlerinizi okudunuz."
+          : "Cihaz, stok, kart ve rapor bildirimleri burada listelenir."
+      }
+    />
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {hasUnread && (
-        <View style={styles.headerActionContainer}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[styles.markAllBtn, { backgroundColor: isDark ? colors.surfaceAlt : "#EBF2FF" }]}
-            onPress={() => markAllReadMutation.mutate()}
-            disabled={markAllReadMutation.isPending}
-          >
-            <Text style={[styles.markAllText, { color: colors.primary }]}>
-              {markAllReadMutation.isPending ? "İşleniyor..." : "Tümünü okundu işaretle"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
+    <View style={styles.root} testID="notifications-screen">
       <FlatList
-        data={items}
+        data={list.isError && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={[styles.listContent, !hasUnread && { paddingTop: spacing.lg }]}
-        ListEmptyComponent={<EmptyState label="Bildirim bulunamadı" />}
+        renderItem={({ item }) => (
+          <NotificationRow
+            item={item}
+            hasTarget={!!resolveNotificationTarget(item, user)}
+            pending={markRead.isPending && markRead.variables === item.id}
+            onPress={() => onPressItem(item)}
+          />
+        )}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        ListFooterComponent={
+          list.isFetchingMore ? (
+            <View style={styles.footer}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : null
+        }
+        onEndReached={list.loadMore}
+        onEndReachedThreshold={0.4}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
+            refreshing={list.isRefreshing}
+            onRefresh={list.refresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
         }
-        renderItem={({ item }) => (
-          <NotificationRow
-            item={item}
-            colors={colors}
-            isDark={isDark}
-            onPress={() => item.unread && markReadMutation.mutate(item.id)}
-          />
-        )}
       />
     </View>
   );
@@ -83,109 +200,83 @@ export default function NotificationsScreen() {
 
 function NotificationRow({
   item,
-  colors,
-  isDark,
+  hasTarget,
+  pending,
   onPress,
 }: {
   item: NotificationItem;
-  colors: any;
-  isDark: boolean;
+  hasTarget: boolean;
+  pending: boolean;
   onPress: () => void;
 }) {
-  return (
-    <TouchableOpacity
-      activeOpacity={item.unread ? 0.7 : 1}
-      style={[
-        styles.row,
-        {
-          backgroundColor: colors.surface,
-          borderColor: item.unread ? colors.primary : colors.border,
-        },
-        item.unread && {
-          backgroundColor: isDark ? colors.surfaceAlt : "#F0F6FF",
-        },
-      ]}
-      onPress={onPress}
-    >
-      {item.unread && <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />}
+  const styles = useStyles();
+  const title = item.description || item.verb || "Bildirim";
+  const meta = [item.actor_str, formatRelative(item.timestamp)].filter(Boolean).join(" · ");
+  const interactive = item.unread || hasTarget;
 
-      <View style={styles.body}>
-        <Text
-          style={[
-            styles.description,
-            { color: colors.textPrimary, fontWeight: item.unread ? "600" : "400" },
-          ]}
-        >
-          {item.description}
-        </Text>
-        <View style={styles.metaRow}>
-          {item.actor_str ? (
-            <Text style={[styles.meta, { color: colors.textMuted }]}>{item.actor_str}</Text>
-          ) : null}
-          <Text style={[styles.meta, { color: colors.textMuted }]}>
-            {new Date(item.timestamp).toLocaleString("tr-TR", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        </View>
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!interactive || pending}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.unread ? "Okunmamış. " : ""}${title}. ${meta}`}
+      accessibilityHint={hasTarget ? "İlgili ekranı açar" : item.unread ? "Okundu olarak işaretler" : undefined}
+      accessibilityState={{ disabled: !interactive }}
+      style={({ pressed }) => [styles.row, item.unread && styles.rowUnread, pressed && interactive && styles.rowPressed]}
+      testID={`notification-${item.id}`}
+    >
+      <View style={[styles.icon, item.unread && styles.iconUnread]}>
+        <AppIcon name={notificationIcon(item)} size={16} color={item.unread ? "primary" : "textSecondary"} />
       </View>
-    </TouchableOpacity>
+      <View style={styles.body}>
+        <AppText variant={item.unread ? "calloutStrong" : "callout"} numberOfLines={3}>
+          {title}
+        </AppText>
+        {meta ? (
+          <AppText variant="caption" color="textTertiary" numberOfLines={1}>
+            {meta}
+          </AppText>
+        ) : null}
+      </View>
+      <View style={styles.trailing}>
+        {item.unread ? <View style={styles.dot} accessibilityElementsHidden /> : null}
+        {hasTarget ? <AppIcon name="chevron-right" size={16} color="textTertiary" /> : null}
+      </View>
+    </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerActionContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    alignItems: "flex-end",
-  },
-  markAllBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  markAllText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  listContent: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  row: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    padding: spacing.md,
-    alignItems: "flex-start",
-  },
-  body: {
-    flex: 1,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 6,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  metaRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  meta: {
-    fontSize: 11,
-  },
-});
+const useStyles = makeStyles((t) =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: t.colors.background },
+    content: { paddingBottom: t.spacing.huge, flexGrow: 1 },
+    header: { padding: t.layout.screenPadding, paddingBottom: t.spacing.sm, gap: t.spacing.sm },
+    headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.spacing.sm, minHeight: 36 },
+    footer: { paddingVertical: t.spacing.lg },
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: t.spacing.md,
+      paddingHorizontal: t.layout.screenPadding,
+      paddingVertical: t.spacing.md,
+      minHeight: 56,
+      backgroundColor: t.colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: t.colors.border,
+    },
+    rowUnread: { backgroundColor: t.colors.primarySubtle },
+    rowPressed: { backgroundColor: t.colors.surfacePressed },
+    icon: {
+      width: 32,
+      height: 32,
+      borderRadius: t.radius.xs,
+      backgroundColor: t.colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconUnread: { backgroundColor: t.colors.surface },
+    body: { flex: 1, gap: 2 },
+    trailing: { flexDirection: "row", alignItems: "center", gap: t.spacing.xs, alignSelf: "center" },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.primary },
+  })
+);

@@ -1,155 +1,113 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
-import { overviewApi } from "@/api/overview";
+import { overviewApi, type DashboardParams } from "@/api/overview";
+import { queryKeys } from "@/api/queryKeys";
 import type { ApiPeriod } from "@/types/common";
+import type { CustomRange } from "./dashboardPeriod";
 
-// Pull-to-refresh (nocache) çağrıları arasında zorunlu minimum bekleme.
-const REFRESH_COOLDOWN_MS = 8000;
+/** Backend cache TTL 30 sn (`overview.py:30`) — bundan sık otomatik yenileme anlamsız */
+export const DASHBOARD_STALE_MS = 30_000;
+/** Otomatik yenileme: yalnız ekran odaktayken, 60 sn'de bir */
+export const DASHBOARD_AUTO_REFRESH_MS = 60_000;
+/** nocache=1 ile çekme (pull-to-refresh) arasında en az bu kadar süre */
+export const DASHBOARD_NOCACHE_COOLDOWN_MS = 15_000;
 
-// Period hızlı hızlı değiştirilirse her tıklamada ayrı sorgu atılmasın diye debounce.
-const PERIOD_CHANGE_DEBOUNCE_MS = 350;
-
-// "custom" period için izin verilen maksimum aralık (gün). Bunun üzerindeki
-// aralıklar backend'e hiç gönderilmez — geniş tarama sorgusu DB'yi yormasın.
-const MAX_CUSTOM_RANGE_DAYS = 92;
-
-// YYYY-MM-DD formatını doğrular (basit ama yeterli).
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-// Backend cache TTL ile uyumlu otomatik yenileme süresi (ms).
-const AUTO_REFETCH_INTERVAL_MS = 30_000;
-
-export interface CustomRangeValidation {
-  valid: boolean;
-  error: string | null;
+export interface DashboardFilterState {
+  period: ApiPeriod;
+  customRange: CustomRange | null;
+  locationId: number | null;
 }
 
-function validateCustomRange(startDate: string | null, endDate: string | null): CustomRangeValidation {
-  if (!startDate || !endDate) {
-    return { valid: false, error: "Başlangıç ve bitiş tarihi seçilmeli." };
+export function buildDashboardParams(f: DashboardFilterState): DashboardParams {
+  const params: DashboardParams = { period: f.period, top_limit: 5, recent_limit: 5 };
+  if (f.locationId != null) params.location_id = f.locationId;
+  if (f.period === "custom" && f.customRange) {
+    params.start_date = f.customRange.start;
+    params.end_date = f.customRange.end;
   }
-  if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
-    return { valid: false, error: "Tarih formatı geçersiz." };
-  }
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return { valid: false, error: "Tarih formatı geçersiz." };
-  }
-  if (start > end) {
-    return { valid: false, error: "Başlangıç tarihi bitişten sonra olamaz." };
-  }
-  const diffDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
-  if (diffDays > MAX_CUSTOM_RANGE_DAYS) {
-    return { valid: false, error: `Aralık en fazla ${MAX_CUSTOM_RANGE_DAYS} gün olabilir.` };
-  }
-  return { valid: true, error: null };
+  return params;
 }
 
+/**
+ * Dashboard verisi: tek bundle isteği (`GET /overview/dashboard/`).
+ * - Dönem/konum değişince yeni anahtar → önceki veri ekranda kalır (keepPreviousData), eski istek iptal edilir.
+ * - Pull-to-refresh `nocache=1` ile, en fazla 15 sn'de bir.
+ * - Otomatik yenileme yalnız odaktayken 60 sn; odak geri gelince veri 30 sn'den eskiyse tazelenir.
+ */
 export function useDashboard() {
   const isFocused = useIsFocused();
+  const queryClient = useQueryClient();
+  const [filters, setFilters] = useState<DashboardFilterState>({ period: "today", customRange: null, locationId: null });
+  const [refreshing, setRefreshing] = useState(false);
+  const lastNoCacheAt = useRef(0);
 
-  const [period, setPeriodState] = useState<ApiPeriod>("today");
-  const [customStartDate, setCustomStartDate] = useState<string | null>(null);
-  const [customEndDate, setCustomEndDate] = useState<string | null>(null);
-
-  const nocacheRef = useRef(false);
-  const lastRefreshAtRef = useRef(0);
-  const periodDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const customRangeValidation = useMemo(
-    () => (period === "custom" ? validateCustomRange(customStartDate, customEndDate) : { valid: true, error: null }),
-    [period, customStartDate, customEndDate]
-  );
-
-  // custom değilse tarih aralığı sorguya hiç girmez; custom ise aralık
-  // geçerli olmadan sorgu ATILMAZ (enabled: false).
-  const isQueryEnabled = period !== "custom" || customRangeValidation.valid;
+  const params = useMemo(() => buildDashboardParams(filters), [filters]);
+  const queryKey = useMemo(() => queryKeys.overview.dashboard({ ...params }), [params]);
 
   const query = useQuery({
-    queryKey: ["dashboard", period, period === "custom" ? customStartDate : null, period === "custom" ? customEndDate : null],
-    queryFn: () => {
-      const nocache = nocacheRef.current;
-      nocacheRef.current = false;
-      return overviewApi.dashboard({
-        period,
-        nocache,
-        ...(period === "custom" && customStartDate && customEndDate
-          ? { start_date: customStartDate, end_date: customEndDate }
-          : {}),
-      });
-    },
-    enabled: isQueryEnabled,
-    staleTime: 15_000,
-    refetchInterval: isFocused ? AUTO_REFETCH_INTERVAL_MS : false,
+    queryKey,
+    queryFn: ({ signal }) => overviewApi.dashboardData(params, signal),
+    placeholderData: keepPreviousData,
+    staleTime: DASHBOARD_STALE_MS,
+    refetchInterval: isFocused ? DASHBOARD_AUTO_REFRESH_MS : false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
 
-  // Ekran odağı her geri kazanıldığında veriyi tazele (tab geçişleri için)
+  const { refetch } = query;
   useFocusEffect(
     useCallback(() => {
-      if (isQueryEnabled) {
-        query.refetch();
-      }
-    }, [isQueryEnabled, query.refetch])
+      const state = queryClient.getQueryState(queryKey);
+      if (state?.dataUpdatedAt && Date.now() - state.dataUpdatedAt > DASHBOARD_STALE_MS) refetch();
+    }, [queryClient, queryKey, refetch])
   );
 
-  const setPeriod = useCallback((next: ApiPeriod) => {
-    if (periodDebounceRef.current) {
-      clearTimeout(periodDebounceRef.current);
-    }
-    periodDebounceRef.current = setTimeout(() => {
-      setPeriodState(next);
-      if (next !== "custom") {
-        setCustomStartDate(null);
-        setCustomEndDate(null);
-      }
-    }, PERIOD_CHANGE_DEBOUNCE_MS);
+  const setPeriod = useCallback((period: Exclude<ApiPeriod, "custom">) => {
+    setFilters((f) => ({ ...f, period, customRange: null }));
   }, []);
 
-  // Özel tarih aralığını ayarlar. Kendi içinde de debounce'lu — kullanıcı
-  // iki tarihi art arda hızlıca değiştirirse her adımda sorgu atılmaz.
-  const setCustomRange = useCallback((start: string | null, end: string | null) => {
-    setCustomStartDate(start);
-    setCustomEndDate(end);
+  const applyCustomRange = useCallback((range: CustomRange) => {
+    setFilters((f) => ({ ...f, period: "custom", customRange: range }));
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (periodDebounceRef.current) {
-        clearTimeout(periodDebounceRef.current);
-      }
-    };
+  const setLocationId = useCallback((locationId: number | null) => {
+    setFilters((f) => ({ ...f, locationId }));
   }, []);
 
-  const refresh = useCallback(() => {
-    if (!isQueryEnabled) {
-      // Geçersiz/eksik custom aralıkla pull-to-refresh de sorgu atmasın.
-      return Promise.resolve(query);
-    }
-
+  /** Pull-to-refresh: cooldown dışındaysa cache'i atlayarak (nocache=1) çeker. Hata fırlatır. */
+  const refresh = useCallback(async () => {
+    if (refreshing) return;
     const now = Date.now();
-    const elapsed = now - lastRefreshAtRef.current;
-    if (elapsed < REFRESH_COOLDOWN_MS) {
-      return Promise.resolve(query);
+    if (now - lastNoCacheAt.current < DASHBOARD_NOCACHE_COOLDOWN_MS) return;
+    lastNoCacheAt.current = now;
+    setRefreshing(true);
+    try {
+      await queryClient.fetchQuery({
+        queryKey,
+        queryFn: ({ signal }) => overviewApi.dashboardData({ ...params, nocache: true }, signal),
+        staleTime: 0,
+      });
+    } finally {
+      setRefreshing(false);
     }
-
-    lastRefreshAtRef.current = now;
-    nocacheRef.current = true;
-    return query.refetch();
-  }, [query, isQueryEnabled]);
+  }, [params, queryClient, queryKey, refreshing]);
 
   return {
-    period,
+    filters,
     setPeriod,
-    customStartDate,
-    customEndDate,
-    setCustomRange,
-    customRangeValidation,
-    ...query,
+    applyCustomRange,
+    setLocationId,
+    data: query.data,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    /** Arka planda (dönem değişimi / otomatik) yenileniyor */
+    isFetching: query.isFetching,
+    isPlaceholderData: query.isPlaceholderData,
+    dataUpdatedAt: query.dataUpdatedAt,
+    refreshing,
     refresh,
+    retry: refetch,
   };
 }

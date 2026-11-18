@@ -1,23 +1,22 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { AppButton, AppNotice, AppText } from "@/design-system";
 import { useAuthStore } from "@/store/authStore";
-import { Button } from "@/components/Common";
-import { useAppTheme } from "@/theme/colors";
-import { spacing, radius } from "@/theme/spacing";
+import { OtpInput } from "@/components/OtpInput";
+import { AuthLayout } from "./AuthLayout";
 
 export default function TwoFactorScreen() {
-  const { colors, isDark } = useAppTheme();
   const verify2FA = useAuthStore((s) => s.verify2FA);
+  const cancel2FA = useAuthStore((s) => s.cancel2FA);
   const attemptsLeft = useAuthStore((s) => s.attemptsLeft);
   const errorMessage = useAuthStore((s) => s.errorMessage);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleVerify = async () => {
-    if (otp.length !== 6) return;
+  const submit = async (code = otp) => {
+    if (code.length !== 6 || loading) return;
     setLoading(true);
     try {
-      await verify2FA(otp);
+      await verify2FA(code);
     } finally {
       setLoading(false);
       setOtp("");
@@ -25,77 +24,19 @@ export default function TwoFactorScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>Doğrulama Kodu</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.
-      </Text>
-
-      <TextInput
-        style={[
-          styles.otpInput,
-          {
-            backgroundColor: isDark ? colors.surfaceAlt : "#FFFFFF",
-            borderColor: colors.border,
-            color: colors.textPrimary,
-          },
-        ]}
-        placeholder="000000"
-        placeholderTextColor={colors.textMuted}
-        keyboardType="number-pad"
-        maxLength={6}
-        value={otp}
-        onChangeText={setOtp}
-        autoFocus
-      />
-
-      {errorMessage && <Text style={[styles.error, { color: colors.danger }]}>{errorMessage}</Text>}
-      {attemptsLeft != null && (
-        <Text style={[styles.hint, { color: colors.textMuted }]}>
+    <AuthLayout
+      title="İki adımlı doğrulama"
+      subtitle="Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin."
+      footer={<AppButton title="Farklı hesapla giriş yap" variant="ghost" onPress={cancel2FA} />}
+    >
+      {errorMessage ? <AppNotice tone="danger" message={errorMessage} /> : null}
+      <OtpInput value={otp} onChange={setOtp} onComplete={submit} error={!!errorMessage} autoFocus testID="otp-input" />
+      {attemptsLeft != null ? (
+        <AppText variant="caption" color={attemptsLeft <= 2 ? "danger" : "textTertiary"} align="center">
           Kalan deneme hakkı: {attemptsLeft}
-        </Text>
-      )}
-
-      <View style={{ marginTop: spacing.lg }}>
-        <Button title="Doğrula" onPress={handleVerify} loading={loading} disabled={otp.length !== 6} />
-      </View>
-    </View>
+        </AppText>
+      ) : null}
+      <AppButton title="Doğrula" onPress={() => submit()} loading={loading} disabled={otp.length !== 6} fullWidth />
+    </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  otpInput: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    paddingVertical: spacing.md,
-    fontSize: 28,
-    textAlign: "center",
-    letterSpacing: 12,
-  },
-  error: {
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: spacing.md,
-  },
-  hint: {
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: spacing.xs,
-  },
-});

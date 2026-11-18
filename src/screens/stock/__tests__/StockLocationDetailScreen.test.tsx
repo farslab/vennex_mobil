@@ -1,0 +1,78 @@
+import React from "react";
+import MockAdapter from "axios-mock-adapter";
+import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { apiClient } from "@/api/client";
+import { useAuthStore } from "@/store/authStore";
+import { makeUser, renderWithProviders } from "@/test/utils";
+import StockLocationDetailScreen from "@/screens/stock/StockLocationDetailScreen";
+import type { RootScreenProps } from "@/navigation/types";
+import { inventory, movement, skus } from "./fixtures";
+
+const setOptions = jest.fn();
+const props = (locationId: number, name?: string) =>
+  ({
+    route: { key: "k", name: "StockLocationDetail", params: { locationId, name } },
+    navigation: { setOptions, navigate: jest.fn(), goBack: jest.fn() },
+  }) as unknown as RootScreenProps<"StockLocationDetail">;
+
+describe("StockLocationDetailScreen", () => {
+  let mock: MockAdapter;
+  beforeEach(() => {
+    mock = new MockAdapter(apiClient);
+    setOptions.mockReset();
+    useAuthStore.setState({ user: makeUser({ permissions: ["manage_stock"] }) });
+    mock.onGet("/stock/skus/").reply(200, { results: skus });
+  });
+  afterEach(() => mock.restore());
+
+  it("envanteri `sku` alanıyla eşleyip birimle gösterir, başlığı ayarlar", async () => {
+    mock.onGet("/stock/locations/1/inventory/").reply(200, inventory(1));
+    await renderWithProviders(<StockLocationDetailScreen {...props(1, "Merkez")} />);
+
+    expect(await screen.findByText("120 adet")).toBeOnTheScreen();
+    expect(await screen.findByText("2.500,5 g")).toBeOnTheScreen();
+    await waitFor(() => expect(setOptions).toHaveBeenLastCalledWith({ title: "Merkez Depo" }));
+    expect(screen.getByTestId("detail-transfer")).toBeOnTheScreen();
+    // hareket geçmişi sekme açılana kadar çekilmez
+    expect(mock.history.get.some((r) => r.url === "/stock/locations/1/movements/")).toBe(false);
+  });
+
+  it("hareketleri bu lokasyona göre +/− işaretler ve sayfalı çeker", async () => {
+    mock.onGet("/stock/locations/3/inventory/").reply(200, inventory(3));
+    mock.onGet("/stock/locations/3/movements/").reply(200, {
+      count: 2,
+      page: 1,
+      num_pages: 1,
+      results: [
+        movement({ id: 1, from_location: 1, to_location: 3, quantity: 10 }),
+        movement({ id: 2, movement_type: "refill", from_location: 3, from_location_name: "Servis Aracı", to_location: 4, to_location_name: "Otomat", quantity: 4 }),
+      ],
+    });
+    await renderWithProviders(<StockLocationDetailScreen {...props(3)} />);
+    expect(await screen.findByText("-2 adet")).toBeOnTheScreen();
+    expect(screen.getAllByText("Negatif")).toHaveLength(2); // sayaç etiketi + satır rozeti
+
+    await fireEvent.press(screen.getByText("Hareketler"));
+    expect(await screen.findByTestId("movement-qty-1")).toHaveTextContent("+10 adet");
+    expect(screen.getByTestId("movement-qty-2")).toHaveTextContent("−4 adet");
+    expect(mock.history.get.find((r) => r.url === "/stock/locations/3/movements/")?.params).toEqual({ page: 1 });
+  });
+
+  it("yetki yoksa hareket aksiyonlarını göstermez", async () => {
+    useAuthStore.setState({ user: makeUser({ permissions: [] }) });
+    mock.onGet("/stock/locations/1/inventory/").reply(200, inventory(1));
+    await renderWithProviders(<StockLocationDetailScreen {...props(1)} />);
+    await screen.findByText("120 adet");
+    expect(screen.queryByTestId("detail-transfer")).toBeNull();
+    expect(screen.queryByTestId("detail-adjustment")).toBeNull();
+  });
+
+  it("boş envanter ve hata/tekrar dene durumları", async () => {
+    mock.onGet("/stock/locations/2/inventory/").replyOnce(404, { detail: "Bulunamadı." });
+    mock.onGet("/stock/locations/2/inventory/").reply(200, inventory(2));
+    await renderWithProviders(<StockLocationDetailScreen {...props(2)} />);
+    expect(await screen.findByText("Bulunamadı.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText("Tekrar dene"));
+    expect(await screen.findByText("Bu lokasyonda stok yok")).toBeOnTheScreen();
+  });
+});

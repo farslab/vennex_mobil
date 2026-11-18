@@ -1,0 +1,13 @@
+# E2E: admin'de iOS minimum sürüm > yüklü sürüm ve zorunlu → uygulama "Güncelleme gerekli" ekranında kilitlenir.
+# Önkoşul (yerel backend):
+#   backend-local/run.sh manage shell -c "from vennex_mobile.models import MobileAppVersionPolicy as P; P.objects.filter(platform='ios').update(min_version='9.0.0', force_update=True)"
+# Sonrası: min_version='1.0.0' geri alınır.
+appId: com.vennex.mobileapp
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Güncelleme gerekli"
+    timeout: 20000
+- assertVisible: "Mağazada güncelle"
+- assertVisible: "Yüklü sürüm: 1.0.0"
+- assertNotVisible: "Profil"

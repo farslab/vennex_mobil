@@ -1,0 +1,39 @@
+# E2E (gerçek backend kodu, yerel izole DB): giriş → sunucu modülleri → şirket değişimi → oturum geri yükleme
+# Önkoşul: backend-local/run.sh server + seed (demo/demo1234)
+appId: com.vennex.mobileapp
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "login-username"
+- inputText: "demo"
+- tapOn:
+    id: "login-password"
+- inputText: "demo1234"
+- tapOn:
+    id: "login-submit"
+- extendedWaitUntil:
+    visible: "Profil"
+    timeout: 20000
+
+# Şirket 1: personel kart cihazı + stok modu → Kartlar ve Stok sekmeleri (sunucu /app/config/ modules)
+- assertVisible: ".*Demo Otomat A.Ş.*"
+- assertVisible: "Kartlar"
+- assertVisible: "Stok"
+
+# Şirket 2: personel kart cihazı yok → Kartlar sekmesi sunucu kararıyla gizlenir
+- tapOn:
+    id: "company-switcher"
+- tapOn: "Örnek Kafe Ltd."
+- extendedWaitUntil:
+    notVisible: "Kartlar"
+    timeout: 10000
+- assertVisible: "Stok"
+
+# Yeniden başlat → oturum ve şirket seçimi korunur
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: ".*Örnek Kafe Ltd.*"
+    timeout: 20000
+- assertNotVisible: "Kartlar"

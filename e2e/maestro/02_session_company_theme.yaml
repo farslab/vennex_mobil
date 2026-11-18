@@ -1,0 +1,41 @@
+# E2E: giriş → sekmeler → şirket değiştirme → bildirimler → oturum geri yükleme
+# Önkoşul: `npm run mock` + development build
+appId: com.vennex.mobileapp
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "login-username"
+- inputText: "demo"
+- tapOn:
+    id: "login-password"
+- inputText: "demo1234"
+- tapOn:
+    id: "login-submit"
+
+# Sekmeler (demo: tüm yetkiler, şirket 1 personel kart + stok modunda)
+- assertVisible: "Panel"
+- assertVisible: "Cihazlar"
+- assertVisible: "Kartlar"
+- assertVisible: "Stok"
+- assertVisible: "Profil"
+
+# Şirket değiştir → "Örnek Kafe Ltd." (personel kart ve stok modu yok → sekmeler gizlenir)
+- tapOn:
+    id: "company-switcher"
+- assertVisible: "Şirket seçin"
+- tapOn: "Örnek Kafe Ltd."
+- assertNotVisible: "Kartlar"
+- assertNotVisible: "Stok"
+
+# Bildirimler
+- tapOn:
+    id: "header-notifications"
+- assertVisible: "Bildirimler"
+- back
+
+# Uygulamayı yeniden başlat → oturum ve şirket seçimi korunur
+- stopApp
+- launchApp
+- assertVisible: "Panel"
+- assertVisible: "Örnek Kafe Ltd."

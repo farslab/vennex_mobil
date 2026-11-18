@@ -1,0 +1,39 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "distribution": "internal",
+      "env": { "APP_ENV": "development" },
+      "ios": { "simulator": true }
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": { "APP_ENV": "staging", "EXPO_PUBLIC_API_BASE_URL": "https://REPLACE-WITH-STAGING-HOST" },
+      "android": { "buildType": "apk" }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "env": { "APP_ENV": "production" },
+      "android": { "buildType": "app-bundle" },
+      "ios": { "resourceClass": "m-medium" }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "REPLACE-WITH-APP-STORE-CONNECT-APP-ID",
+        "appleTeamId": "REPLACE-WITH-APPLE-TEAM-ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./ota-secrets/play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
+  }
+}

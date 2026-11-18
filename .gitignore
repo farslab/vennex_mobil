@@ -255,3 +255,12 @@ Temporary Items
 .apdisk
 
 # End of https://www.toptal.com/developers/gitignore/api/reactnative
+# Expo CNG — native klasörler app.config.ts'den üretilir
+/ios
+/android
+
+# Test/coverage çıktıları
+coverage/
+
+# OTA yayın gizlileri (yükleme anahtarı)
+/ota-secrets
