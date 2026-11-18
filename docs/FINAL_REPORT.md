@@ -28,7 +28,7 @@ Sabit/sahte veriler (₺1147,12, DEMO SKU, "grup dağılımı") kaldırıldı ·
 Her uç backend koduyla (serializer/view/permission) doğrulandı: [`API_CONTRACTS.md`](API_CONTRACTS.md). Web ve mobil **tek kaynaktan** beslenir: yetki/modül/enum kaydı `dashboard_v2/capabilities.py` → `GET /app/config/` (canlıda). Uçtan uca doğrulama **gerçek backend koduyla, yerel izole veritabanında** (kurgusal veri) yapıldı; canlıya test isteği atılmadı.
 
 - Canlıda: ortak yetenek kaydı, OTA (POS ile ortak Xavia, `vm-` runtime), zorunlu güncelleme politikası, mobil API güvenlik düzeltmeleri.
-- **Canlıda değil (onay bekliyor):** `feature/mobil-geri-bildirim` — geri bildirim API'si + Nexus ekranları, herkese açık gizlilik ve hesap silme sayfaları ([`BACKEND_CHANGES.md`](BACKEND_CHANGES.md)).
+- Canlıda (2026-11-18 23:53): geri bildirim API'si + Nexus ekranları, herkese açık gizlilik ve hesap silme sayfaları ([`BACKEND_CHANGES.md`](BACKEND_CHANGES.md)).
 
 ## 5. Performans
 
@@ -67,7 +67,7 @@ iOS simülatör derlemesi (Debug ve Release) PASS. Production yapılandırması 
 
 ## 10. Backend'de ayrıca yapılması gerekenler
 
-1. `feature/mobil-geri-bildirim` dalının canlıya alınması (migration `vennex_mobile.0010`, yalnız yeni tablo).
+1. ✔ Geri bildirim dalı canlıda; GitHub'a push bekliyor.
 2. `LegalDocument.web_url` alanlarının boşaltılması (gizlilik URL'si uygulamayla aynı kayıttan üretilsin).
 3. `auth/password-reset/` uçlarının kapatılması; `EMAIL_BACKEND` sabit `console` (S22).
 4. Öneriler S10–S12, S18–S21 (SECURITY_AUDIT).

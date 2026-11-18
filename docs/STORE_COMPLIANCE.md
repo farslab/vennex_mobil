@@ -2,7 +2,7 @@
 
 Tarih: 2026-11-18 · Uygulama kimliği: **`tr.com.vennex`** (iOS bundle id = Android paket adı)
 
-Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** kod hazır, backend dalı canlıya alınınca etkin · **👤** mağaza konsolunda sizin yapmanız gereken adım · **❓** karar gerekiyor.
+Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** (artık canlıda — ✔ say) · **👤** mağaza konsolunda sizin yapmanız gereken adım · **❓** karar gerekiyor.
 
 ## Ortak
 
@@ -55,7 +55,7 @@ Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** kod hazır, backend 
 
 ## Sonraki adımlar (sırayla)
 
-1. Backend dalı `feature/mobil-geri-bildirim` canlıya alınmalı (geri bildirim, herkese açık yasal ve hesap silme sayfaları). Onayınızla yapılır.
+1. ✔ Backend canlıda (2026-11-18): gizlilik URL'si `https://tms.vennex.com.tr/vennexmobile/yasal/privacy/`, hesap silme URL'si `https://tms.vennex.com.tr/vennexmobile/hesap-silme/`.
 2. Admin → Legal Belgeler: `web_url` alanlarını boşaltın (tek kaynak) — ya da kurumsal sitedeki metinlerin bu kayıtlarla aynı tutulacağını garanti edin.
 3. Firebase'e `tr.com.vennex` uygulamalarını ekleyip dosyaları verin; APNs anahtarını yükleyin.
 4. İnceleme hesabını canlıda açın.

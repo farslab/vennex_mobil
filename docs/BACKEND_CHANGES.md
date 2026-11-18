@@ -110,7 +110,7 @@ Modül çalışanlarının kod incelemesinde bulundu; ayrıntı ve satır numara
 
 ---
 
-# İkinci dal — `feature/mobil-geri-bildirim` (2026-11-18) · **canlıda DEĞİL, commit edilmedi**
+# İkinci dal — `feature/mobil-geri-bildirim` (2026-11-18) · **CANLIDA** (23:53)
 
 | Parça | Dosya | Açıklama |
 |---|---|---|
@@ -125,4 +125,5 @@ Modül çalışanlarının kod incelemesinde bulundu; ayrıntı ve satır numara
 | Testler | `vennex_mobile/test_feedback.py` | 16 test |
 
 Doğrulama (yerel izole DB): `vennex_mobile`, `nexus`, `dashboard_v2`, `api.test_ota_runtime` → **123/123 OK**.
-Canlıya alma: migration `vennex_mobile.0010` (yalnız yeni tablo, mevcut veriye dokunmaz) + web yeniden başlatma. **Kullanıcı onayı bekliyor.**
+Canlıya alma (2026-11-18 23:52–23:53): sunucu temizdi (HEAD `9e2fd69`, commit edilmemiş değişiklik yok), yama `git am` ile uygulandı → sunucu `main` = `d0196d9`; yalnız `vennex_mobile.0010` uygulandı (yeni tablo); `manage.py check` temiz; yalnız web konteyneri yeniden başlatıldı (36 sn). Kontrol: yasal sayfalar ve hesap silme formu 200 (tms.vennex.com.tr ve sp.serpetpay.com, HTTPS), `feedback/` oturumsuz 401, Nexus sayfası girişe 302, mevcut uçlar normal, 5xx/traceback 0. Canlıda form gönderimi yapılmadı.
+Geri dönüş: `migrate vennex_mobile 0009` + `git revert d0196d9` + web yeniden başlatma. **GitHub'a push edilmedi** (sunucu `main`, `origin/main`'in 1 commit önünde).

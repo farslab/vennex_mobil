@@ -471,7 +471,7 @@ Yetki listesine `send_device_commands` eklendi (mevcut kural: cihaza erişimi ol
 | `POST /device/register/` · `POST /device/unregister/` | Oturum | `{fcm_token, platform, device_id}` · `{fcm_token}` | FCM kaydı; çıkışta silinir |
 | `WS /ws/dashboard/pos/{SN}/?token=` | JWT + `remote_vend` + cihaza erişim | ← `vend_pending {tx_id, amount (kuruş), item}` · → `remote_decision {tx_id, decision: "approve"}` · ← `remote_decision_ack`, `vend_ended {result}`, `error` | Yetkisiz bağlantı el sıkışmada reddedilir (istemci 1006 görür) |
 
-## 9. Geri bildirim ve herkese açık sayfalar (backend dalı `feature/mobil-geri-bildirim`, canlıda DEĞİL)
+## 9. Geri bildirim ve herkese açık sayfalar (canlıda, 2026-11-18)
 
 | Uç | Auth | İstek → Yanıt | Not |
 |---|---|---|---|
