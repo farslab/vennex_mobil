@@ -1,7 +1,10 @@
 # Backend Değişiklikleri — `farslab/scc_lith`
 
 > Dal: **`feature/mobil-ortak-yetki-ota`** (yerel klon: `../backend-scc_lith`, `main` @ `1a91735` tabanlı).
-> Durum: **commit edilmedi, canlıya alınmadı.** Tüm testler yerelde izole veritabanında geçiyor (107 test).
+> Durum: **CANLIDA** — 2026-11-18 19:48 (sunucu `main`: `90057ad` sunucudaki commit edilmemiş performans düzeltmeleri + `9e2fd69` bu dal).
+> Migration'lar `api.0262`, `vennex_mobile.0009` uygulandı; önceki OTA tablosu yedeği: `db_backups/api_otarelease_pre_mobil_20261118_194814.sql`.
+> Yalnız web konteyneri yeniden başlatıldı (celery değişmedi). Sonraki 1,5 saatte 5xx/traceback: 0. Sürüm politikası kayıtları (iOS/Android 1.0.0) oluşturuldu.
+> **GitHub'a push edilmedi**: sunucu `main`'i `origin/main`'in 2 commit önünde.
 
 ## Amaç
 
