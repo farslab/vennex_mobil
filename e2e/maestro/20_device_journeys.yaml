@@ -1,0 +1,36 @@
+# E2E (yolculuk 3–4): cihaz satışlarını filtrele, cihaz ayarını değiştirip kaydet — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Cihazlar"
+- tapOn: { id: "device-row-DEMO0001" }
+# 3) Satışlar: durum filtresi + kart son 4 hane
+- tapOn: "Satışlar"
+- extendedWaitUntil: { visible: { id: "sales-summary" }, timeout: 15000 }
+- tapOn: "Son 7 gün"
+- extendedWaitUntil: { visible: { id: "tx-row-.*" }, timeout: 15000 }
+- tapOn: "Başarısız"
+# Yalnız başarısız işlemler listelenir (satır etiketi "…, başarısız, …")
+- extendedWaitUntil: { visible: ".*başarısız.*", timeout: 15000 }
+- assertNotVisible: ".*, başarılı, .*"
+- takeScreenshot: j3_sales_failed
+- tapOn: { id: "sales-more-filters" }
+- tapOn: { id: "sales-card-last4" }
+- inputText: "0000"
+- tapOn: { id: "sales-filters-apply" }
+- extendedWaitUntil: { visible: ".*İşlem yok.*", timeout: 15000 }
+- takeScreenshot: j3_sales_last4_empty
+# 4) Ayarlar: ad değiştir → kaydet
+- swipe:
+    start: 85%, 18%
+    end: 15%, 18%
+- tapOn: "Ayarlar"
+- extendedWaitUntil: { visible: { id: "settings-name" }, timeout: 15000 }
+- tapOn: { id: "settings-name" }
+- eraseText: 40
+- inputText: "E2E Otomat"
+- hideKeyboard
+- scrollUntilVisible: { element: { id: "settings-save" } }
+- tapOn: { id: "settings-save" }
+- extendedWaitUntil: { notVisible: { id: "settings-save", enabled: true }, timeout: 3000 }
+- takeScreenshot: j4_settings_saved

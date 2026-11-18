@@ -198,6 +198,10 @@ render.experimental.xml
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
+# Firebase istemci dosyaları (Google API anahtarı içerir) — EAS gizli dosya değişkeniyle verilir
+firebase/google-services.json
+firebase/GoogleService-Info.plist
+GoogleService-Info.plist
 
 # Android Profiling
 *.hprof

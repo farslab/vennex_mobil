@@ -33,7 +33,7 @@ Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** (artık canlıda —
 | 2.1 Uygulama eksiksizliği, demo hesap | 👤 | Yukarıdaki inceleme hesabı |
 | 3.1 Ödeme | ✔ | Uygulama içi satın alma yok; cari/fatura yalnız görüntüleme (B2B hizmet) |
 | Push yeteneği | ✔ / 👤 | `aps-environment` entitlement hazır; Apple Developer'da `tr.com.vennex` App ID + Push Notifications |
-| iPad desteği | ❓ | `supportsTablet: true` → App Store **iPad ekran görüntüsü** ister ve inceleme iPad'de de yapılır. iPad hedeflenmiyorsa `false` önerilir |
+| iPad desteği | ✔ karar: **desteklenecek** / 👤 | `supportsTablet: true`. App Store Connect'e **iPad ekran görüntüleri** (13" iPad) yüklenmeli; inceleme iPad'de de yapılır. İçerik genişliği `layout.maxContentWidth` ile sınırlı; **iPad düzeninin simülatörde görsel kontrolü henüz yapılmadı** (NOT TESTED) |
 | Destek URL'si | 👤 | App Store Connect zorunlu alan (ör. vennex.com.tr iletişim sayfası) |
 | Yaş derecelendirmesi | 👤 | Anket: kullanıcı içeriği/şiddet vb. yok → 4+ |
 
@@ -49,7 +49,7 @@ Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** (artık canlıda —
 | App access (inceleme girişi) | 👤 | İnceleme hesabı bilgileri |
 | İçerik derecelendirmesi, hedef kitle | 👤 | IARC anketi; hedef kitle 18+ (çocuklara yönelik değil) |
 | Finansal özellikler beyanı | 👤 | Play tüm uygulamalardan ister. Uygulama finansal hizmet sunmaz (personel kartı bakiyesi işletme içi kapalı devre) — beyanı buna göre doldurun |
-| **Yeni kişisel geliştirici hesabı** | ❓ / 👤 | Uygulama yeni bir Google hesabından yayınlanacak: hesap **kişisel** türdeyse Play, production'dan önce **en az 12 test kullanıcısıyla 14 gün kapalı test** şartı koyar. **Kuruluş** hesabında bu şart yoktur (D-U-N-S gerekir) |
+| Geliştirici hesabı türü | ✔ karar: **kurumsal** / 👤 | 12 test kullanıcısı / 14 gün kapalı test şartı **yok**. Kurumsal hesap için **D-U-N-S numarası** ve kuruluş doğrulaması gerekir; geliştirici adı ve iletişim e-postası mağazada görünür |
 | Uygulama imzalama | ✔ | AAB, Play App Signing (EAS production profili) |
 | Paket adı | ✔ | `tr.com.vennex` (Flutter uygulaması `com.vennex.mobile` ile çakışmaz) |
 
@@ -59,5 +59,5 @@ Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** (artık canlıda —
 2. Admin → Legal Belgeler: `web_url` alanlarını boşaltın (tek kaynak) — ya da kurumsal sitedeki metinlerin bu kayıtlarla aynı tutulacağını garanti edin.
 3. Firebase'e `tr.com.vennex` uygulamalarını ekleyip dosyaları verin; APNs anahtarını yükleyin.
 4. İnceleme hesabını canlıda açın.
-5. iPad kararı ve Play hesap türü (kişisel/kuruluş).
+5. ✔ Kararlar: iPad desteklenecek (iPad ekran görüntüleri + iPad düzen kontrolü), Play hesabı kurumsal (D-U-N-S).
 6. Mağaza listeleme içerikleri (ekran görüntüleri, açıklama, destek URL'si, gizlilik URL'si).

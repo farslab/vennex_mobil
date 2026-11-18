@@ -59,6 +59,8 @@
 - Android izinleri: yalnız `INTERNET`; depolama/overlay izinleri engellendi.
 - Zaman aşımı 20 sn; 4xx hatalar otomatik yeniden denenmez, mutasyonlar **asla** otomatik yeniden denenmez (çift finansal işlem riski).
 - Certificate pinning **uygulanmadı**: sertifika yenileme ve yedek pin operasyonu planlanmadan eklenirse uygulamayı kilitleyebilir. Öneri: backend ekibiyle yedek SPKI pin + yenileme takvimi belirlendikten sonra değerlendirilmeli.
+- **Ekran görüntüsü:** engellenmedi (bilinçli). Uygulama B2B yönetim aracı; ekran görüntüsü destek ve raporlama için meşru kullanım. Görüntülenen veriler zaten oturum ve yetki arkasında. Gerekirse `expo-screen-capture` ile yalnız belirli ekranlar (ör. 2FA kurulum anahtarı) korunabilir.
+- **Pano (clipboard):** uygulama panoya hiçbir şey yazmıyor/okumuyor (kodda `Clipboard` kullanımı yok). 2FA kurulumunda gizli anahtar yalnız gösterilir.
 
 ### Veri
 - Kullanıcı değişiminde önbellek temizliği (S3); şirket değişiminde tüm sorgular sıfırlanır.
@@ -97,4 +99,5 @@
 - **Firebase zinciri** (`@grpc/grpc-js`, `@firebase/firestore`, `firebase`): RN Firebase'in web uyumluluk paketi üzerinden geliyor. Üretilmiş iOS production paketinde (`expo export`) `grpc-js` / Firestore **0 kez** geçiyor → çalışma zamanına girmiyor. Önerilen düzeltme RNFB'yi 20'ye düşürmek olduğundan uygulanmadı.
 - **`markdown-it` / `linkify-it`** (yasal metin gösterimi, `react-native-markdown-display`): yalnız admin'in yazdığı güvenilir içerik işleniyor; kullanıcı girdisi yok → düşük risk. Paket güncellenince yükseltilmeli.
 - **`expo` / `@expo/fingerprint` / `minimatch`**: yalnız derleme aracı; `npm audit fix --force` Expo'yu 52'ye düşürmeyi önerdiği için uygulanmadı.
+- **Lisans denetimi** (kurulu çalışma zamanı paketleri, 2026-11-19): 700 paket — MIT 539, Apache-2.0 66, ISC 38, BSD 35, BlueOak 8, diğer serbest lisanslar. GPL/AGPL/SSPL yok. `node-forge` çift lisanslı (BSD-3 **veya** GPL-2.0 → BSD seçilir); 2 MPL-2.0 paket değiştirilmeden kullanılıyor (dosya düzeyinde yükümlülük doğmaz). Mağaza dağıtımına engel lisans yok.
 - Production paketinde canlı dışı adres yok: `tms.vennex.com.tr` gömülü yapılandırmadan gelir; `localhost` yalnız geliştirme yedeği ve production'da `http` adresi uygulamayı durdurur.

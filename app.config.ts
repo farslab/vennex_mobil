@@ -57,14 +57,25 @@ const APP_ID = "tr.com.vennex";
  * Başka uygulamanın dosyası (ör. Flutter'ınki) sessizce kullanılmasın diye eşleşme zorunludur.
  * Dosyalar yokken geliştirme/staging derlemesi push'suz çalışır; production derlemesi durur.
  */
+/*
+ * Dosyalar REPOYA KONMAZ (.gitignore; içlerindeki Google API anahtarı GitHub gizli bilgi taramasına
+ * takılır). Yerelde firebase/ klasörüne konur; EAS derlemesinde "file" türü gizli ortam
+ * değişkenleri (GOOGLE_SERVICES_JSON, GOOGLE_SERVICE_INFO_PLIST) dosyanın yolunu verir.
+ */
 const FIREBASE_FILES = {
-  android: { file: "./firebase/google-services.json", marker: `"package_name": "${APP_ID}"` },
-  ios: { file: "./firebase/GoogleService-Info.plist", marker: `<string>${APP_ID}</string>` },
+  android: {
+    file: process.env.GOOGLE_SERVICES_JSON || "./firebase/google-services.json",
+    marker: `"package_name": "${APP_ID}"`,
+  },
+  ios: {
+    file: process.env.GOOGLE_SERVICE_INFO_PLIST || "./firebase/GoogleService-Info.plist",
+    marker: `<string>${APP_ID}</string>`,
+  },
 } as const;
 
 function firebaseFile(platform: keyof typeof FIREBASE_FILES): string | undefined {
   const { file, marker } = FIREBASE_FILES[platform];
-  const abs = path.join(__dirname, file);
+  const abs = path.resolve(__dirname, file); // EAS mutlak yol verir
   if (!fs.existsSync(abs)) return undefined;
   if (!fs.readFileSync(abs, "utf8").includes(marker)) {
     throw new Error(`${file} başka bir uygulamaya ait: Firebase'de ${APP_ID} için kayıtlı uygulamanın dosyasını kullanın`);

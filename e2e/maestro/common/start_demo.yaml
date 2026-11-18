@@ -1,0 +1,20 @@
+# Ortak başlangıç: uygulamayı yeniden aç, gerekirse demo ile giriş yap, Demo Otomat A.Ş. seç
+appId: tr.com.vennex
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Hesabınıza giriş yapın"
+    commands:
+      - tapOn: { id: "login-username" }
+      - inputText: ${USER || "demo"}
+      - tapOn: { id: "login-password" }
+      - inputText: ${PASS || "demo1234"}
+      - tapOn: { id: "login-submit" }
+- extendedWaitUntil: { visible: "Profil", timeout: 20000 }
+- runFlow:
+    when:
+      notVisible: ".*Demo Otomat A.Ş.*"
+    commands:
+      - tapOn: { id: "company-switcher" }
+      - tapOn: "Demo Otomat A.Ş."

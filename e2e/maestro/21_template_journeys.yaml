@@ -1,0 +1,36 @@
+# E2E (yolculuk 5–7): ürün şablonu oluştur → SKU'lu kalem ekle → cihaza ata — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Cihazlar"
+- tapOn: "Ürün şablonları"
+- extendedWaitUntil: { visible: { id: "templates-screen" }, timeout: 15000 }
+# 5) Şablon oluştur (oluşturunca editöre geçer)
+- tapOn: { id: "template-new" }
+- tapOn: { id: "template-name" }
+- inputText: "E2E Sablon"
+- hideKeyboard
+- tapOn: { id: "template-form-submit" }
+- extendedWaitUntil: { visible: { id: "template-editor" }, timeout: 15000 }
+# 6) SKU'lu kalem ekle
+- tapOn: { id: "editor-add-item" }
+- tapOn: { id: "template-item-sku" }
+- extendedWaitUntil: { visible: ".*Kola 330ml.*", timeout: 15000 }
+- tapOn: ".*Kola 330ml.*"
+- tapOn: { id: "template-item-urun-no" }
+- eraseText: 5
+- inputText: "11"
+- tapOn: { id: "template-item-price" }
+- eraseText: 10
+- inputText: "17,5"
+- hideKeyboard
+- tapOn: { id: "template-item-save" }
+- extendedWaitUntil: { visible: ".*Kola 330ml.*", timeout: 15000 }
+- takeScreenshot: j6_template_item
+# 7) Cihaza ata
+- tapOn: { id: "editor-assign" }
+- extendedWaitUntil: { visible: { id: "device-picker" }, timeout: 15000 }
+- tapOn: ".*DEMO0002.*"
+- tapOn: { id: "device-picker-confirm" }
+- extendedWaitUntil: { visible: { id: "assign-result" }, timeout: 20000 }
+- takeScreenshot: j7_assign_result
