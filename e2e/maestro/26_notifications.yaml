@@ -3,9 +3,8 @@ appId: tr.com.vennex
 ---
 - runFlow: common/start_demo.yaml
 # 16) Bildirimleri okundu yap
-- tapOn: "Profil"
-- scrollUntilVisible: { element: { id: "row-notifications" }, centerElement: true }
-- tapOn: { id: "row-notifications" }
+# Bildirimler: başlığın sağ üstündeki zil (Profil'de ayrı satır yok)
+- tapOn: { id: "header-notifications" }
 - extendedWaitUntil: { visible: ".*Yerel E2E testi.*", timeout: 15000 }
 - tapOn: { id: "mark-all-read" }
 - runFlow:

@@ -16,7 +16,6 @@ import {
 import { useAuthStore, useSelectedCompany } from "@/store/authStore";
 import { canManageUsers, isOwner, moduleVisible } from "@/auth/permissions";
 import { useAppConfig } from "@/hooks/useAppConfig";
-import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { APP_ENV } from "@/config/env";
 import { LEGAL_DEFAULT_TITLES, LEGAL_SLUGS } from "@/types/legal";
 import type { RootStackParamList } from "@/navigation/types";
@@ -38,7 +37,6 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const company = useSelectedCompany();
-  const unread = useUnreadNotificationCount();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -127,13 +125,6 @@ export default function ProfileScreen() {
             />
           ) : null}
           <AppListRow icon="bar-chart-2" title="Raporlar" onPress={() => navigation.navigate("Reports")} testID="row-reports" />
-          <AppListRow
-            icon="bell"
-            title="Bildirimler"
-            value={unread > 0 ? `${unread > 99 ? "99+" : unread} okunmamış` : undefined}
-            onPress={() => navigation.navigate("Notifications")}
-            testID="row-notifications"
-          />
           <AppListRow
             icon="message-square"
             title="Geri bildirim ve destek"

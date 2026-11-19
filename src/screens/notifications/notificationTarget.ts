@@ -121,3 +121,35 @@ export function notificationWebLink(
     return null;
   }
 }
+
+/**
+ * Bildirimi gönderen (listede ve alt sayfada gösterilir). Yönetici/kullanıcı kaynaklı
+ * bildirimde (`data.sent_by_admin`) kullanıcı adı gösterilmez → "Vennex".
+ * Eski sunucu sürümü kullanıcı adını gönderse de uygulama göstermez.
+ */
+export function notificationSender(item: Pick<NotificationItem, "actor_str" | "data">): string | null {
+  const sentByAdmin = item.data?.sent_by_admin;
+  if (sentByAdmin === true || sentByAdmin === "true" || sentByAdmin === "True") return "Vennex";
+  return nonEmpty(item.actor_str);
+}
+
+/**
+ * Nexus → Mobil Push bildirimleri `notification_id` taşır: dokununca bildirimin tamamı
+ * bildirim ekranında alttan açılan sayfada gösterilir. Olay bildirimleri (event) kendi ekranına gider.
+ */
+export function pushOpenParams(message: {
+  data?: Record<string, unknown> | null;
+  notification?: { title?: string; body?: string } | null;
+  sentTime?: number;
+}): { id: number; title: string; body: string; url?: string; sentAt?: number } | null {
+  const data = message.data ?? null;
+  const id = positiveInt(data?.notification_id);
+  if (!id) return null;
+  return {
+    id,
+    title: nonEmpty(message.notification?.title) ?? "Bildirim",
+    body: nonEmpty(message.notification?.body) ?? "",
+    url: nonEmpty(data?.url) ?? undefined,
+    sentAt: typeof message.sentTime === "number" ? message.sentTime : undefined,
+  };
+}

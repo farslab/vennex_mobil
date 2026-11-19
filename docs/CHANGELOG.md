@@ -13,6 +13,14 @@
 - Mağaza hazırlığı: iOS gizlilik manifesti, şifreleme beyanı, minimum Android izinleri, uygulama içi hesap silme.
 - Yerel mock sunucu (`mock-server/`) ve gerçek backend kodunun izole yerel kurulumu (`../backend-local`).
 
+### Yedinci tur (2026-11-19) — push bildirimleri ve Nexus → Mobil Push
+- **Firebase/Apple kurulumu:** `tr.com.vennex` Bundle ID + Push Notifications (ASC API); Firebase `vennexmobile` projesine iOS + Android uygulamaları (CLI); APNs anahtarı Firebase'e yüklendi; EAS projesi `@arslanhan/vennex-mobile-app`, Firebase dosyaları EAS gizli dosya değişkenleri (production/preview/development).
+- **iOS push kaydı hatası (düzeltildi):** `getToken` APNs kaydından önce çağrılıyordu (`messaging/unregistered`); iPhone'larda push hiç kaydolmazdı. Önce `registerDeviceForRemoteMessages`. Gerçek iPhone'da uçtan uca doğrulandı.
+- **Push'a dokununca:** Nexus → Mobil Push bildirimlerinde (`notification_id`) bildirimin tamamı bildirim ekranında alttan açılan sayfada; okundu işaretlenir.
+- **Gönderen:** yönetici/kullanıcı kaynaklı bildirimlerde kullanıcı adı yerine "Vennex" (sunucu + uygulama).
+- **Profil:** "Bildirimler" satırı kaldırıldı (sağ üstteki zil yeterli).
+- **Backend (canlıda, `d1d3597`, `8740178`):** Nexus → Mobil Push — birleştirilebilir filtreler (şirket, rol, kullanıcı, platform, son X gün), ön izleme + onay, test modu, Celery ile arka planda gönderim, sonuç raporu (`MobilePushCampaign`, migration `vennex_mobile.0011`); Celery `vennex_mobile` görevlerini keşfediyor.
+
 ### Altıncı tur (2026-11-19) — arayüz düzeni ve bildirimler (canlı tur geri bildirimi)
 - **Alt çubuk:** Genel Bakış (eski "Panel") ortada büyük, yuvarlak düğme; grafik ikonu. Sıra: POS Cihazları · Kartlar · Genel Bakış · Stok · Profil.
 - **Adlandırma:** makineyi kastettiği her yerde "POS cihazı" / "POS Cihazları" (sekme, sayaçlar, seçiciler, bildirim ayarları, şablon işlemleri). Telefonu kastedenler değişmedi.

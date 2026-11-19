@@ -93,6 +93,8 @@ if (APP_ENV === "production" && !PUSH_ENABLED) {
 const config: ExpoConfig = {
   name: APP_ENV === "production" ? "Vennex" : `Vennex (${APP_ENV === "staging" ? "Test" : "Dev"})`,
   slug: "vennex-mobile-app",
+  // EAS (bulut derleme + gizli dosya değişkenleri) projesi: @arslanhan/vennex-mobile-app
+  owner: "arslanhan",
   version: APP_VERSION,
   runtimeVersion: RUNTIME_VERSION,
   updates: {
@@ -182,6 +184,8 @@ const config: ExpoConfig = {
     runtimeVersion: RUNTIME_VERSION,
     // Firebase dosyaları bu kimliğe ait değilse push kodu hiç çalışmaz (izin de sorulmaz)
     pushEnabled: PUSH_ENABLED,
+    // EAS projesi @arslanhan/vennex-mobile-app (bulut derleme ve gizli dosya değişkenleri)
+    eas: { projectId: "a9dc80c8-db2b-4845-b1c7-145b24c18a1e" },
   },
 };
 

@@ -20,9 +20,11 @@ import {
   getInitialNotification,
   getMessaging,
   getToken,
+  isDeviceRegisteredForRemoteMessages,
   onMessage,
   onNotificationOpenedApp,
   onTokenRefresh,
+  registerDeviceForRemoteMessages,
   requestPermission,
 } from "@react-native-firebase/messaging";
 import { authApi } from "@/api/auth";
@@ -30,7 +32,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { queryClient } from "@/store/queryClient";
 import { toast } from "@/design-system";
 import { navigateWhenReady } from "@/navigation/navigationRef";
-import { resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
+import { pushOpenParams, resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
 import type { AuthUser } from "@/types/auth";
 import { PUSH_ENABLED } from "@/config/env";
 
@@ -41,6 +43,7 @@ type RemoteData = Record<string, string | object | undefined> | undefined;
 interface RemoteLike {
   data?: RemoteData;
   notification?: { title?: string; body?: string };
+  sentTime?: number;
 }
 
 let unsubscribers: (() => void)[] = [];
@@ -81,6 +84,12 @@ async function registerToken(token: string) {
 /** Bildirim verisinden uygulama içi hedefe git (yetki kontrollü; hedef yoksa bildirim merkezi) */
 export function openFromNotification(message: RemoteLike | null | undefined, user: AuthUser | null) {
   if (!message) return;
+  // Nexus → Mobil Push: bildirimin tamamını aç (bağlantı/ilgili ekran düğmesi orada)
+  const open = pushOpenParams({ data: (message.data ?? null) as Record<string, unknown> | null, notification: message.notification, sentTime: message.sentTime });
+  if (open) {
+    navigateWhenReady("Notifications", { open });
+    return;
+  }
   const target = resolveNotificationTarget({ data: (message.data ?? null) as never }, user);
   if (target) navigateWhenReady(target.name, target.params);
   else navigateWhenReady("Notifications");
@@ -113,12 +122,22 @@ export async function startPush(getUser: () => AuthUser | null): Promise<string 
     const initial = await getInitialNotification(messaging);
     if (initial) openFromNotification(initial as RemoteLike, getUser());
 
-    if (!(await ensurePushPermission())) return null;
+    if (!(await ensurePushPermission())) {
+      if (__DEV__) console.warn("[push] bildirim izni yok");
+      return null;
+    }
+    // iOS: APNs kaydı olmadan getToken "messaging/unregistered" ile reddedilir
+    if (Platform.OS === "ios" && !isDeviceRegisteredForRemoteMessages(messaging)) {
+      await registerDeviceForRemoteMessages(messaging);
+    }
     const token = await getToken(messaging);
     if (!token) return null;
     await registerToken(token);
+    if (__DEV__) console.info("[push] cihaz kaydedildi");
     return token;
-  } catch {
+  } catch (e) {
+    // Push isteğe bağlı: uygulamayı bozmaz. Geliştirmede nedeni görünsün.
+    if (__DEV__) console.warn("[push] kayıt başarısız:", e instanceof Error ? e.message : String(e));
     return null;
   }
 }

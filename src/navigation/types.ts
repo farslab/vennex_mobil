@@ -29,7 +29,8 @@ export type RootStackParamList = {
   CardDetail: { id: number };
   StockLocationDetail: { locationId: number; name?: string };
   ReportDetail: { id: number };
-  Notifications: undefined;
+  /** `open`: push'a dokunulunca açılacak bildirim (Nexus → Mobil Push) */
+  Notifications: { open?: NotificationOpenParams } | undefined;
   Reports: undefined;
   NewReport: undefined;
   Users: undefined;
@@ -56,4 +57,14 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface RootParamList extends RootStackParamList {}
   }
+}
+
+/** Push bildiriminden açılan bildirimin içeriği (listede henüz olmasa da gösterilebilsin) */
+export interface NotificationOpenParams {
+  id: number;
+  title: string;
+  body: string;
+  url?: string;
+  /** ms (FCM sentTime) */
+  sentAt?: number;
 }

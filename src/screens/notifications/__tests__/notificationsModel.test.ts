@@ -1,7 +1,7 @@
 import MockAdapter from "axios-mock-adapter";
 import { apiClient } from "@/api/client";
 import { notificationsApi } from "@/api/notifications";
-import { notificationWebLink, resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
+import { notificationSender, notificationWebLink, resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
 import { makeUser } from "@/test/utils";
 
 describe("notificationsApi", () => {
@@ -108,5 +108,16 @@ describe("notificationWebLink", () => {
       expect(notificationWebLink({ data: { url } }, user, WEB)).toBeNull();
     }
     expect(notificationWebLink({ data: null }, user, WEB)).toBeNull();
+  });
+});
+
+describe("notificationSender", () => {
+  it("yönetici bildiriminde kullanıcı adı yerine Vennex", () => {
+    expect(notificationSender({ actor_str: "serpetotadmin", data: { sent_by_admin: true, admin_user: "serpetotadmin" } })).toBe("Vennex");
+    expect(notificationSender({ actor_str: "serpetotadmin", data: { sent_by_admin: "True" } })).toBe("Vennex");
+  });
+  it("POS cihazı kaynaklı bildirimde cihaz adı kalır; boşsa null", () => {
+    expect(notificationSender({ actor_str: "UN20W000559", data: { url: "/pos-cihazi/UN20W000559/" } })).toBe("UN20W000559");
+    expect(notificationSender({ actor_str: "  ", data: null })).toBeNull();
   });
 });

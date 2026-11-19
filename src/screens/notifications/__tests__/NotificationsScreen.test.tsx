@@ -12,9 +12,12 @@ import type { NotificationItem } from "@/types/notifications";
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 
 const mockNavigate = jest.fn();
+const mockSetParams = jest.fn();
+let mockRouteParams: Record<string, unknown> | undefined;
 jest.mock("@react-navigation/native", () => ({
   ...jest.requireActual("@react-navigation/native"),
-  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn(), setOptions: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn(), setOptions: jest.fn(), setParams: mockSetParams }),
+  useRoute: () => ({ key: "n", name: "Notifications", params: mockRouteParams }),
   useFocusEffect: jest.fn(),
   useIsFocused: () => true,
 }));
@@ -155,6 +158,21 @@ describe("NotificationsScreen", () => {
     expect(openURL).toHaveBeenCalledWith("https://sp.serpetpay.com/duyuru");
     expect(mockNavigate).not.toHaveBeenCalled();
     openURL.mockRestore();
+  });
+
+  it("push'tan gelindiyse (open) bildirimin tamamı alt sayfada açılır, okundu işaretlenir; kapatınca param temizlenir", async () => {
+    mockRouteParams = { open: { id: 77, title: "Bakım", body: "Gece 02:00-06:00 bakım var.", url: "https://sp.serpetpay.com/duyuru" } };
+    mock.onGet("/notifications/").reply(200, page([]));
+    mock.onPost("/notifications/77/read/").reply(200, {});
+    await renderWithProviders(<NotificationsScreen />);
+    expect(await screen.findByTestId("notification-sheet-body")).toHaveTextContent("Gece 02:00-06:00 bakım var.");
+    expect(screen.getByTestId("notification-sheet-sender")).toHaveTextContent("Vennex");
+    expect(screen.getByTestId("notification-link")).toHaveTextContent("sp.serpetpay.com");
+    await waitFor(() => expect(mock.history.post.map((r) => r.url)).toContain("/notifications/77/read/"));
+    expect(mockSetParams).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByLabelText("Kapat"));
+    expect(mockSetParams).toHaveBeenCalledWith({ open: undefined });
+    mockRouteParams = undefined;
   });
 
   it("'Tümünü okundu işaretle' istek sürerken kilitlenir ve read-all çağırır", async () => {

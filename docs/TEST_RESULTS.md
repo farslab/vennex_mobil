@@ -200,3 +200,11 @@ Ortam: `scc_lith` `feature/mobil-ortak-yetki-ota` dalı, Postgres 17 (`vennex_lo
 | `vennex_mobile.test_app_config` (yeni) | 16 | PASS: kayıt tutarlılığı, varsayılan RED, şirkete göre modül, enum'lar, `/app/config/` (401/403/şekil), sürüm politikası, OTA uygulama ayrımı ve mobil yayında POS bildirimi olmaması |
 | `vennex_mobile.test_security_fixes` (yeni) | 9 | PASS: token iptali (çıkış yapılmış token'ın dirilmemesi dahil), 2FA kilidi, personel parola kuralları, stok 400 hataları, düzeltme nedeni |
 | Mevcut `vennex_mobile`, `dashboard_v2`, `nexus`, `api.test_ota_runtime` | 82 | PASS (gerileme yok) |
+
+
+### Gerçek cihazda push testi (2026-11-19) — PASS
+- Kurulum: Firebase `vennexmobile` projesine `tr.com.vennex` iOS + Android uygulamaları (CLI), Apple'da `tr.com.vennex` Bundle ID + Push Notifications (ASC API), APNs anahtarı Firebase'e yüklendi (kullanıcı), EAS projesi `@arslanhan/vennex-mobile-app` ve `GOOGLE_SERVICES_JSON` / `GOOGLE_SERVICE_INFO_PLIST` gizli dosya değişkenleri (production, preview, development).
+- **Bulunan hata:** iOS'ta `getToken` APNs kaydından önce çağrılıyordu → `messaging/unregistered`, hata sessizce yutuluyordu; iPhone'larda push hiç kaydolmazdı. Düzeltme: `registerDeviceForRemoteMessages` önce (`pushService.ts`), birim testi eklendi; geliştirmede kayıt hatası loglanıyor.
+- Simülatör APNs kimliği alamadı (simülatör derlemesi push yetkisiyle imzalanmıyor) → test gerçek cihazda yapıldı.
+- Cihaz: iPhone 17 Pro, Release derleme (gömülü JS, canlı API), ekip `5PM8J6CL93` geliştirme imzası, `aps-environment=development`.
+- Sonuç: cihaz canlı sunucuya kaydoldu (`UserDeviceToken` 94); yalnız bu cihaza gönderilen test bildirimi Firebase'ten kabul edildi, telefonda göründü; dokununca uygulama açılıp `PAV200009715` POS cihazı sayfasına gitti. Bildirim kutusuna kayıt eklenmedi, başka kullanıcıya gönderim yok.

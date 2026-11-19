@@ -8,7 +8,7 @@ import { Linking, StyleSheet, View } from "react-native";
 import { AppButton, AppIcon, AppSheet, AppText, makeStyles, toast } from "@/design-system";
 import { formatDateTime, formatRelative } from "@/utils/date";
 import type { NotificationItem } from "@/types/notifications";
-import { notificationIcon, type NotificationTarget, type NotificationWebLink } from "./notificationTarget";
+import { notificationIcon, notificationSender, type NotificationTarget, type NotificationWebLink } from "./notificationTarget";
 
 const TARGET_LABEL: Record<NotificationTarget["name"], string> = {
   DeviceDetail: "POS cihazını aç",
@@ -34,6 +34,7 @@ export function NotificationSheet({
   const title = item?.verb?.trim() || "Bildirim";
   const body = item?.description?.trim() || "";
   // Göreli zaman yalnız "3 sa önce" gibi gerçekten göreli ise eklenir; eski kayıtta tarih tekrarlanmaz
+  const sender = item ? notificationSender(item) : null;
   const relative = item?.timestamp ? formatRelative(item.timestamp) : "";
   const when = item?.timestamp
     ? /\d{2}\.\d{2}\.\d{4}/.test(relative)
@@ -77,9 +78,9 @@ export function NotificationSheet({
               <AppIcon name={notificationIcon(item)} size={16} color="primary" />
             </View>
             <View style={styles.flex}>
-              {item.actor_str ? (
-                <AppText variant="calloutStrong" selectable>
-                  {item.actor_str}
+              {sender ? (
+                <AppText variant="calloutStrong" selectable testID="notification-sheet-sender">
+                  {sender}
                 </AppText>
               ) : null}
               {when ? (

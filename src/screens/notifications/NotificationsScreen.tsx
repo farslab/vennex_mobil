@@ -2,10 +2,10 @@
  * Bildirim gelen kutusu — backend `views/notifications.py`, docs/API_CONTRACTS.md §2.11, §3.14.
  * Sayfalı (25), `unread=true` filtresi, tekil/toplu okundu işaretleme, event'e göre derin bağlantı.
  */
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   AppButton,
@@ -27,7 +27,7 @@ import { useAuthStore } from "@/store/authStore";
 import { formatRelative } from "@/utils/date";
 import type { RootStackParamList } from "@/navigation/types";
 import type { NotificationItem, NotificationsPage } from "@/types/notifications";
-import { notificationIcon, notificationWebLink, resolveNotificationTarget, type NotificationTarget } from "./notificationTarget";
+import { notificationIcon, notificationSender, notificationWebLink, resolveNotificationTarget, type NotificationTarget } from "./notificationTarget";
 import { API_BASE_URL } from "@/config/env";
 import { NotificationSheet } from "./NotificationSheet";
 import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
@@ -113,14 +113,43 @@ export default function NotificationsScreen() {
     },
     [markRead]
   );
-  const openedTarget = opened ? resolveNotificationTarget(opened, user) : null;
-  const openedLink = opened ? notificationWebLink(opened, user, API_BASE_URL) : null;
+  // Push'a dokunularak gelindiyse (Nexus → Mobil Push) o bildirim açık gelir ve okundu işaretlenir
+  const route = useRoute<RouteProp<RootStackParamList, "Notifications">>();
+  const openParam = route.params?.open;
+  const pushItem = useMemo<NotificationItem | null>(
+    () =>
+      openParam
+        ? {
+            id: openParam.id,
+            timestamp: openParam.sentAt ? new Date(openParam.sentAt).toISOString() : null,
+            verb: openParam.title,
+            description: openParam.body,
+            unread: false,
+            actor_str: null,
+            target_str: null,
+            data: { sent_by_admin: true, ...(openParam.url ? { url: openParam.url } : {}) },
+          }
+        : null,
+    [openParam]
+  );
+  const pushId = openParam?.id;
+  const { mutate: markReadMutate } = markRead;
+  useEffect(() => {
+    if (pushId) markReadMutate(pushId);
+  }, [pushId, markReadMutate]);
+  const shown = opened ?? pushItem;
+  const closeSheet = useCallback(() => {
+    setOpened(null);
+    if (openParam) navigation.setParams({ open: undefined });
+  }, [navigation, openParam]);
+  const openedTarget = shown ? resolveNotificationTarget(shown, user) : null;
+  const openedLink = shown ? notificationWebLink(shown, user, API_BASE_URL) : null;
   const openTarget = useCallback(
     (target: NotificationTarget) => {
-      setOpened(null);
+      closeSheet();
       go(target);
     },
-    [go]
+    [go, closeSheet]
   );
 
   const header = (
@@ -176,7 +205,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.root} testID="notifications-screen">
-      <NotificationSheet item={opened} target={openedTarget} link={openedLink} onClose={() => setOpened(null)} onOpenTarget={openTarget} />
+      <NotificationSheet item={shown} target={openedTarget} link={openedLink} onClose={closeSheet} onOpenTarget={openTarget} />
       <FlatList
         data={list.isError && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => String(item.id)}
@@ -222,7 +251,7 @@ function NotificationRow({
 }) {
   const styles = useStyles();
   const title = item.description || item.verb || "Bildirim";
-  const meta = [item.actor_str, formatRelative(item.timestamp)].filter(Boolean).join(" · ");
+  const meta = [notificationSender(item), formatRelative(item.timestamp)].filter(Boolean).join(" · ");
   return (
     <Pressable
       onPress={onPress}

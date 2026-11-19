@@ -224,3 +224,21 @@ Canlı arayüz turunda bulundu: demo hesabının bildirimler 4. sayfası 500 dö
 | `vennex_mobile/test_web_parity.py` | `NotificationListTests.test_stale_content_type_does_not_break_page` |
 
 Canlıya alma kaydı: sunucu temiz ve `origin` ile aynıydı (`f368f20`) → `git am` → `23dee86`; `manage.py check` temiz; yalnız web konteyneri yeniden başlatıldı, logda hata yok. Kontrol: demo hesabı 4 sayfanın hepsi 200 (25+25+25+8 = 83); `live_readonly_check.py` 200 dışı 0. Sunucudan GitHub'a push edildi. Testler: `vennex_mobile` 100/100.
+
+# Altıncı değişiklik — gönderen adı + Nexus → Mobil Push (2026-11-19) · **CANLIDA ve GitHub `main`'de (`d1d3597`, `8740178`)**
+
+| Dosya | Değişiklik |
+|---|---|
+| `vennex_mobile/views/notifications.py` | Kullanıcı kaynaklı bildirimlerde `actor_str` = "Vennex" (kullanıcı adı ifşa edilmez) |
+| `vennex_mobile/models.py` + `migrations/0011_mobil_push_kampanya.py` | `MobilePushCampaign` (yeni tablo; mevcut verilere dokunmaz) |
+| `vennex_mobile/push_campaigns.py` | Hedefleme (`token_queryset`), ön izleme, gönderim (`send_campaign`): bildirim kutusu kaydı + FCM push (`notification_id`), geçersiz token temizliği |
+| `vennex_mobile/tasks.py` | `send_push_campaign_task` |
+| `core/celery.py` | `autodiscover_tasks` listesine `vennex_mobile` eklendi (işçi yeniden başlatılmalı) |
+| `nexus/forms.py`, `nexus/views/mobile_push.py`, `nexus/urls.py`, şablonlar, menü | Nexus → Mobil Push (liste, yeni gönderim + ön izleme + onay, sonuç sayfası); yalnız superuser |
+| `vennex_mobile/test_push_campaigns.py` | 15 test (`vennex_mobile` 115/115) |
+
+Canlıya alma kaydı: sunucu temiz ve `origin` ile aynıydı (`23dee86`) → `git am` → `d1d3597`, `8740178`; `manage.py check` temiz; `migrate vennex_mobile 0011` OK; `spserpetpaycom-web-1` ve `spserpetpaycom-celery-1` yeniden başlatıldı (web ilk saniyelerde 502, sonra 302); Celery açılışında `vennex_mobile.tasks.send_push_campaign_task` kayıtlı; `live_readonly_check.py` 200 dışı 0. Sunucudan GitHub'a push edildi.
+
+İlk gerçek gönderim (kullanıcı, Nexus'tan, yalnız demo hesabına): 1 kullanıcı / 8 cihaz kaydı → 3 teslim, 5 başarısız (geçersiz kayıtlar temizlendi). Telefonda iki bildirim göründü: biri yeni uygulama (`tr.com.vennex`), biri aynı telefonda kurulu eski Flutter uygulaması (`com.vennex.mobile`). Eski uygulamanın Firebase kaydı silindi ama silme kalıcılaşana kadar eski token'lar teslim alabiliyor. Öneri (bekliyor): Mobil Push yalnız yeni uygulamanın kayıtlarını (`device_id` `vm-` ile başlar) hedeflesin.
+
+Bilinen eksik: otomatik olay push'ları (`push_device_offline` vb.) hiçbir yerden çağrılmıyor; "Ödeme hatası" gibi bildirimler yalnız uygulama içi listeye düşüyor.

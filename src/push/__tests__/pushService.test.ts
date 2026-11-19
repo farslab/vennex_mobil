@@ -38,6 +38,18 @@ describe("pushService", () => {
     expect(JSON.parse(mock.history.post[1].data).device_id).toBe(body.device_id);
   });
 
+  it("iOS: token istemeden önce cihazı uzaktan bildirime kaydeder (yoksa getToken reddedilir)", async () => {
+    mock.onPost("/device/register/").reply(200, {});
+    m.isDeviceRegisteredForRemoteMessages.mockReturnValue(false);
+    await startPush(() => makeUser());
+    expect(m.registerDeviceForRemoteMessages).toHaveBeenCalledTimes(1);
+    expect(m.registerDeviceForRemoteMessages.mock.invocationCallOrder[0]).toBeLessThan(m.getToken.mock.invocationCallOrder[0]);
+
+    m.isDeviceRegisteredForRemoteMessages.mockReturnValue(true);
+    await startPush(() => makeUser());
+    expect(m.registerDeviceForRemoteMessages).toHaveBeenCalledTimes(1); // zaten kayıtlıysa tekrar etmez
+  });
+
   it("izin reddedilirse kayıt yapmaz", async () => {
     m.requestPermission.mockResolvedValue(messaging.AuthorizationStatus.DENIED);
     expect(await startPush(() => makeUser())).toBeNull();
@@ -83,4 +95,19 @@ describe("pushService", () => {
     openFromNotification({ data: { event: "card.pending", card_id: "5" } }, makeUser({ permissions: [] }));
     expect(mockNavigate).toHaveBeenCalledWith("Notifications");
   });
+
+  it("Nexus push'u (notification_id): bildirim ekranında o bildirimin tamamını açar", () => {
+    openFromNotification(
+      {
+        data: { notification_id: "77", url: "/pos-cihazi/PAV1/", sent_by_admin: "True", campaign_id: "3" },
+        notification: { title: "Bakım", body: "Gece bakım var" },
+        sentTime: 1795000000000,
+      } as never,
+      makeUser()
+    );
+    expect(mockNavigate).toHaveBeenCalledWith("Notifications", {
+      open: { id: 77, title: "Bakım", body: "Gece bakım var", url: "/pos-cihazi/PAV1/", sentAt: 1795000000000 },
+    });
+  });
 });
+
