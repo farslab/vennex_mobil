@@ -29,12 +29,13 @@ import { formatInteger } from "@/utils/number";
 import type { CardQuota, CardQuotaCreatePayload, GroupQuotaCreatePayload, QuotaDistribution, QuotaPeriod } from "@/types/cards";
 import { cardKeys } from "../hooks/cardKeys";
 import { fieldErrorsOf, generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
-import { ActiveBadge, ListFooter, RuleRow } from "../components/Common";
+import { ActiveBadge, RuleRow } from "../components/Common";
 import { CardPicker, GroupPicker, type PickedRef } from "../components/Pickers";
 import { GroupFilterSheet, type GroupFilter } from "../components/GroupFilterSheet";
 import { DistributionField } from "../components/DistributionField";
 import { QUOTA_PERIOD_LABELS, normalizeProductNo, validatePositiveInt } from "../components/format";
 import { useOnOpen, useOnValueChange } from "../hooks/useOnOpen";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 export const QUOTA_PERIOD_OPTIONS = (Object.keys(QUOTA_PERIOD_LABELS) as QuotaPeriod[]).map((k) => ({
   value: k,
@@ -121,7 +122,7 @@ export function CardQuotasTab() {
               description={debounced || group ? undefined : "Kartlara ürün bazlı dönemsel kullanım hakkı tanımlayın."}
             />
           }
-          ListFooterComponent={<ListFooter loading={list.isFetchingMore} />}
+          ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
         />
       )}
 

@@ -48,4 +48,4 @@ appId: tr.com.vennex
 # demo2fa kullanıcısının bekleyen KVKK onayı var → onay kapısı
 - assertVisible: "Kabul Ediyorum"
 - tapOn: "Kabul Ediyorum"
-- assertVisible: "Panel"
+- assertVisible: "Genel Bakış"

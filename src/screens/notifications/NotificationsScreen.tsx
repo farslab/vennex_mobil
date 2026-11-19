@@ -3,7 +3,7 @@
  * Sayfalı (25), `unread=true` filtresi, tekil/toplu okundu işaretleme, event'e göre derin bağlantı.
  */
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -27,7 +27,10 @@ import { useAuthStore } from "@/store/authStore";
 import { formatRelative } from "@/utils/date";
 import type { RootStackParamList } from "@/navigation/types";
 import type { NotificationItem, NotificationsPage } from "@/types/notifications";
-import { notificationIcon, resolveNotificationTarget, type NotificationTarget } from "./notificationTarget";
+import { notificationIcon, notificationWebLink, resolveNotificationTarget, type NotificationTarget } from "./notificationTarget";
+import { API_BASE_URL } from "@/config/env";
+import { NotificationSheet } from "./NotificationSheet";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 type Filter = "all" | "unread";
 
@@ -100,13 +103,24 @@ export default function NotificationsScreen() {
     [navigation]
   );
 
+  // Dokununca: okunmamışsa okundu işaretle, tam metni alttan açılan sayfada göster.
+  // İlgili ekran (POS cihazı, kart, rapor, cari) sayfadaki düğmeyle açılır.
+  const [opened, setOpened] = useState<NotificationItem | null>(null);
   const onPressItem = useCallback(
     (item: NotificationItem) => {
       if (item.unread) markRead.mutate(item.id);
-      const target = resolveNotificationTarget(item, user);
-      if (target) go(target);
+      setOpened(item);
     },
-    [go, markRead, user]
+    [markRead]
+  );
+  const openedTarget = opened ? resolveNotificationTarget(opened, user) : null;
+  const openedLink = opened ? notificationWebLink(opened, user, API_BASE_URL) : null;
+  const openTarget = useCallback(
+    (target: NotificationTarget) => {
+      setOpened(null);
+      go(target);
+    },
+    [go]
   );
 
   const header = (
@@ -155,20 +169,21 @@ export default function NotificationsScreen() {
       description={
         unreadOnly
           ? "Tüm bildirimlerinizi okudunuz."
-          : "Cihaz, stok, kart ve rapor bildirimleri burada listelenir."
+          : "POS cihazı, stok, kart ve rapor bildirimleri burada listelenir."
       }
     />
   );
 
   return (
     <View style={styles.root} testID="notifications-screen">
+      <NotificationSheet item={opened} target={openedTarget} link={openedLink} onClose={() => setOpened(null)} onOpenTarget={openTarget} />
       <FlatList
         data={list.isError && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
           <NotificationRow
             item={item}
-            hasTarget={!!resolveNotificationTarget(item, user)}
+            hasTarget={!!resolveNotificationTarget(item, user) || !!notificationWebLink(item, user, API_BASE_URL)}
             pending={markRead.isPending && markRead.variables === item.id}
             onPress={() => onPressItem(item)}
           />
@@ -176,11 +191,7 @@ export default function NotificationsScreen() {
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={
-          list.isFetchingMore ? (
-            <View style={styles.footer}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : null
+          <ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />
         }
         onEndReached={list.loadMore}
         onEndReachedThreshold={0.4}
@@ -212,17 +223,14 @@ function NotificationRow({
   const styles = useStyles();
   const title = item.description || item.verb || "Bildirim";
   const meta = [item.actor_str, formatRelative(item.timestamp)].filter(Boolean).join(" · ");
-  const interactive = item.unread || hasTarget;
-
   return (
     <Pressable
       onPress={onPress}
-      disabled={!interactive || pending}
+      disabled={pending}
       accessibilityRole="button"
       accessibilityLabel={`${item.unread ? "Okunmamış. " : ""}${title}. ${meta}`}
-      accessibilityHint={hasTarget ? "İlgili ekranı açar" : item.unread ? "Okundu olarak işaretler" : undefined}
-      accessibilityState={{ disabled: !interactive }}
-      style={({ pressed }) => [styles.row, item.unread && styles.rowUnread, pressed && interactive && styles.rowPressed]}
+      accessibilityHint="Bildirimin tamamını açar"
+      style={({ pressed }) => [styles.row, item.unread && styles.rowUnread, pressed && styles.rowPressed]}
       testID={`notification-${item.id}`}
     >
       <View style={[styles.icon, item.unread && styles.iconUnread]}>

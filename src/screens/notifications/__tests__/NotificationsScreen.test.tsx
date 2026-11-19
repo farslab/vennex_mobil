@@ -1,4 +1,5 @@
 import React from "react";
+import { Linking } from "react-native";
 import MockAdapter from "axios-mock-adapter";
 import { fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
@@ -84,16 +85,18 @@ describe("NotificationsScreen", () => {
     expect(listGets(mock)[1].params).toEqual({ page: 1, unread: "true" });
   });
 
-  it("okunmamış bildirime basınca okundu işaretler, listeyi yeniler ve cihaz detayına gider", async () => {
+  it("okunmamış bildirime basınca okundu işaretler ve tam metni alt sayfada açar; POS cihazına düğmeyle gider", async () => {
+    const long = "Ödeme hatası! UN20W000559 seri numaralı POS Cihazı cihazında ürün adı: DEMO Cappuccino, ürün numarası: 3, otomat fiyatı: 110 TL, sistem fiyatı: 25.00 TL. Lütfen kontrol edin.";
     mock.onGet("/notifications/").reply(
       200,
       page([
         notification({
           id: 11,
-          description: "Cihaz çevrimdışı: Otomat 3",
+          verb: "Ödeme hatası",
+          description: long,
           unread: true,
-          actor_str: "Sistem",
-          data: { event: "device.offline", sn: "PAV123" },
+          actor_str: "UN20W000559",
+          data: { url: "/pos-cihazi/UN20W000559/" },
         }),
         notification({ id: 12, description: "Rapor hazır", unread: false }),
       ])
@@ -101,30 +104,57 @@ describe("NotificationsScreen", () => {
     mock.onPost("/notifications/11/read/").reply(200, { detail: "Okundu işaretlendi." });
 
     await renderWithProviders(<NotificationsScreen />);
-    await fireEvent.press(await screen.findByText("Cihaz çevrimdışı: Otomat 3"));
+    await fireEvent.press(await screen.findByText(long));
 
-    expect(mockNavigate).toHaveBeenCalledWith("DeviceDetail", { sn: "PAV123" });
+    // gezinmez; alt sayfada başlık + metnin tamamı
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("notification-sheet-body")).toHaveTextContent(long);
+    expect(screen.getAllByText("Ödeme hatası").length).toBeGreaterThan(0);
     await waitFor(() => expect(mock.history.post.map((r) => r.url)).toEqual(["/notifications/11/read/"]));
     await waitFor(() => expect(listGets(mock).length).toBe(2));
+
+    await fireEvent.press(screen.getByTestId("notification-open-target"));
+    expect(mockNavigate).toHaveBeenCalledWith("DeviceDetail", { sn: "UN20W000559" });
   });
 
-  it("okunmuş ve hedefsiz bildirime basınca istek atmaz, gezinmez", async () => {
-    mock.onGet("/notifications/").reply(200, page([notification({ id: 12, description: "Duyuru", unread: false })]));
+  it("okunmuş ve hedefsiz bildirim: istek atmaz, alt sayfa açılır, ilgili ekran düğmesi yok", async () => {
+    mock.onGet("/notifications/").reply(200, page([notification({ id: 12, verb: "Duyuru", description: "Sistem bakımı yarın 02:00'de.", unread: false })]));
     await renderWithProviders(<NotificationsScreen />);
-    await fireEvent.press(await screen.findByText("Duyuru"));
+    await fireEvent.press(await screen.findByText("Sistem bakımı yarın 02:00'de."));
+    expect(await screen.findByTestId("notification-sheet-body")).toHaveTextContent("Sistem bakımı yarın 02:00'de.");
+    expect(screen.queryByTestId("notification-open-target")).toBeNull();
     expect(mock.history.post).toHaveLength(0);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("okunmuş ama hedefi olan bildirim yalnızca gezinir (okundu isteği atmaz)", async () => {
+  it("okunmuş ama hedefi olan bildirim: okundu isteği atmaz; 'Kartı aç' ile kart detayına gider", async () => {
     mock.onGet("/notifications/").reply(
       200,
       page([notification({ id: 13, description: "Kart onayı", data: { event: "card.pending", card_id: "42", uid: "AB" } })])
     );
     await renderWithProviders(<NotificationsScreen />);
     await fireEvent.press(await screen.findByText("Kart onayı"));
+    const open = await screen.findByTestId("notification-open-target");
+    expect(open).toHaveTextContent("Kartı aç");
+    await fireEvent.press(open);
     expect(mockNavigate).toHaveBeenCalledWith("CardDetail", { id: 42 });
     expect(mock.history.post).toHaveLength(0);
+  });
+
+  it("web bağlantılı bildirim: alan adını gösterir, 'Bağlantıyı aç' tarayıcıda açar, uygulama içinde gezinmez", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    mock.onGet("/notifications/").reply(
+      200,
+      page([notification({ id: 14, verb: "Sistem Bakımı", description: "Bakım duyurusu", data: { sent_by_admin: true, url: "https://sp.serpetpay.com/duyuru" } })])
+    );
+    await renderWithProviders(<NotificationsScreen />);
+    await fireEvent.press(await screen.findByText("Bakım duyurusu"));
+    expect(await screen.findByTestId("notification-link")).toHaveTextContent("sp.serpetpay.com");
+    expect(screen.queryByTestId("notification-open-target")).toBeNull();
+    await fireEvent.press(screen.getByTestId("notification-open-link"));
+    expect(openURL).toHaveBeenCalledWith("https://sp.serpetpay.com/duyuru");
+    expect(mockNavigate).not.toHaveBeenCalled();
+    openURL.mockRestore();
   });
 
   it("'Tümünü okundu işaretle' istek sürerken kilitlenir ve read-all çağırır", async () => {

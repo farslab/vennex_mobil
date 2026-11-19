@@ -35,10 +35,11 @@ import type {
 import { cardKeys } from "../hooks/cardKeys";
 import { useCardAccess } from "../hooks/useCardAccess";
 import { fieldErrorsOf, generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
-import { ActiveBadge, DateField, ListFooter, RuleRow, apiDateToUser, userDateToApi } from "../components/Common";
+import { ActiveBadge, DateField, RuleRow, apiDateToUser, userDateToApi } from "../components/Common";
 import { CardPicker, GroupPicker, type PickedRef } from "../components/Pickers";
 import { RECURRING_PERIOD_LABELS, UPDATE_TYPE_LABELS, validateAmount } from "../components/format";
 import { useOnOpen } from "../hooks/useOnOpen";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 function targetLabel(rule: RecurringBalanceRule): string {
   return rule.target_type === "card"
@@ -114,7 +115,7 @@ export function RecurringBalanceTab() {
               description={debounced ? undefined : "Kartlara veya gruplara günlük, haftalık ya da aylık otomatik bakiye yükleyin."}
             />
           }
-          ListFooterComponent={<ListFooter loading={list.isFetchingMore} />}
+          ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
         />
       )}
       <RecurringBalanceFormSheet state={form} onClose={() => setForm(null)} />

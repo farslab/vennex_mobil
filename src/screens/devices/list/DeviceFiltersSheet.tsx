@@ -134,7 +134,7 @@ export function DeviceFiltersSheet({
         onChange={(sortBy) => setDraft((d) => ({ ...d, sortBy }))}
       />
       <AppText variant="caption" color="textTertiary">
-        Makine tipine (Snack/Kahve) göre filtreleme cihaz listesi API&apos;sinde desteklenmiyor.
+        Makine tipine (Snack/Kahve) göre filtreleme POS cihazı listesinde desteklenmiyor.
       </AppText>
     </AppSheet>
   );

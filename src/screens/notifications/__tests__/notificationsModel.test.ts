@@ -1,7 +1,7 @@
 import MockAdapter from "axios-mock-adapter";
 import { apiClient } from "@/api/client";
 import { notificationsApi } from "@/api/notifications";
-import { resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
+import { notificationWebLink, resolveNotificationTarget } from "@/screens/notifications/notificationTarget";
 import { makeUser } from "@/test/utils";
 
 describe("notificationsApi", () => {
@@ -62,8 +62,51 @@ describe("resolveNotificationTarget", () => {
     expect(resolveNotificationTarget({ data: { event: "cari.overdue" } }, tech)).toBeNull();
   });
 
+  it("web bildirimi: data.url /pos-cihazi/<sn>/ ise POS cihazı detayına eşlenir (event yok)", () => {
+    expect(resolveNotificationTarget({ data: { url: "/pos-cihazi/UN20W000559/" } }, tech)).toEqual({
+      name: "DeviceDetail",
+      params: { sn: "UN20W000559" },
+    });
+    expect(resolveNotificationTarget({ data: { url: "/pos-cihazi/PAV%201/?tab=x" } }, tech)).toEqual({
+      name: "DeviceDetail",
+      params: { sn: "PAV 1" },
+    });
+    expect(resolveNotificationTarget({ data: { url: "/raporlar/" } }, owner)).toBeNull();
+    expect(resolveNotificationTarget({ data: { url: "https://kotu.example/pos-cihazi/X/" } }, owner)).toBeNull();
+  });
+
   it("bilinmeyen/null data eşlenmez", () => {
     expect(resolveNotificationTarget({ data: null }, owner)).toBeNull();
     expect(resolveNotificationTarget({ data: { event: "test" } }, owner)).toBeNull();
+  });
+});
+
+describe("notificationWebLink", () => {
+  const user = makeUser({ role: "owner", permissions: ["owner"] });
+  const WEB = "https://tms.vennex.com.tr";
+
+  it("tam http(s) bağlantısı olduğu gibi açılır; alan adı gösterilir", () => {
+    expect(notificationWebLink({ data: { url: "https://sp.serpetpay.com/duyuru?x=1" } }, user, WEB)).toEqual({
+      url: "https://sp.serpetpay.com/duyuru?x=1",
+      host: "sp.serpetpay.com",
+    });
+  });
+
+  it("uygulama içi karşılığı olmayan web paneli yolu web adresiyle tamamlanır", () => {
+    expect(notificationWebLink({ data: { url: "/raporlar/" } }, user, `${WEB}/`)).toEqual({
+      url: "https://tms.vennex.com.tr/raporlar/",
+      host: "tms.vennex.com.tr",
+    });
+  });
+
+  it("uygulama içi hedefi olan bağlantı (POS cihazı) web bağlantısı sayılmaz", () => {
+    expect(notificationWebLink({ data: { url: "/pos-cihazi/UN20W000559/" } }, user, WEB)).toBeNull();
+  });
+
+  it("güvensiz/tanımsız şemalar ve bozuk değerler açılmaz", () => {
+    for (const url of ["javascript:alert(1)", "tel:123", "//kotu.example/x", "ftp://x.y/z", "", "   ", null]) {
+      expect(notificationWebLink({ data: { url } }, user, WEB)).toBeNull();
+    }
+    expect(notificationWebLink({ data: null }, user, WEB)).toBeNull();
   });
 });

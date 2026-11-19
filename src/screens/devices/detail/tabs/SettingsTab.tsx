@@ -102,7 +102,7 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
       setWarnings(w);
       setCommand(null);
       const info = DEVICE_COMMANDS.find((c) => c.key === key);
-      toast.success(`${info?.label ?? "Komut"} gönderildi; cihaz bir sonraki bağlantıda uygular.`);
+      toast.success(`${info?.label ?? "Komut"} gönderildi; POS cihazı bir sonraki bağlantıda uygular.`);
       invalidate();
     },
   });
@@ -175,7 +175,7 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
                 </AppText>
               ) : (
                 <AppText variant="caption" color="textTertiary">
-                  Kahve modunda satış süresi kontrol edilmez. Şablonlar yalnız aynı tipteki cihazlara atanabilir.
+                  Kahve modunda satış süresi kontrol edilmez. Şablonlar yalnız aynı tipteki POS cihazlarına atanabilir.
                 </AppText>
               )}
               {errors.pos_odemetip ? (
@@ -199,7 +199,7 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
         <AppCard title="Satış bildirimi">
           <AppSwitchRow
             label="Satış bildirimleri"
-            description="Bu cihazın satışları için bildirim gönder"
+            description="Bu POS cihazının satışları için bildirim gönder"
             value={form.sales_notification_enabled}
             onChange={(v) => set("sales_notification_enabled", v)}
             disabled={!editable}
@@ -268,7 +268,7 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
         </AppCard>
 
         {access.sendCommands ? (
-          <AppCard title="Cihaz komutları" subtitle="Cihaz bir sonraki bağlantısında uygular">
+          <AppCard title="Cihaz komutları" subtitle="POS cihazı bir sonraki bağlantısında uygular">
             {DEVICE_COMMANDS.map((c, i) => {
               const pending = detail.commands?.[c.key] === true;
               return (

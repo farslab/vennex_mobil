@@ -1,5 +1,5 @@
 /**
- * Cihaz detayı sekmeleri (Genel / İstatistikler / Nakit & Ciro) ve işlem detayı sayfası —
+ * Cihaz detayı sekmeleri (Genel + altındaki nakit/ciro bölümü / İstatistikler) ve işlem detayı sayfası —
  * DeviceDetailScreen.test.tsx'in dolaylı olarak kapsamadığı senaryolar. Sekmeler doğrudan render edilir.
  */
 import React from "react";
@@ -13,7 +13,7 @@ import { businessToday, toApiDate } from "@/utils/date";
 import { PosVendChannel, type ChannelState } from "@/realtime/posVendChannel";
 import { GeneralTab } from "@/screens/devices/detail/tabs/GeneralTab";
 import { StatsTab } from "@/screens/devices/detail/tabs/StatsTab";
-import { CashTab } from "@/screens/devices/detail/tabs/CashTab";
+import { CashSection } from "@/screens/devices/detail/components/CashSection";
 import { TransactionDetailSheet } from "@/screens/devices/detail/components/TransactionDetailSheet";
 import type { DeviceAccess } from "@/screens/devices/detail/useDeviceQueries";
 
@@ -213,32 +213,38 @@ describe("GeneralTab", () => {
     expect(screen.queryByTestId("general-fill-pct")).toBeNull();
   });
 
-  it("uzaktan satış yalnız remote_vend ile görünür; kanal yalnız açılınca ve cihaz SN'i ile kurulur", async () => {
+  it("uzaktan satış Genel sekmesinde değil (başlıkta); sekme açılınca kanal kurulmaz", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {});
     mock.onGet(`${base}/products/`).reply(200, productsBody);
-    const Channel = jest.mocked(PosVendChannel);
 
     await renderWithProviders(<GeneralTab sn={SN} detail={detail()} access={access({ remoteVend: true })} refreshing={false} onRefresh={noop} />);
 
-    const open = await screen.findByTestId("open-remote-sale");
-    expect(Channel).not.toHaveBeenCalled();
-    await fireEvent.press(open);
-
-    expect(await screen.findByText("Lobi Otomatı · PAV1")).toBeOnTheScreen();
-    expect(Channel).toHaveBeenCalledTimes(1);
-    expect(Channel.mock.calls[0][0]).toBe(SN);
-  });
-
-  it("remote_vend yoksa uzaktan satış kartı yok ve kanal hiç kurulmaz", async () => {
-    mock.onGet(`${base}/summary/`).reply(200, {});
-    mock.onGet(`${base}/products/`).reply(200, productsBody);
-
-    await renderWithProviders(<GeneralTab sn={SN} detail={detail()} access={access({ remoteVend: false })} refreshing={false} onRefresh={noop} />);
-
     expect(await screen.findByText("Normal mod")).toBeOnTheScreen();
     expect(screen.queryByTestId("open-remote-sale")).toBeNull();
-    expect(screen.queryByText("Uzaktan satış")).toBeNull();
     expect(jest.mocked(PosVendChannel)).not.toHaveBeenCalled();
+  });
+
+  const mockCashEndpoints = () => {
+    mock.onGet(`${base}/summary/`).reply(200, {});
+    mock.onGet(`${base}/products/`).reply(200, productsBody);
+    mock.onGet(`${base}/cash-history/`).reply(200, { results: [] });
+    mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
+  };
+
+  it("nakit & ciro bölümü Genel'in en altında (satış yetkisi)", async () => {
+    mockCashEndpoints();
+    await renderWithProviders(<GeneralTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+    expect(await screen.findByTestId("cash-section")).toBeOnTheScreen();
+    expect(screen.getByTestId("collect-cash-button")).toBeOnTheScreen();
+  });
+
+  it("satış yetkisi ve teknisyen rolü yoksa nakit & ciro bölümü yok", async () => {
+    mockCashEndpoints();
+    await renderWithProviders(
+      <GeneralTab sn={SN} detail={detail()} access={access({ sales: false, isTech: false })} refreshing={false} onRefresh={noop} />
+    );
+    expect(await screen.findByText("Normal mod")).toBeOnTheScreen();
+    expect(screen.queryByTestId("cash-section")).toBeNull();
   });
 });
 
@@ -345,7 +351,7 @@ describe("StatsTab", () => {
 
 /* -------------------------------------------------------- Nakit & Ciro */
 
-describe("CashTab", () => {
+describe("CashSection (Genel sekmesinin altı)", () => {
   it("geçmiş listeleri limit=25 ile çekilir; tutar/tarih Türkçe, yapan kişi/not ve tür kırılımı gösterilir", async () => {
     mock.onGet(`${base}/cash-history/`).reply(200, {
       results: [
@@ -357,7 +363,7 @@ describe("CashTab", () => {
       results: [{ id: 7, datetime: localIso(2026, 11, 17, 18, 30), total_revenue: 300, notes: "", counted_by: "ayse", by_pt_type: { "0": 100, "1": 200, "5": 0 } }],
     });
 
-    await renderWithProviders(<CashTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+    await renderWithProviders(<CashSection sn={SN} detail={detail()} access={access()} />);
 
     expect(await screen.findByText("₺1.250,50")).toBeOnTheScreen();
     expect(screen.getByText("18.11.2026 09:05")).toBeOnTheScreen();
@@ -381,9 +387,9 @@ describe("CashTab", () => {
     mock.onGet(`${base}/cash-history/`).reply(200, { results: [] });
     mock.onGet(`${base}/revenue-counts/`).reply(500, { detail: "Sayım geçmişi alınamadı." });
 
-    await renderWithProviders(<CashTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+    await renderWithProviders(<CashSection sn={SN} detail={detail()} access={access()} />);
 
-    expect(await screen.findByText("Bu cihaz için nakit toplama yapılmamış.")).toBeOnTheScreen();
+    expect(await screen.findByText("Bu POS cihazı için nakit toplama yapılmamış.")).toBeOnTheScreen();
     expect(await screen.findByText("Sayım geçmişi alınamadı.")).toBeOnTheScreen();
   });
 
@@ -398,9 +404,9 @@ describe("CashTab", () => {
 
     // Web: satış yetkisi olan, cihaz ayarı yetkisi olmasa da nakit toplayabilir (`collect_cash`)
     await renderWithProviders(
-      <CashTab sn={SN} detail={detail()} access={access({ manageSettings: false })} refreshing={false} onRefresh={noop} />
+      <CashSection sn={SN} detail={detail()} access={access({ manageSettings: false })} />
     );
-    expect(await screen.findByText("Bu cihaz için ciro sayımı yapılmamış.")).toBeOnTheScreen();
+    expect(await screen.findByText("Bu POS cihazı için ciro sayımı yapılmamış.")).toBeOnTheScreen();
     expect(screen.getByTestId("collect-cash-button")).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId("cash-notes"), "  akşam sayımı  ");
@@ -432,7 +438,7 @@ describe("CashTab", () => {
     const d = deferred();
     mock.onPost(`${base}/collect-cash/`).reply(() => d.promise);
 
-    await renderWithProviders(<CashTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+    await renderWithProviders(<CashSection sn={SN} detail={detail()} access={access()} />);
     await fireEvent.press(await screen.findByTestId("collect-cash-button"));
     await fireEvent.press(await screen.findByTestId("confirm-sheet-confirm"));
     await waitFor(() => expect(screen.getByTestId("confirm-sheet-confirm")).toBeDisabled());
@@ -454,7 +460,7 @@ describe("CashTab", () => {
     const d = deferred();
     mock.onPost(`${base}/collect-cash/`).reply(() => d.promise);
 
-    await renderWithProviders(<CashTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+    await renderWithProviders(<CashSection sn={SN} detail={detail()} access={access()} />);
     await fireEvent.press(await screen.findByTestId("collect-cash-button"));
     const confirm = await screen.findByTestId("confirm-sheet-confirm");
     // Sahte zamanlayıcı: iki dokunuş arasında React Query bildirim tiki (setTimeout 0) çalışmaz —
@@ -476,7 +482,7 @@ describe("CashTab", () => {
     mock.onPost(`${base}/collect-cash/`).reply(200, { detail: "Nakit toplama işlemi başarıyla kaydedildi.", amount_collected: 320 });
 
     await renderWithProviders(
-      <CashTab sn={SN} detail={detail()} access={access({ sales: false, manageSettings: false, isTech: true })} refreshing={false} onRefresh={noop} />
+      <CashSection sn={SN} detail={detail()} access={access({ sales: false, manageSettings: false, isTech: true })} />
     );
 
     expect(screen.queryByTestId("count-revenue-button")).toBeNull();
@@ -494,7 +500,7 @@ describe("CashTab", () => {
 
   it("hiçbir işlem yetkisi yoksa açıklama gösterir, aksiyon ve geçmiş yoktur", async () => {
     await renderWithProviders(
-      <CashTab sn={SN} detail={detail()} access={access({ sales: false, manageSettings: false })} refreshing={false} onRefresh={noop} />
+      <CashSection sn={SN} detail={detail()} access={access({ sales: false, manageSettings: false })} />
     );
 
     expect(screen.getByText("Bu sekmedeki işlemler için yetkiniz yok.")).toBeOnTheScreen();
@@ -509,7 +515,7 @@ describe("CashTab", () => {
     mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
     mock.onPost(`${base}/count-revenue/`).reply(400, { detail: "Sayılacak ciro bulunmamaktadır." });
 
-    await renderWithProviders(<CashTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+    await renderWithProviders(<CashSection sn={SN} detail={detail()} access={access()} />);
 
     await fireEvent.press(await screen.findByTestId("collect-cash-button"));
     await fireEvent.press(await screen.findByText("Vazgeç"));

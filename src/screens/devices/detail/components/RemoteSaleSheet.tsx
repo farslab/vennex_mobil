@@ -26,7 +26,7 @@ const STATE_LABEL: Record<ChannelState, { label: string; tone: "success" | "warn
 
 const ERROR_TEXT: Record<string, string> = {
   tx_not_found: "Satış isteğinin süresi doldu veya zaten işlendi.",
-  tx_pos_mismatch: "Satış isteği bu cihaza ait değil.",
+  tx_pos_mismatch: "Satış isteği bu POS cihazına ait değil.",
   invalid_decision: "Geçersiz onay isteği.",
   tx_corrupted: "Satış isteği okunamadı.",
 };
@@ -149,7 +149,7 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
         <AppNotice
           tone="danger"
           title="Uzaktan satış yetkiniz yok"
-          message="Bu cihaz için uzaktan satış yetkisi gerekiyor. Yöneticinizden 'Remote Vend' yetkisini isteyin."
+          message="Bu POS cihazı için uzaktan satış yetkisi gerekiyor. Yöneticinizden 'Remote Vend' yetkisini isteyin."
         />
       ) : pending ? (
         <View style={styles.pending} accessibilityLiveRegion="assertive">
@@ -161,9 +161,9 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
           </AppText>
           <AppText variant="body" color="textSecondary">
             {pending.item != null ? `Ürün no ${pending.item}` : "Ürün"}
-            {phase === "approved" ? " · onay gönderildi, cihaz ürünü veriyor…" : ""}
+            {phase === "approved" ? " · onay gönderildi, POS cihazı ürünü veriyor…" : ""}
           </AppText>
-          <AppNotice tone="info" message="Onaylarsanız ürün ücretsiz verilir. Onaylamazsanız cihaz kısa süre sonra işlemi iptal eder." />
+          <AppNotice tone="info" message="Onaylarsanız ürün ücretsiz verilir. Onaylamazsanız POS cihazı kısa süre sonra işlemi iptal eder." />
         </View>
       ) : result ? (
         <AppNotice tone={result.tone === "neutral" ? "info" : result.tone} message={result.text} />

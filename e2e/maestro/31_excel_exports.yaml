@@ -2,7 +2,7 @@
 appId: tr.com.vennex
 ---
 - runFlow: common/start_demo.yaml
-- tapOn: "Cihazlar"
+- tapOn: "POS Cihazları"
 - extendedWaitUntil: { visible: "Excel", timeout: 15000 }
 - tapOn: "Excel"
 - extendedWaitUntil: { visible: ".*(Close|Kapat|Save to Files|Dosyalar).*", timeout: 20000 }

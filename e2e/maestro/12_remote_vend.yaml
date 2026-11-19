@@ -28,12 +28,12 @@ appId: tr.com.vennex
       - tapOn:
           id: "company-switcher"
       - tapOn: "Demo Otomat A.Ş."
-- tapOn: "Cihazlar"
+- tapOn: "POS Cihazları"
 - tapOn:
     id: "device-row-DEMO0001"
-# Kart "Genel" sekmesinin altında: görünene kadar kaydır
-- scrollUntilVisible:
-    element:
+# Uzaktan satış başlığın sağ üstünde (büyük ikon)
+- extendedWaitUntil:
+    visible:
       id: "open-remote-sale"
     timeout: 20000
 - tapOn:

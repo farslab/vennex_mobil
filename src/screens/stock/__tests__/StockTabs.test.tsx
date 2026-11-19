@@ -282,7 +282,7 @@ describe("LocationsTab", () => {
 
     expect(await screen.findByText("Otomat Kampüs")).toBeOnTheScreen();
     expect(screen.getByText("· VX-T-1")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Otomat Kampüs, Otomat, cihaz VX-T-1")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Otomat Kampüs, Otomat, POS cihazı VX-T-1")).toBeOnTheScreen();
     expect(screen.queryByText("Pasif")).toBeNull();
     const calls = getCalls(mock, "/stock/locations/");
     expect(calls).toHaveLength(1);

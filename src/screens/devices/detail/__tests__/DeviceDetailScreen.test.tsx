@@ -1,12 +1,25 @@
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import { useAuthStore } from "@/store/authStore";
 import { makeUser, renderWithProviders } from "@/test/utils";
 import DeviceDetailScreen from "@/screens/devices/detail/DeviceDetailScreen";
 import type { RootScreenProps } from "@/navigation/types";
 import type { Permission } from "@/auth/permissions";
+
+// Uzaktan satış kanalı: gerçek WebSocket açılmaz
+jest.mock("@/realtime/posVendChannel", () => {
+  const actual = jest.requireActual<typeof import("@/realtime/posVendChannel")>("@/realtime/posVendChannel");
+  return {
+    ...actual,
+    PosVendChannel: jest.fn().mockImplementation((_sn: string, opts: { onState: (s: string) => void }) => ({
+      connect: jest.fn(async () => opts.onState("open")),
+      approve: jest.fn(() => true),
+      close: jest.fn(),
+    })),
+  };
+});
 
 const mockPreventRemove = jest.fn();
 jest.mock("@react-navigation/native", () => ({
@@ -92,8 +105,10 @@ describe("DeviceDetailScreen", () => {
     expect(screen.getByTestId("general-fill-pct")).toHaveTextContent("%61");
     expect(screen.getAllByText("Snack").length).toBeGreaterThan(0);
     expect(navigation.setOptions).toHaveBeenCalledWith({ title: "Lobi Otomatı" });
-    // tüm sekmeler görünür
-    for (const t of ["Genel", "Nakit & Ciro", "Satışlar", "Stok", "İstatistikler", "Ayarlar"]) expect(screen.getByText(t)).toBeOnTheScreen();
+    // tüm sekmeler görünür; nakit & ciro ayrı sekme değil, Genel'in en altında
+    for (const t of ["Genel", "Satışlar", "Stok", "İstatistikler", "Ayarlar"]) expect(screen.getByText(t)).toBeOnTheScreen();
+    expect(screen.queryByText("Nakit & Ciro")).toBeNull();
+    expect(screen.getByTestId("cash-section")).toBeOnTheScreen();
   });
 
   it("eksik alanlarda yedek sayı göstermez; view_sales yoksa özet istenmez ve satış sekmeleri gizlenir", async () => {
@@ -118,8 +133,9 @@ describe("DeviceDetailScreen", () => {
     expect(screen.queryByText(/₺/)).toBeNull();
     expect(screen.getAllByText("—").length).toBeGreaterThan(3);
     expect(screen.queryByText("Satışlar")).toBeNull();
-    // Web: teknisyen nakit panelini görür (tutarlar gizli)
-    expect(screen.getByText("Nakit & Ciro")).toBeOnTheScreen();
+    // Web: teknisyen nakit panelini görür (tutarlar gizli) — Genel'in en altında
+    expect(screen.getByTestId("cash-section")).toBeOnTheScreen();
+    expect(screen.queryByText("Nakit & Ciro")).toBeNull();
     expect(screen.queryByText("İstatistikler")).toBeNull();
     expect(mock.history.get.some((r) => r.url?.endsWith("/summary/"))).toBe(false);
     expect(navigation.setOptions).toHaveBeenCalledWith({ title: SN });
@@ -132,7 +148,6 @@ describe("DeviceDetailScreen", () => {
     mock.onPost(`/pos-devices/${SN}/collect-cash/`).reply(200, { detail: "ok", amount_collected: 320 });
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
-    await fireEvent.press(await screen.findByText("Nakit & Ciro"));
     await fireEvent.press(await screen.findByTestId("collect-cash-button"));
 
     expect(await screen.findByText("Nakit toplama")).toBeOnTheScreen();
@@ -153,7 +168,6 @@ describe("DeviceDetailScreen", () => {
     mock.onPost(`/pos-devices/${SN}/collect-cash/`).reply(400, { detail: "Toplanacak nakit bulunmamaktadır." });
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
-    await fireEvent.press(await screen.findByText("Nakit & Ciro"));
     await fireEvent.press(await screen.findByTestId("collect-cash-button"));
     await fireEvent.press(await screen.findByTestId("confirm-sheet-confirm"));
 
@@ -266,6 +280,39 @@ describe("DeviceDetailScreen", () => {
     expect(JSON.parse(mock.history.post[0].data)).toEqual({});
     // şablon işlemleri manage_device_settings ister
     expect(screen.queryByTestId("assign-template-button")).toBeNull();
+  });
+
+  const lastHeaderRight = () => {
+    const calls = navigation.setOptions.mock.calls.filter((c) => "headerRight" in (c[0] as object));
+    return (calls[calls.length - 1]?.[0] as { headerRight?: () => React.ReactElement } | undefined)?.headerRight;
+  };
+
+  it("uzaktan satış: remote_vend ile başlığın sağ üstünde büyük ikon; dokununca satış sayfası açılır", async () => {
+    setUser(["owner", "view_sales", "manage_device_settings", "remote_vend"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await screen.findByTestId("device-detail");
+    const headerRight = lastHeaderRight();
+    expect(headerRight).toBeDefined();
+    const button = headerRight!() as React.ReactElement<{ size: string; testID: string; label: string; onPress: () => void }>;
+    expect(button.props).toMatchObject({ size: "lg", testID: "open-remote-sale", label: "Uzaktan satış" });
+    // Genel sekmesinde ayrıca kart/düğme yok
+    expect(screen.queryByTestId("open-remote-sale")).toBeNull();
+
+    await act(async () => button.props.onPress());
+    expect(await screen.findByText("Lobi Otomatı · PAV1")).toBeOnTheScreen();
+  });
+
+  it("uzaktan satış: remote_vend yoksa başlıkta ikon yok", async () => {
+    setUser(["owner", "view_sales", "manage_device_settings"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await screen.findByTestId("device-detail");
+    expect(lastHeaderRight()).toBeUndefined();
   });
 
   const renderStockWithTemplate = async (template: unknown) => {

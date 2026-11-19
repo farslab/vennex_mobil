@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
   AppButton,
   AppChip,
@@ -19,6 +19,7 @@ import type { StockMovement, StockMovementType } from "@/types/stock";
 import { stockKeys, useSkuIndex } from "../hooks/useStockData";
 import { MovementRow } from "../components/MovementRow";
 import { MovementFormSheet, type MovementMode } from "../components/MovementFormSheet";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 const FILTERS: StockMovementType[] = ["transfer", "receipt", "adjustment", "refill", "consumption"];
 
@@ -86,7 +87,7 @@ export function MovementsTab({ canManage }: { canManage: boolean }) {
             />
           )
         }
-        ListFooterComponent={list.isFetchingMore ? <ActivityIndicator style={styles.footer} color={colors.primary} /> : null}
+        ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
         renderItem={({ item }) => <MovementRow movement={item} unit={skus.byId.get(item.sku)?.base_unit} />}
       />
       {canManage ? <MovementFormSheet visible={formOpen} mode={mode} onClose={() => setFormOpen(false)} /> : null}

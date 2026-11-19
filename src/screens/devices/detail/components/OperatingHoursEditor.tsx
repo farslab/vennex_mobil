@@ -43,10 +43,10 @@ export function OperatingHoursEditor({
       />
       <AppText variant="caption" color="textTertiary">
         {mode === 0
-          ? "Cihaz tüm saatlerde çalışır."
+          ? "POS cihazı tüm saatlerde çalışır."
           : mode === 1
-            ? "Cihaz yalnızca aşağıdaki saatlerde satış yapar."
-            : "Cihaz aşağıdaki saatlerde satış yapmaz."}
+            ? "POS cihazı yalnızca aşağıdaki saatlerde satış yapar."
+            : "POS cihazı aşağıdaki saatlerde satış yapmaz."}
       </AppText>
       {mode !== 0
         ? week.map((ranges, day) => (

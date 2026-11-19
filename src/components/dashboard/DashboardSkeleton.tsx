@@ -6,7 +6,7 @@ import { AppSkeleton, makeStyles } from "@/design-system";
 export function DashboardSkeleton() {
   const styles = useStyles();
   return (
-    <View style={styles.root} accessibilityRole="progressbar" accessibilityLabel="Panel yükleniyor" testID="dashboard-skeleton">
+    <View style={styles.root} accessibilityRole="progressbar" accessibilityLabel="Genel bakış yükleniyor" testID="dashboard-skeleton">
       <View style={styles.grid}>
         {[0, 1, 2, 3].map((i) => (
           <View key={i} style={styles.kpi}>

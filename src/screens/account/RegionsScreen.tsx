@@ -97,7 +97,7 @@ export default function RegionsScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <AppText variant="callout" color="textSecondary" style={styles.flex}>
-              Cihazların bağlı olduğu bölge ve konumlar. Panel konum filtresi bu listeden gelir.
+              POS cihazlarının bağlı olduğu bölge ve konumlar. Genel bakıştaki konum filtresi bu listeden gelir.
             </AppText>
             <AppButton title="Bölge" icon="plus" size="sm" onPress={() => setRegionForm({ mode: "create" })} testID="add-region" />
           </View>
@@ -106,7 +106,7 @@ export default function RegionsScreen() {
           <AppEmptyState
             icon="map"
             title="Henüz bölge yok"
-            description="Cihazlarınızı gruplamak için bir bölge ve altında konumlar oluşturun."
+            description="POS cihazlarınızı gruplamak için bir bölge ve altında konumlar oluşturun."
             actionLabel="Bölge oluştur"
             onAction={() => setRegionForm({ mode: "create" })}
           />
@@ -119,7 +119,7 @@ export default function RegionsScreen() {
                 onPress={() => toggle(region.id)}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${region.name}, ${region.locations.length} konum, ${region.total_pos_device_count} cihaz`}
+                accessibilityLabel={`${region.name}, ${region.locations.length} konum, ${region.total_pos_device_count} POS cihazı`}
                 style={({ pressed }) => [styles.regionRow, pressed && styles.pressed]}
               >
                 <AppIcon name={open ? "chevron-down" : "chevron-right"} size={18} color="textTertiary" />
@@ -132,7 +132,7 @@ export default function RegionsScreen() {
                   ) : null}
                 </View>
                 <AppBadge label={`${region.locations.length} konum`} tone="neutral" size="sm" />
-                <AppBadge label={`${region.total_pos_device_count} cihaz`} tone="info" size="sm" />
+                <AppBadge label={`${region.total_pos_device_count} POS cihazı`} tone="info" size="sm" />
               </Pressable>
               {open ? (
                 <View style={styles.locations}>
@@ -146,7 +146,7 @@ export default function RegionsScreen() {
                         key={loc.id}
                         onPress={() => setLocationForm({ mode: "edit", regionId: region.id, location: loc })}
                         accessibilityRole="button"
-                        accessibilityLabel={`${loc.name}, ${loc.pos_device_count} cihaz${loc.is_active ? "" : ", pasif"}`}
+                        accessibilityLabel={`${loc.name}, ${loc.pos_device_count} POS cihazı${loc.is_active ? "" : ", pasif"}`}
                         style={({ pressed }) => [styles.locRow, pressed && styles.pressed]}
                       >
                         <AppIcon name="map-pin" size={16} color="textSecondary" />
@@ -160,7 +160,7 @@ export default function RegionsScreen() {
                         </View>
                         {!loc.is_active ? <AppBadge label="Pasif" tone="neutral" size="sm" /> : null}
                         <AppText variant="numericSm" color="textSecondary">
-                          {loc.pos_device_count} cihaz
+                          {loc.pos_device_count} POS cihazı
                         </AppText>
                       </Pressable>
                     ))
@@ -205,9 +205,9 @@ export default function RegionsScreen() {
         title={toDelete?.kind === "region" ? "Bölgeyi sil" : "Konumu sil"}
         message={
           toDelete?.kind === "region"
-            ? `"${toDelete.region.name}" ve altındaki ${toDelete.region.locations.length} konum silinecek. Bu konumlardaki cihazların konum bilgisi boşalır.`
+            ? `"${toDelete.region.name}" ve altındaki ${toDelete.region.locations.length} konum silinecek. Bu konumlardaki POS cihazlarının konum bilgisi boşalır.`
             : toDelete
-              ? `"${toDelete.location.name}" silinecek. Bu konumdaki ${toDelete.location.pos_device_count} cihazın konum bilgisi boşalır.`
+              ? `"${toDelete.location.name}" silinecek. Bu konumdaki ${toDelete.location.pos_device_count} POS cihazının konum bilgisi boşalır.`
               : undefined
         }
         destructive

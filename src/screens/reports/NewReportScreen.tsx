@@ -323,9 +323,9 @@ function PosFilters({
   const scoped = useMemo(() => scopeDevices(options, form), [options, form]);
 
   const deviceHint = form.devices.length
-    ? `${form.devices.length} cihaz seçildi`
+    ? `${form.devices.length} POS cihazı seçildi`
     : scoped
-      ? `Seçilen bölge/konumdaki ${scoped.length} cihaz rapora girer`
+      ? `Seçilen bölge/konumdaki ${scoped.length} POS cihazı rapora girer`
       : null;
 
   return (
@@ -358,7 +358,7 @@ function PosFilters({
         <AppSelect<string>
           multiple
           label="POS cihazları"
-          placeholder={devices.length ? `Tüm cihazlar (${formatInteger(devices.length)})` : "Cihaz bulunamadı"}
+          placeholder={devices.length ? `Tüm POS cihazları (${formatInteger(devices.length)})` : "POS cihazı bulunamadı"}
           options={devices.map((d) => ({ value: d.sn, label: d.pos_name || d.sn, description: d.sn }))}
           value={form.devices}
           onChange={(v) => update({ devices: v })}

@@ -30,7 +30,7 @@ export interface TemplateOpTarget {
 }
 
 const TYPE_NOTICE =
-  "Cihaz listesinde makine tipi (Snack/Kahve) bilgisi bulunmadığından liste süzülemiyor. Şablonla aynı tipte olmayan cihazlar sunucu tarafından atlanır ve sonuçta gösterilir.";
+  "POS cihazı listesinde makine tipi (Snack/Kahve) bilgisi bulunmadığından liste süzülemiyor. Şablonla aynı tipte olmayan POS cihazları sunucu tarafından atlanır ve sonuçta gösterilir.";
 
 export function TemplateOps({
   op,
@@ -90,7 +90,7 @@ export function TemplateOps({
       <DevicePickerSheet
         visible={op === "assign" && !!template}
         multiple
-        title="Cihazlara ata"
+        title="POS cihazlarına ata"
         subtitle={template ? `${template.name} · ${typeLabel}` : undefined}
         notice={TYPE_NOTICE}
         markedSns={template?.assigned_sns}
@@ -103,21 +103,21 @@ export function TemplateOps({
 
       <DevicePickerSheet
         visible={op === "send" && !!template && sendSn == null}
-        title="Cihaza gönder"
+        title="POS cihazına gönder"
         subtitle={template ? `${template.name} · ${typeLabel}` : undefined}
-        notice="Seçilen cihazın tüm ürünleri silinip şablondan yeniden oluşturulur. Makine tipi uyuşmazsa sunucu reddeder."
+        notice="Seçilen POS cihazının tüm ürünleri silinip şablondan yeniden oluşturulur. Makine tipi uyuşmazsa sunucu reddeder."
         confirmLabel="Devam"
         onClose={onClose}
         onConfirm={(sn) => setSendSn(sn)}
       />
       <AppConfirmSheet
         visible={op === "send" && sendSn != null}
-        title="Şablonu cihaza gönder"
-        message="Cihazdaki mevcut ürünlerin tamamı silinir ve şablon kalemleriyle yeniden oluşturulur."
+        title="Şablonu POS cihazına gönder"
+        message="POS cihazındaki mevcut ürünlerin tamamı silinir ve şablon kalemleriyle yeniden oluşturulur."
         summary={template && sendSn ? [
           { label: "Şablon", value: template.name },
           { label: "Kalem", value: template.item_count != null ? formatInteger(template.item_count) : "—" },
-          { label: "Cihaz", value: sendSn },
+          { label: "POS cihazı", value: sendSn },
         ] : undefined}
         confirmLabel="Gönder"
         destructive
@@ -135,11 +135,11 @@ export function TemplateOps({
       <AppConfirmSheet
         visible={op === "delete" && !!template}
         title="Şablonu sil"
-        message="Şablon ve tüm kalemleri silinir. Eşli cihazların ürünleri cihazda kalır ancak şablonla bağları kopar."
+        message="Şablon ve tüm kalemleri silinir. Eşli POS cihazlarının ürünleri cihazda kalır ancak şablonla bağları kopar."
         summary={template ? [
           { label: "Şablon", value: template.name },
           { label: "Kalem", value: template.item_count != null ? formatInteger(template.item_count) : "—" },
-          { label: "Eşli cihaz", value: template.assigned_device_count != null ? formatInteger(template.assigned_device_count) : "—" },
+          { label: "Eşli POS cihazı", value: template.assigned_device_count != null ? formatInteger(template.assigned_device_count) : "—" },
         ] : undefined}
         confirmLabel="Sil"
         destructive
@@ -156,16 +156,16 @@ export function TemplateOps({
       <AppSheet visible={result != null} onClose={() => setResult(null)} title="Atama sonucu" testID="assign-result" footer={<AppButton title="Tamam" onPress={() => setResult(null)} style={styles.flex} />}>
         {result ? (
           <View style={styles.gap}>
-            <AppText variant="metricMd">{formatInteger(result.assigned_count)} cihaza eşlendi</AppText>
+            <AppText variant="metricMd">{formatInteger(result.assigned_count)} POS cihazına eşlendi</AppText>
             {result.type_mismatch.length ? (
               <AppNotice
                 tone="warning"
-                title={`${result.type_mismatch.length} cihaz atlandı (makine tipi uyuşmuyor)`}
+                title={`${result.type_mismatch.length} POS cihazı atlandı (makine tipi uyuşmuyor)`}
                 message={result.type_mismatch.join(", ")}
               />
             ) : (
               <AppText variant="callout" color="textSecondary">
-                Atlanan cihaz yok.
+                Atlanan POS cihazı yok.
               </AppText>
             )}
           </View>

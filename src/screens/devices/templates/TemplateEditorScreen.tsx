@@ -115,11 +115,11 @@ export default function TemplateEditorScreen({ route, navigation }: RootScreenPr
           <AppBadge tone={tpl.machine_type === 1 ? "warning" : "info"} label={machineTypeLabel(tpl.machine_type)} />
         </View>
         <AppText variant="numericSm" color="textTertiary" style={styles.counts}>
-          {formatInteger(list.length)} kalem · {formatInteger(tpl.assigned_devices.length)} eşli cihaz · {stockMode ? "Stok modu" : "Normal mod"}
+          {formatInteger(list.length)} kalem · {formatInteger(tpl.assigned_devices.length)} eşli POS cihazı · {stockMode ? "Stok modu" : "Normal mod"}
         </AppText>
         {canManage ? (
           <View style={styles.actions}>
-            <AppButton title="Cihazlara ata" icon="link" size="sm" onPress={() => setOp("assign")} style={styles.flex} disabled={list.length === 0} testID="editor-assign" />
+            <AppButton title="POS cihazlarına ata" icon="link" size="sm" onPress={() => setOp("assign")} style={styles.flex} disabled={list.length === 0} testID="editor-assign" />
             <AppButton title="Düzenle" icon="edit-2" size="sm" variant="outline" onPress={() => setFormOpen(true)} style={styles.flex} />
             <AppButton title="Sil" icon="trash-2" size="sm" variant="dangerOutline" onPress={() => setOp("delete")} />
           </View>
@@ -150,18 +150,18 @@ export default function TemplateEditorScreen({ route, navigation }: RootScreenPr
   const footer = (
     <View style={styles.footer}>
       <AppText variant="overline" color="textTertiary" style={styles.footerTitle}>
-        Eşli cihazlar · {formatInteger(tpl.assigned_devices.length)}
+        Eşli POS cihazları · {formatInteger(tpl.assigned_devices.length)}
       </AppText>
       {tpl.assigned_devices.length === 0 ? (
         <AppText variant="caption" color="textTertiary" style={styles.footerTitle}>
-          Bu şablon henüz bir cihaza eşlenmedi.
+          Bu şablon henüz bir POS cihazına eşlenmedi.
         </AppText>
       ) : (
         <AppCard padded={false}>
           {tpl.assigned_devices.map((d, i) => (
             <AppListRow
               key={d.sn}
-              icon="cpu"
+              icon="pos"
               title={d.pos_name || d.sn}
               subtitle={d.sn}
               last={i === tpl.assigned_devices.length - 1}

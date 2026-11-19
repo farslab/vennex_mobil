@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import type { QueryKey } from "@tanstack/react-query";
 import {
   AppEmptyState,
@@ -10,12 +10,12 @@ import {
   AppSheet,
   AppText,
   makeStyles,
-  useTheme,
 } from "@/design-system";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { errorMessage } from "@/api/client";
 import type { PageResponse } from "@/api/pagination";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 export interface SearchPickerProps<T> {
   label: string;
@@ -62,7 +62,6 @@ export function SearchPicker<T>({
   testID,
 }: SearchPickerProps<T>) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const debounced = useDebouncedValue(q, 350);
@@ -129,7 +128,7 @@ export function SearchPicker<T>({
             onEndReachedThreshold={0.4}
             ListEmptyComponent={<AppEmptyState compact title={emptyText} icon="search" />}
             ListFooterComponent={
-              list.isFetchingMore ? <ActivityIndicator color={colors.primary} style={styles.footer} /> : null
+              <ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />
             }
             renderItem={({ item }) => {
               const id = getId(item);

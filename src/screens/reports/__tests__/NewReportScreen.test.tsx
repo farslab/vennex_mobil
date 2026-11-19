@@ -58,7 +58,7 @@ describe("NewReportScreen", () => {
     expect(screen.getByText("Detay")).toBeOnTheScreen();
     expect(screen.queryByText(/serpetco|PAX3080007269|İstanbul Anadolu/)).toBeNull();
     expect(screen.queryByTestId("report-type-nfc_balance_logs")).toBeNull();
-    expect(screen.getByText("Tüm cihazlar (2)")).toBeOnTheScreen();
+    expect(screen.getByText("Tüm POS cihazları (2)")).toBeOnTheScreen();
   });
 
   it("doğru gövdeyle rapor oluşturur, buton istek sürerken kilitlenir", async () => {
@@ -137,7 +137,7 @@ describe("NewReportScreen", () => {
 
     await renderWithProviders(<NewReportScreen />);
     await screen.findByText("Özet");
-    expect(screen.getByText("Tüm cihazlar (1)")).toBeOnTheScreen();
+    expect(screen.getByText("Tüm POS cihazları (1)")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("submit-report"));
     await waitFor(() => expect(mock.history.post).toHaveLength(1));
     const body = JSON.parse(mock.history.post[0].data);

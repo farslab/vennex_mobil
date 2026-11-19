@@ -5,7 +5,7 @@
  */
 import React, { useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import {
   AppBadge,
   AppButton,
@@ -18,7 +18,6 @@ import {
   AppSheet,
   AppText,
   makeStyles,
-  useTheme,
 } from "@/design-system";
 import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
@@ -27,6 +26,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { usePagedList } from "@/hooks/usePagedList";
 import { connectivityInfo, deviceTitle } from "./deviceHelpers";
 import type { PosDeviceListItem, PosDeviceListResponse } from "@/types/devices";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 export const devicePickerKey = (q: string) => [...queryKeys.devices.all, "picker", q] as const;
 
@@ -57,7 +57,6 @@ export type DevicePickerSheetProps = MultiProps | SingleProps;
 export function DevicePickerSheet(props: DevicePickerSheetProps) {
   const { visible, onClose, title, subtitle, notice, markedSns = [], markedLabel = "Eşli", confirmLabel, loading } = props;
   const styles = useStyles();
-  const { colors } = useTheme();
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const debounced = useDebouncedValue(q.trim(), 350);
@@ -122,7 +121,7 @@ export function DevicePickerSheet(props: DevicePickerSheetProps) {
           onEndReached={list.loadMore}
           onEndReachedThreshold={0.4}
           ListEmptyComponent={<AppEmptyState compact icon="search" title="Cihaz bulunamadı" />}
-          ListFooterComponent={list.isFetchingMore ? <ActivityIndicator color={colors.primary} style={styles.footer} /> : null}
+          ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
           renderItem={({ item }) => {
             const checked = selected.includes(item.sn);
             const conn = connectivityInfo(item.online);

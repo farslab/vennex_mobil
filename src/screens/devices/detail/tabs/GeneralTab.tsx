@@ -1,9 +1,8 @@
 /** Genel — yalnız detay/summary/products yanıtlarındaki GERÇEK alanlar; uydurma şirket/SIM/tarih yok */
-import React, { useState } from "react";
+import React from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
   AppBadge,
-  AppButton,
   AppCard,
   AppNotice,
   AppSkeleton,
@@ -25,7 +24,7 @@ import { formatCurrency, formatInteger } from "@/utils/number";
 import { formatDateTime, formatRelative } from "@/utils/date";
 import type { PosDeviceDetail } from "@/types/devices";
 import { useDeviceProducts, useDeviceSummary, type DeviceAccess } from "../useDeviceQueries";
-import { RemoteSaleSheet } from "../components/RemoteSaleSheet";
+import { CashSection } from "../components/CashSection";
 
 export function GeneralTab({
   sn,
@@ -44,7 +43,6 @@ export function GeneralTab({
   const { colors } = useTheme();
   const summary = useDeviceSummary(sn, access.sales);
   const products = useDeviceProducts(sn);
-  const [remoteOpen, setRemoteOpen] = useState(false);
 
   const conn = connectivityInfo(detail.is_online);
   const macStatus = machineStatusInfo(detail.act_macstat);
@@ -65,6 +63,7 @@ export function GeneralTab({
   return (
     <ScrollView
       contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       testID="tab-general"
     >
@@ -178,23 +177,8 @@ export function GeneralTab({
         <KeyValueRow label="Güncelleme periyodu" value={detail.pos_updprd != null ? `${detail.pos_updprd} dk` : null} last />
       </AppCard>
 
-      {access.remoteVend ? (
-        <AppCard title="Uzaktan satış" subtitle="Müşterinin seçtiği ürünü uzaktan onaylayın">
-          <AppButton
-            testID="open-remote-sale"
-            title="Uzaktan satışı başlat"
-            icon="radio"
-            variant="outline"
-            onPress={() => setRemoteOpen(true)}
-          />
-          <RemoteSaleSheet
-            visible={remoteOpen}
-            onClose={() => setRemoteOpen(false)}
-            sn={detail.sn}
-            deviceName={detail.pos_name}
-          />
-        </AppCard>
-      ) : null}
+      {/* Nakit & ciro: ayrı sekme değil, Genel'in en altında (web: nakit paneli satış yetkisi veya teknisyen) */}
+      {access.sales || access.isTech ? <CashSection sn={sn} detail={detail} access={access} /> : null}
     </ScrollView>
   );
 }

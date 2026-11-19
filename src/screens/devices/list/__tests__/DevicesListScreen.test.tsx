@@ -66,7 +66,7 @@ describe("DevicesListScreen", () => {
     await renderWithProviders(<DevicesListScreen />);
 
     expect(await screen.findByText("Otomat 1")).toBeOnTheScreen();
-    expect(screen.getByTestId("devices-count-total")).toHaveTextContent("30 cihaz");
+    expect(screen.getByTestId("devices-count-total")).toHaveTextContent("30 POS cihazı");
     expect(screen.getByTestId("devices-count-online")).toHaveTextContent("21 çevrimiçi");
     expect(screen.getByTestId("devices-count-offline")).toHaveTextContent("9 çevrimdışı");
     expect(screen.getAllByText("%72").length).toBe(3);
@@ -157,7 +157,7 @@ describe("DevicesListScreen", () => {
 
     expect(await screen.findByText("Sunucu hatası")).toBeOnTheScreen();
     await fireEvent.press(screen.getByText("Tekrar dene"));
-    expect(await screen.findByText("Henüz cihaz yok")).toBeOnTheScreen();
+    expect(await screen.findByText("Henüz POS cihazı yok")).toBeOnTheScreen();
   });
 
   it("özel sıralama: aşağı taşı + kaydet → POST pos-devices/sort/", async () => {

@@ -42,7 +42,7 @@ export default function LoginScreen() {
   return (
     <AuthLayout
       title="Hesabınıza giriş yapın"
-      subtitle="Cihaz filonuzu, kartlarınızı ve stoklarınızı tek yerden yönetin."
+      subtitle="POS cihazlarınızı, kartlarınızı ve stoklarınızı tek yerden yönetin."
       footer={
         <AppText variant="caption" color="textTertiary" align="center">
           Vennex Payment Systems

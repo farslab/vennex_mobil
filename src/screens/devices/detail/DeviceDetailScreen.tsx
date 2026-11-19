@@ -1,14 +1,16 @@
 /**
  * Cihaz detayı — route "DeviceDetail" { sn, name? }.
- * Sekmeler yetkiye göre: Genel · Nakit & Ciro · Satışlar · Stok · İstatistikler · Ayarlar.
- * Uzaktan satış: Genel sekmesinde, WebSocket kanalı (src/realtime/posVendChannel.ts) — web dashboard ile aynı protokol.
+ * Sekmeler yetkiye göre: Genel · Satışlar · Stok · İstatistikler · Ayarlar.
+ * Nakit toplama & ciro sayımı Genel sekmesinin en altında (ayrı sekme yok).
+ * Uzaktan satış: başlığın sağ üstünde büyük ikon (remote_vend yetkisi), WebSocket kanalı (src/realtime/posVendChannel.ts) — web dashboard ile aynı protokol.
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AppBadge,
   AppErrorState,
+  AppIconButton,
   AppSegmented,
   AppSkeleton,
   AppText,
@@ -21,13 +23,13 @@ import { connectivityInfo, machineTypeLabel } from "@/components/devices/deviceH
 import type { RootScreenProps } from "@/navigation/types";
 import { useDeviceAccess, useDeviceDetail } from "./useDeviceQueries";
 import { GeneralTab } from "./tabs/GeneralTab";
-import { CashTab } from "./tabs/CashTab";
 import { SalesTab } from "./tabs/SalesTab";
 import { StockTab } from "./tabs/StockTab";
 import { StatsTab } from "./tabs/StatsTab";
 import { SettingsTab } from "./tabs/SettingsTab";
+import { RemoteSaleSheet } from "./components/RemoteSaleSheet";
 
-export type DeviceTabKey = "general" | "cash" | "sales" | "stock" | "stats" | "settings";
+export type DeviceTabKey = "general" | "sales" | "stock" | "stats" | "settings";
 
 export default function DeviceDetailScreen({ route, navigation }: RootScreenProps<"DeviceDetail">) {
   const { sn, name } = route.params;
@@ -38,23 +40,35 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
   const access = useDeviceAccess(detail);
   const [tab, setTab] = useState<DeviceTabKey>("general");
   const [refreshing, setRefreshing] = useState(false);
+  const [remoteOpen, setRemoteOpen] = useState(false);
 
   const title = detail?.pos_name || name || sn;
   useEffect(() => {
     navigation.setOptions({ title });
   }, [navigation, title]);
 
+  // Uzaktan satış: yetki varsa başlığın sağ üstünde büyük ikon
+  const canRemoteVend = !!detail && access.remoteVend;
+  const openRemote = useCallback(() => setRemoteOpen(true), []);
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: canRemoteVend
+        ? () => (
+            <AppIconButton icon="radio" label="Uzaktan satış" onPress={openRemote} tone="primary" size="lg" testID="open-remote-sale" />
+          )
+        : undefined,
+    });
+  }, [navigation, canRemoteVend, openRemote]);
+
   const tabs = useMemo<SegmentItem<DeviceTabKey>[]>(() => {
     const list: SegmentItem<DeviceTabKey>[] = [{ key: "general", label: "Genel" }];
-    // Web: nakit paneli satış yetkisi veya teknisyen rolüyle görünür
-    if (access.sales || access.isTech) list.push({ key: "cash", label: "Nakit & Ciro" });
     if (access.sales) list.push({ key: "sales", label: "Satışlar" });
     list.push({ key: "stock", label: "Stok" });
     if (access.sales) list.push({ key: "stats", label: "İstatistikler" });
     // Web: Ayarlar sekmesi yalnız cihaz ayarı yetkisiyle görünür (`pos_device_detail.html:53,59`)
     if (access.manageSettings) list.push({ key: "settings", label: "Ayarlar" });
     return list;
-  }, [access.sales, access.isTech, access.manageSettings]);
+  }, [access.sales, access.manageSettings]);
 
   // Yetki değişip seçili sekme kalktıysa Genel'e dön
   const activeTab = tabs.some((t) => t.key === tab) ? tab : "general";
@@ -125,12 +139,14 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
       </View>
       <View style={styles.flex}>
         {activeTab === "general" ? <GeneralTab sn={sn} detail={detail} access={access} refreshing={refreshing} onRefresh={refreshAll} /> : null}
-        {activeTab === "cash" ? <CashTab sn={sn} detail={detail} access={access} refreshing={refreshing} onRefresh={refreshAll} /> : null}
         {activeTab === "sales" ? <SalesTab sn={sn} /> : null}
         {activeTab === "stock" ? <StockTab sn={sn} detail={detail} access={access} /> : null}
         {activeTab === "stats" ? <StatsTab sn={sn} refreshing={refreshing} onRefresh={refreshAll} /> : null}
         {activeTab === "settings" ? <SettingsTab sn={sn} detail={detail} access={access} /> : null}
       </View>
+      {canRemoteVend ? (
+        <RemoteSaleSheet visible={remoteOpen} onClose={() => setRemoteOpen(false)} sn={detail.sn} deviceName={detail.pos_name} />
+      ) : null}
     </View>
   );
 }

@@ -14,8 +14,8 @@ appId: tr.com.vennex
     id: "login-submit"
 
 # Sekmeler (demo: tüm yetkiler, şirket 1 personel kart + stok modunda)
-- assertVisible: "Panel"
-- assertVisible: "Cihazlar"
+- assertVisible: "Genel Bakış"
+- assertVisible: "POS Cihazları"
 - assertVisible: "Kartlar"
 - assertVisible: "Stok"
 - assertVisible: "Profil"
@@ -37,5 +37,5 @@ appId: tr.com.vennex
 # Uygulamayı yeniden başlat → oturum ve şirket seçimi korunur
 - stopApp
 - launchApp
-- assertVisible: "Panel"
+- assertVisible: "Genel Bakış"
 - assertVisible: "Örnek Kafe Ltd."

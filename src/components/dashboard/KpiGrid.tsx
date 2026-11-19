@@ -34,7 +34,7 @@ export function KpiGrid({ data, salesAllowed, onDevicesPress }: KpiGridProps) {
     <View style={styles.grid} testID="kpi-grid">
       <AppKpi
         testID="kpi-devices"
-        icon="monitor"
+        icon="pos"
         label="POS cihazları"
         value={formatInteger(devices.total)}
         caption={deviceCaption}

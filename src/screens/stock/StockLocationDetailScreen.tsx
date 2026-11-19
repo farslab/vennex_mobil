@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
   AppBadge,
@@ -30,6 +30,7 @@ import { stockKeys, useSkuIndex } from "./hooks/useStockData";
 import { MovementRow } from "./components/MovementRow";
 import { MovementFormSheet, type MovementMode } from "./components/MovementFormSheet";
 import { StatStrip } from "./components/StatStrip";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 type Pane = "inventory" | "movements";
 
@@ -131,7 +132,7 @@ export default function StockLocationDetailScreen({ route, navigation }: RootScr
         </View>
       ) : null}
       {isVending ? (
-        <AppNotice message="Otomat stoğu dolum ve satışla değişir; düzenleme cihaz sayfasındaki ürünler ekranından yapılır." />
+        <AppNotice message="Otomat stoğu dolum ve satışla değişir; düzenleme POS cihazı sayfasındaki ürünler ekranından yapılır." />
       ) : null}
 
       <AppSegmented<Pane>
@@ -195,7 +196,7 @@ export default function StockLocationDetailScreen({ route, navigation }: RootScr
               <AppEmptyState icon="activity" title="Hareket yok" description="Bu lokasyona ait stok hareketi bulunmuyor." />
             )
           }
-          ListFooterComponent={movements.isFetchingMore ? <ActivityIndicator style={styles.footer} color={colors.primary} /> : null}
+          ListFooterComponent={<ListLoadMoreFooter loading={movements.isFetchingMore} error={movements.loadMoreError} onRetry={movements.retryLoadMore} />}
           renderItem={({ item }) => <MovementRow movement={item} locationId={locationId} unit={skus.byId.get(item.sku)?.base_unit} />}
         />
       )}

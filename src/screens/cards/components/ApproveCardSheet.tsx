@@ -50,7 +50,7 @@ export function ApproveCardSheet({
       }
     >
       <AppText variant="body" color="textSecondary">
-        Onaylanan kart aktif kartlar listesine taşınır ve cihazlarda kullanılabilir.
+        Onaylanan kart aktif kartlar listesine taşınır ve POS cihazlarında kullanılabilir.
       </AppText>
       <View style={styles.summary}>
         {rows.map((r, i) => (

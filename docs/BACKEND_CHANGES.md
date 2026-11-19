@@ -214,3 +214,13 @@ Canlı arayüz turunda bulundu. Webde stok sekmesindeki şablon düğmeleri `dev
 Canlıya alma: tek dosya, migration yok. Önceki dalla aynı adımlar: yama, `manage.py check`, yalnız web konteynerini yeniden başlatma. Bu alan olmadan da mobil çalışır: düğmelerin hepsi görünür, teknik not görünmez.
 
 Canlıya alma kaydı (2026-11-19): sunucu temizdi ve `origin` ile aynıydı (`4db6d4c`). `git am` ile uygulandı → `f368f20`. `manage.py check` temiz; yalnız web konteyneri yeniden başlatıldı; logda hata yok. Kontrol: 13 serpetco cihazının hepsinde `template` alanı veritabanıyla aynı; `live_readonly_check.py` 200 dışı yanıt 0, panel rakamları aynı. Ekranda: PAV200015995 için "Bu cihaz DEMO Cihazdan Şablon şablonuna eşli." ve yalnız "Eşlemeyi kaldır" görünüyor. Sunucudan GitHub'a push edildi.
+
+# Beşinci değişiklik — bildirim listesi 500 (2026-11-19) · **CANLIDA ve GitHub `main`'de (`23dee86`)**
+Canlı arayüz turunda bulundu: demo hesabının bildirimler 4. sayfası 500 dönüyordu. `prefetch_related("actor","target")`, modeli kaldırılmış bir ContentType'ta (`model_class()` None, ör. eski `api.transaction`) AttributeError atıyor ve o kaydın bulunduğu sayfanın tamamı bozuluyordu (canlıda 2 kayıt, 2 alıcı).
+
+| Dosya | Değişiklik |
+|---|---|
+| `vennex_mobile/views/notifications.py` | actor/target metinleri içerik tipi başına tek sorguyla çözülüyor; bayat tip veya silinmiş nesne → `None`. Yanıt şekli aynı. |
+| `vennex_mobile/test_web_parity.py` | `NotificationListTests.test_stale_content_type_does_not_break_page` |
+
+Canlıya alma kaydı: sunucu temiz ve `origin` ile aynıydı (`f368f20`) → `git am` → `23dee86`; `manage.py check` temiz; yalnız web konteyneri yeniden başlatıldı, logda hata yok. Kontrol: demo hesabı 4 sayfanın hepsi 200 (25+25+25+8 = 83); `live_readonly_check.py` 200 dışı 0. Sunucudan GitHub'a push edildi. Testler: `vennex_mobile` 100/100.

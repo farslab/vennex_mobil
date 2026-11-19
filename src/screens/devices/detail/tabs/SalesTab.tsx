@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useMemo, useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
   AppBadge,
   AppButton,
@@ -48,6 +48,7 @@ import type {
   TxStatusFilter,
 } from "@/types/devices";
 import { TransactionDetailSheet } from "../components/TransactionDetailSheet";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 type StatusKey = "all" | TxStatusFilter;
 
@@ -190,7 +191,7 @@ export function SalesTab({ sn }: { sn: string }) {
             <AppEmptyState compact icon="credit-card" title="İşlem yok" description="Seçili tarih ve filtrelerde işlem bulunamadı." />
           )
         }
-        ListFooterComponent={list.isFetchingMore ? <ActivityIndicator color={colors.primary} style={styles.footer} /> : null}
+        ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
         refreshControl={<RefreshControl refreshing={list.isRefreshing} onRefresh={list.refresh} tintColor={colors.primary} colors={[colors.primary]} />}
       />
 

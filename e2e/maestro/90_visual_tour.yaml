@@ -21,7 +21,7 @@ appId: tr.com.vennex
     timeout: 20000
 
 # Panel
-- tapOn: "Panel"
+- tapOn: "Genel Bakış"
 - waitForAnimationToEnd
 - takeScreenshot: 01_panel_ust
 - scroll
@@ -30,7 +30,7 @@ appId: tr.com.vennex
 - takeScreenshot: 03_panel_son
 
 # Cihazlar
-- tapOn: "Cihazlar"
+- tapOn: "POS Cihazları"
 - waitForAnimationToEnd
 - takeScreenshot: 10_cihazlar
 - tapOn:

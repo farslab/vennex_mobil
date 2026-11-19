@@ -61,7 +61,7 @@ export function RecentTransactionsCard({
                 onPress={() => onOpenDevice(sn, tx.pos_name ?? undefined)}
                 accessibilityRole="button"
                 accessibilityLabel={label}
-                accessibilityHint="Cihaz detayını açar"
+                accessibilityHint="POS cihazı detayını açar"
                 style={({ pressed }) => [...rowStyle, pressed && styles.pressed]}
               >
                 {body}

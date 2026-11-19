@@ -369,7 +369,7 @@ export function StockTab({
           <AppConfirmSheet
             visible={unassignConfirm}
             title="Şablon eşlemesini kaldır"
-            message="Cihazın şablonla bağı kaldırılır; mevcut ürünler/slotlar cihazda kalır ve şablon değişiklikleri artık yansımaz."
+            message="POS cihazının şablonla bağı kaldırılır; mevcut ürünler/slotlar POS cihazında kalır ve şablon değişiklikleri artık yansımaz."
             confirmLabel="Kaldır"
             destructive
             loading={unassign.isPending}

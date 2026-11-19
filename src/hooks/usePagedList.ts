@@ -62,7 +62,12 @@ export function usePagedList<T, R extends PageResponse<T> = PageResponse<T>>({
   }, [query, queryClient, queryKey]);
 
   const loadMore = useCallback(() => {
+    // Sonraki sayfa hata verdiyse liste sonuna her kaydırmada tekrar istemez; "Tekrar dene" ile istenir
+    if (query.isFetchNextPageError) return;
     if (query.hasNextPage && !query.isFetchingNextPage && !query.isFetching) query.fetchNextPage();
+  }, [query]);
+  const retryLoadMore = useCallback(() => {
+    if (!query.isFetchingNextPage) query.fetchNextPage();
   }, [query]);
 
   return {
@@ -71,13 +76,17 @@ export function usePagedList<T, R extends PageResponse<T> = PageResponse<T>>({
     firstPage,
     total: firstPage?.count ?? items.length,
     isLoading: query.isLoading,
-    isError: query.isError,
+    // Yalnız ilk yükleme hatası; sonraki sayfa hatası `loadMoreError` ile ayrı (yüklenen liste kaybolmaz)
+    isError: query.isError && !query.isFetchNextPageError,
     error: query.error,
     isRefreshing: manualRefreshing,
     isFetchingMore: query.isFetchingNextPage,
     hasMore: !!query.hasNextPage,
+    /** Sonraki sayfa yüklenemedi (ilk sayfa sağlam) — liste altında gösterilir */
+    loadMoreError: query.isFetchNextPageError ? query.error : null,
     refresh,
     loadMore,
+    retryLoadMore,
     refetch: query.refetch,
   };
 }

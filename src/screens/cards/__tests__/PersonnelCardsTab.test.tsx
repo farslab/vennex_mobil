@@ -42,7 +42,7 @@ describe("Personel kartları sekmesi", () => {
     await renderWithProviders(<CardsScreen />);
     await screen.findByText("Ad1 Soyad");
     await fireEvent.press(screen.getByText("Kart Grupları"));
-    expect(await screen.findByText("3 aktif kart · 2 cihaz")).toBeOnTheScreen();
+    expect(await screen.findByText("3 aktif kart · 2 POS cihazı")).toBeOnTheScreen();
     expect(mock.history.get.some((r) => r.url === "/recurring-balance/")).toBe(false);
   });
 

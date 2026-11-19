@@ -139,7 +139,7 @@ export default function ProductTemplatesScreen() {
               compact
               icon="layers"
               title={search || type !== "all" ? "Eşleşen şablon yok" : "Henüz şablon yok"}
-              description={canManage && !search ? "Cihazlara hızlıca ürün dağıtmak için bir şablon oluşturun." : undefined}
+              description={canManage && !search ? "POS cihazlarına hızlıca ürün dağıtmak için bir şablon oluşturun." : undefined}
             />
           )
         }
@@ -147,7 +147,7 @@ export default function ProductTemplatesScreen() {
           <Pressable
             onPress={() => openEditor(item)}
             accessibilityRole="button"
-            accessibilityLabel={`${item.name}, ${machineTypeLabel(item.machine_type)}, ${formatInteger(item.item_count)} kalem, ${formatInteger(item.assigned_device_count)} cihaz`}
+            accessibilityLabel={`${item.name}, ${machineTypeLabel(item.machine_type)}, ${formatInteger(item.item_count)} kalem, ${formatInteger(item.assigned_device_count)} POS cihazı`}
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             testID={`template-row-${item.id}`}
           >
@@ -164,7 +164,7 @@ export default function ProductTemplatesScreen() {
                 </AppText>
               ) : null}
               <AppText variant="numericSm" color="textTertiary">
-                {formatInteger(item.item_count)} kalem · {formatInteger(item.assigned_device_count)} cihaz
+                {formatInteger(item.item_count)} kalem · {formatInteger(item.assigned_device_count)} POS cihazı
                 {item.updated_at ? ` · ${formatRelative(item.updated_at)}` : ""}
               </AppText>
             </View>
@@ -188,9 +188,9 @@ export default function ProductTemplatesScreen() {
                 setFormOpen(true);
               }}
             />
-            <AppListRow icon="link" title="Cihazlara ata" subtitle="Şablon değişiklikleri eşli cihazlara otomatik yansır" onPress={() => startOp("assign", actionsFor)} />
+            <AppListRow icon="link" title="POS cihazlarına ata" subtitle="Şablon değişiklikleri eşli POS cihazlarına otomatik yansır" onPress={() => startOp("assign", actionsFor)} />
             {stockMode === false ? (
-              <AppListRow icon="send" title="Cihaza gönder" subtitle="Cihazın ürünlerini bir kez şablonla değiştirir" onPress={() => startOp("send", actionsFor)} />
+              <AppListRow icon="send" title="POS cihazına gönder" subtitle="POS cihazının ürünlerini bir kez şablonla değiştirir" onPress={() => startOp("send", actionsFor)} />
             ) : null}
             <AppListRow icon="trash-2" title="Sil" destructive last onPress={() => startOp("delete", actionsFor)} />
           </View>

@@ -1,10 +1,10 @@
 /**
- * Nakit toplama & ciro sayımı.
+ * Nakit toplama & ciro sayımı — cihaz detayında Genel sekmesinin en altında (ayrı sekme değil).
  * Backend'de "bekleyen nakit" alanı YOK (§3.4) → tutar burada hesaplanmaz/gösterilmez;
  * toplanan tutarı sunucu işlem anında hesaplar ve yanıtta döner.
  */
 import React, { useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useMutation } from "@tanstack/react-query";
 import { useSingleFlight } from "@/hooks/useSingleFlight";
 import {
@@ -19,7 +19,6 @@ import {
   AppText,
   makeStyles,
   toast,
-  useTheme,
 } from "@/design-system";
 import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
@@ -31,21 +30,8 @@ import { useCashHistory, useInvalidateDevices, useRevenueCounts, type DeviceAcce
 
 type PendingAction = "collect" | "count" | null;
 
-export function CashTab({
-  sn,
-  detail,
-  access,
-  refreshing,
-  onRefresh,
-}: {
-  sn: string;
-  detail: PosDeviceDetail;
-  access: DeviceAccess;
-  refreshing: boolean;
-  onRefresh: () => void;
-}) {
+export function CashSection({ sn, detail, access }: { sn: string; detail: PosDeviceDetail; access: DeviceAccess }) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const invalidate = useInvalidateDevices();
   const [notes, setNotes] = useState("");
   const [pending, setPending] = useState<PendingAction>(null);
@@ -95,14 +81,9 @@ export function CashTab({
   const canCount = access.sales;
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
-      testID="tab-cash"
-    >
+    <View style={styles.section} testID="cash-section">
       {canCollect || canCount ? (
-        <AppCard title="İşlem">
+        <AppCard title="Nakit & ciro">
           <View style={styles.form}>
             <AppNotice
               tone="info"
@@ -171,7 +152,7 @@ export function CashTab({
                 <AppNotice tone="warning" message={errorMessage(cash.error)} />
               </View>
             ) : !cash.data?.results.length ? (
-              <AppEmptyState compact icon="archive" title="Kayıt yok" description="Bu cihaz için nakit toplama yapılmamış." />
+              <AppEmptyState compact icon="archive" title="Kayıt yok" description="Bu POS cihazı için nakit toplama yapılmamış." />
             ) : (
               cash.data.results.map((c, i) => (
                 <HistoryRow
@@ -194,7 +175,7 @@ export function CashTab({
                 <AppNotice tone="warning" message={errorMessage(counts.error)} />
               </View>
             ) : !counts.data?.results.length ? (
-              <AppEmptyState compact icon="archive" title="Kayıt yok" description="Bu cihaz için ciro sayımı yapılmamış." />
+              <AppEmptyState compact icon="archive" title="Kayıt yok" description="Bu POS cihazı için ciro sayımı yapılmamış." />
             ) : (
               counts.data.results.map((c, i) => (
                 <HistoryRow
@@ -229,7 +210,7 @@ export function CashTab({
         onConfirm={confirmActive}
         onCancel={() => setPending(null)}
       />
-    </ScrollView>
+    </View>
   );
 }
 
@@ -291,7 +272,7 @@ function PtBreakdown({ byPtType, compact }: { byPtType: Record<string, number>; 
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
-    content: { padding: t.layout.screenPadding, gap: t.spacing.md, paddingBottom: t.spacing.huge },
+    section: { gap: t.spacing.md },
     flex: { flex: 1 },
     form: { gap: t.spacing.md },
     actions: { flexDirection: "row", gap: t.spacing.sm },

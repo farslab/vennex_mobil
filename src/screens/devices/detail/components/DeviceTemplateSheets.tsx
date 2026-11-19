@@ -103,7 +103,7 @@ export function AssignTemplateSheet({
                 </AppText>
                 <AppText variant="caption" color="textTertiary">
                   {item.item_count != null ? `${formatInteger(item.item_count)} kalem` : "—"}
-                  {item.assigned_device_count != null ? ` · ${formatInteger(item.assigned_device_count)} cihaz` : ""}
+                  {item.assigned_device_count != null ? ` · ${formatInteger(item.assigned_device_count)} POS cihazı` : ""}
                 </AppText>
               </View>
               <AppBadge size="sm" tone="neutral" label={machineTypeLabel(item.machine_type)} />

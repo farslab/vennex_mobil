@@ -1,5 +1,5 @@
 import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -11,7 +11,6 @@ import {
   AppSearchField,
   AppText,
   makeStyles,
-  useTheme,
 } from "@/design-system";
 import { usersApi } from "@/api/users";
 import { errorMessage } from "@/api/client";
@@ -23,6 +22,7 @@ import { normalizeForSearch } from "@/utils/text";
 import type { RootStackParamList } from "@/navigation/types";
 import type { StaffUser } from "@/types/users";
 import { UserRow } from "./components/UserRow";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 /**
  * Teknisyen kullanıcıları (owner). GET users/ sayfalı (25), sunucuda arama parametresi YOK →
@@ -30,7 +30,6 @@ import { UserRow } from "./components/UserRow";
  */
 export default function UsersScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const allowed = canManageUsers(useAuthStore((s) => s.user));
   const [search, setSearch] = useState("");
@@ -122,16 +121,14 @@ export default function UsersScreen() {
                 compact
                 icon="users"
                 title="Henüz teknisyen yok"
-                description="Cihazlarınızı yönetecek teknisyen hesapları oluşturun."
+                description="POS cihazlarınızı yönetecek teknisyen hesapları oluşturun."
                 actionLabel="Teknisyen ekle"
                 onAction={openCreate}
               />
             )
           }
           ListFooterComponent={
-            list.isFetchingMore ? (
-              <ActivityIndicator style={styles.footer} color={colors.primary} accessibilityLabel="Daha fazla yükleniyor" />
-            ) : null
+            <ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />
           }
           onEndReached={list.loadMore}
           onEndReachedThreshold={0.4}

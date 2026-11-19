@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import {
   DarkTheme,
   DefaultTheme,
@@ -15,6 +15,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import { VennexLogo } from "@/components/brand/VennexLogo";
 import type { AuthStackParamList, RootStackParamList, TabParamList } from "./types";
 import { TabHeader } from "./TabHeader";
+import { CenterTabButton } from "./CenterTabButton";
 import { centeredScreenLayout } from "./CenteredScreen";
 import { linking } from "./linking";
 import { flushPendingNavigation, navigationRef } from "./navigationRef";
@@ -33,8 +34,8 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 const TAB_META: Record<keyof TabParamList, { title: string; icon: IconName }> = {
-  Dashboard: { title: "Panel", icon: "grid" },
-  Devices: { title: "Cihazlar", icon: "cpu" },
+  Dashboard: { title: "Genel Bakış", icon: "bar-chart-2" },
+  Devices: { title: "POS Cihazları", icon: "pos" },
   Cards: { title: "Kartlar", icon: "credit-card" },
   Stock: { title: "Stok", icon: "package" },
   Profile: { title: "Profil", icon: "user" },
@@ -51,12 +52,24 @@ function AppTabs() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenLayout={centeredScreenLayout}
       screenOptions={({ route }) => ({
         header: () => <TabHeader title={TAB_META[route.name].title} />,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textTertiary,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        // "POS Cihazları" dar telefonlarda sığsın: tek satır, gerekirse hafif küçülür (kesilmez)
+        tabBarLabel: ({ color }) => (
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            allowFontScaling={false}
+            style={[styles.tabLabel, { color }]}
+          >
+            {TAB_META[route.name].title}
+          </Text>
+        ),
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.border,
@@ -70,9 +83,18 @@ function AppTabs() {
         sceneStyle: { backgroundColor: theme.colors.background },
       })}
     >
-      <Tab.Screen name="Dashboard" component={screenRegistry.Dashboard} />
+      {/* Sıra: POS Cihazları · Kartlar · [Genel Bakış — ortada büyük düğme] · Stok · Profil */}
       <Tab.Screen name="Devices" component={screenRegistry.Devices} />
       {cardsVisible ? <Tab.Screen name="Cards" component={screenRegistry.Cards} /> : null}
+      <Tab.Screen
+        name="Dashboard"
+        component={screenRegistry.Dashboard}
+        options={{
+          tabBarButton: (props) => (
+            <CenterTabButton {...props} icon={TAB_META.Dashboard.icon} label={TAB_META.Dashboard.title} />
+          ),
+        }}
+      />
       {stockVisible ? <Tab.Screen name="Stock" component={screenRegistry.Stock} /> : null}
       <Tab.Screen name="Profile" component={screenRegistry.Profile} />
     </Tab.Navigator>
@@ -199,4 +221,5 @@ export function RootNavigator() {
 
 const styles = StyleSheet.create({
   boot: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
+  tabLabel: { fontSize: 11, fontWeight: "600", paddingHorizontal: 2, textAlign: "center" },
 });

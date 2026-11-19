@@ -2,7 +2,7 @@
 appId: tr.com.vennex
 ---
 - runFlow: common/start_demo.yaml
-- tapOn: "Cihazlar"
+- tapOn: "POS Cihazları"
 - tapOn: "Ürün şablonları"
 - extendedWaitUntil: { visible: { id: "templates-screen" }, timeout: 15000 }
 # 5) Şablon oluştur (oluşturunca editöre geçer)

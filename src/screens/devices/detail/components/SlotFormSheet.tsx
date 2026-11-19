@@ -215,7 +215,7 @@ export function SlotFormSheet({
           </View>
           <AppSwitchRow
             label="Wildcard slot"
-            description="Ürün numarasından bağımsız; cihazda yalnızca bir tane olabilir"
+            description="Ürün numarasından bağımsız; POS cihazında yalnızca bir tane olabilir"
             value={form.wildcard}
             onChange={(v) => set("wildcard", v)}
             testID="slot-wildcard"
@@ -287,7 +287,7 @@ export function SlotFormSheet({
       <AppConfirmSheet
         visible={confirmDelete}
         title="Silinsin mi?"
-        message={`${item ? productDisplayName(item) : ""} cihazdan kaldırılacak. Cihaz bir şablona eşliyse eşleme kopabilir.`}
+        message={`${item ? productDisplayName(item) : ""} POS cihazından kaldırılacak. POS cihazı bir şablona eşliyse eşleme kopabilir.`}
         confirmLabel="Sil"
         destructive
         irreversible

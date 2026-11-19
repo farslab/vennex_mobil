@@ -182,12 +182,17 @@ export default function CardDetailScreen({ route, navigation }: Props) {
             ))}
             {logs.hasMore ? (
               <View style={styles.more}>
+                {logs.loadMoreError ? (
+                  <AppText variant="caption" color="textSecondary" testID="logs-more-error">
+                    Devamı yüklenemedi: {errorMessage(logs.loadMoreError)}
+                  </AppText>
+                ) : null}
                 <AppButton
-                  title="Daha fazla göster"
+                  title={logs.loadMoreError ? "Tekrar dene" : "Daha fazla göster"}
                   variant="ghost"
                   size="sm"
                   loading={logs.isFetchingMore}
-                  onPress={logs.loadMore}
+                  onPress={logs.loadMoreError ? logs.retryLoadMore : logs.loadMore}
                   testID="logs-more"
                 />
               </View>

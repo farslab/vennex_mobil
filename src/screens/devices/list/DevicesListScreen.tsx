@@ -8,7 +8,7 @@
 import { EXPORTS } from "@/api/exports";
 import { useExcelExport } from "@/hooks/useExcelExport";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -37,6 +37,7 @@ import type { DeviceListQuery, PosDeviceListItem, PosDeviceListResponse } from "
 import { DeviceRow } from "./DeviceRow";
 import { DEFAULT_FILTERS, DeviceFiltersSheet, activeFilterCount, type DeviceFilters } from "./DeviceFiltersSheet";
 import { DeviceOrderSheet } from "./DeviceOrderSheet";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 const HIDE_REVENUE_KEY = "vennex.devices.hideRevenue";
 
@@ -145,8 +146,8 @@ export default function DevicesListScreen() {
   ) : (
     <AppEmptyState
       compact
-      icon={debouncedSearch || filterCount ? "search" : "cpu"}
-      title={debouncedSearch || filterCount ? "Eşleşen cihaz yok" : "Henüz cihaz yok"}
+      icon={debouncedSearch || filterCount ? "search" : "pos"}
+      title={debouncedSearch || filterCount ? "Eşleşen POS cihazı yok" : "Henüz POS cihazı yok"}
       description={
         debouncedSearch || filterCount
           ? "Aramayı veya filtreleri değiştirerek tekrar deneyin."
@@ -190,11 +191,11 @@ export default function DevicesListScreen() {
         </ScrollView>
 
         <View style={styles.summary}>
-          <View style={styles.counts} accessible accessibilityLabel={counts ? `${counts.total} cihaz, ${counts.online ?? 0} çevrimiçi, ${counts.offline ?? 0} çevrimdışı` : "Sayaçlar yükleniyor"}>
+          <View style={styles.counts} accessible accessibilityLabel={counts ? `${counts.total} POS cihazı, ${counts.online ?? 0} çevrimiçi, ${counts.offline ?? 0} çevrimdışı` : "Sayaçlar yükleniyor"}>
             {counts ? (
               <>
                 <AppText variant="numericSm" testID="devices-count-total">
-                  {formatInteger(counts.total)} cihaz
+                  {formatInteger(counts.total)} POS cihazı
                 </AppText>
                 <View style={[styles.dot, styles.dotOnline]} />
                 <AppText variant="numericSm" color="textSecondary" testID="devices-count-online">
@@ -240,9 +241,7 @@ export default function DevicesListScreen() {
         windowSize={9}
         ListEmptyComponent={listEmpty}
         ListFooterComponent={
-          list.isFetchingMore ? (
-            <ActivityIndicator style={styles.footer} color={colors.primary} accessibilityLabel="Daha fazla cihaz yükleniyor" />
-          ) : null
+          <ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />
         }
         refreshControl={
           <RefreshControl refreshing={list.isRefreshing} onRefresh={list.refresh} tintColor={colors.primary} colors={[colors.primary]} />

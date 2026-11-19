@@ -37,7 +37,7 @@ describe("ProductTemplatesScreen", () => {
     await renderWithProviders(<ProductTemplatesScreen />);
 
     expect(await screen.findByText("Ofis Snack")).toBeOnTheScreen();
-    expect(screen.getByText("9 kalem · 4 cihaz")).toBeOnTheScreen();
+    expect(screen.getByText("9 kalem · 4 POS cihazı")).toBeOnTheScreen();
     expect(screen.getAllByText("Kahve").length).toBeGreaterThanOrEqual(2); // filtre + rozet
     expect(mock.history.get.map((r) => r.url)).toEqual(["/product-templates/"]);
   });
@@ -61,7 +61,7 @@ describe("ProductTemplatesScreen", () => {
     await fireEvent.press(await screen.findByTestId("template-actions-1"));
     await fireEvent.press(await screen.findByText("Sil"));
     expect(await screen.findByText("Şablonu sil")).toBeOnTheScreen();
-    expect(screen.getByText("Eşli cihaz")).toBeOnTheScreen();
+    expect(screen.getByText("Eşli POS cihazı")).toBeOnTheScreen();
     expect(mock.history.delete).toHaveLength(0);
 
     await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));

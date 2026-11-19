@@ -26,7 +26,6 @@ import { cardKeys } from "../hooks/cardKeys";
 import { useCardAccess } from "../hooks/useCardAccess";
 import { generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
 import { CardRow } from "../components/CardRow";
-import { ListFooter } from "../components/Common";
 import { BalanceOperationSheet } from "../components/BalanceOperationSheet";
 import { BulkGroupsSheet } from "../components/BulkGroupsSheet";
 import { CardFormSheet } from "../components/CardFormSheet";
@@ -34,6 +33,7 @@ import { ApproveCardSheet } from "../components/ApproveCardSheet";
 import { GroupFilterSheet, type GroupFilter } from "../components/GroupFilterSheet";
 import { cardDisplayName, sumBalances } from "../components/format";
 import { useOnValueChange } from "../hooks/useOnOpen";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 /** Personel kartları: sunucu tarafı arama/filtre, 30'luk sayfalar, onay akışı, çoklu seçim + toplu işlemler */
 export function PersonnelCardsTab() {
@@ -232,7 +232,7 @@ export function PersonnelCardsTab() {
           description={debouncedQ || group ? "Aramayı veya grup filtresini değiştirin." : undefined}
         />
       }
-      ListFooterComponent={<ListFooter loading={list.isFetchingMore} />}
+      ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
       testID="card-list"
     />
   );

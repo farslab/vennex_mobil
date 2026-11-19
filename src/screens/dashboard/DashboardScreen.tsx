@@ -56,7 +56,7 @@ export default function DashboardScreen() {
     try {
       await dash.refresh();
     } catch (e) {
-      toast.error(errorMessage(e, "Panel yenilenemedi."));
+      toast.error(errorMessage(e, "Genel bakış yenilenemedi."));
     }
   }, [dash]);
 
@@ -86,8 +86,8 @@ export default function DashboardScreen() {
         <DashboardSkeleton />
       ) : !data ? (
         <AppErrorState
-          title="Panel yüklenemedi"
-          message={errorMessage(dash.error, "Panel verileri alınamadı.")}
+          title="Genel bakış yüklenemedi"
+          message={errorMessage(dash.error, "Genel bakış verileri alınamadı.")}
           onRetry={() => dash.retry()}
           retrying={dash.isFetching}
           compact
@@ -96,7 +96,7 @@ export default function DashboardScreen() {
         <>
           <View style={styles.statusLine}>
             <AppText variant="caption" color="textSecondary" numberOfLines={1} style={styles.flex}>
-              {data.periodLabel || "Panel"}
+              {data.periodLabel || "Genel Bakış"}
               {dash.dataUpdatedAt ? ` · Güncellendi ${formatTime(new Date(dash.dataUpdatedAt))}` : ""}
             </AppText>
             {dash.isFetching && !dash.refreshing ? (

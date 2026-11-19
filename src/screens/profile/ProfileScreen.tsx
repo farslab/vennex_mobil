@@ -105,7 +105,7 @@ export default function ProfileScreen() {
               <AppListRow
                 icon="map-pin"
                 title="Bölge ve konumlar"
-                subtitle="Cihazların bağlı olduğu yerler"
+                subtitle="POS cihazlarının bağlı olduğu yerler"
                 onPress={() => navigation.navigate("Regions")}
                 last
                 testID="row-regions"

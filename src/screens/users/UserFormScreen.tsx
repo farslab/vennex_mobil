@@ -374,15 +374,15 @@ function UserFormBody({
         </AppCard>
       </AppSection>
 
-      <AppSection title="Cihazlar ve stok">
+      <AppSection title="POS cihazları ve stok">
         <AppCard>
           <View style={styles.form}>
             <AppSelect<number>
               multiple
               searchable
               label="POS cihazları"
-              sheetTitle="Cihaz seçin"
-              placeholder={deviceOptions.length ? "Cihaz seçin" : "Atanabilir cihaz yok"}
+              sheetTitle="POS cihazı seçin"
+              placeholder={deviceOptions.length ? "POS cihazı seçin" : "Atanabilir POS cihazı yok"}
               options={deviceOptions}
               value={values.pos_device_ids}
               onChange={set("pos_device_ids")}
@@ -457,7 +457,7 @@ function UserFormBody({
             summary={[
               { label: "Kullanıcı", value: displayName },
               { label: "Kullanıcı adı", value: user.username },
-              { label: "Atanmış cihaz", value: String(user.pos_device_count) },
+              { label: "Atanmış POS cihazı", value: String(user.pos_device_count) },
             ]}
             confirmLabel="Kalıcı olarak sil"
             destructive

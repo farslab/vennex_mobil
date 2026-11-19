@@ -92,7 +92,7 @@ export function GroupPicker({
       }}
       getId={(g) => g.id}
       getLabel={(g) => g.name}
-      getDescription={(g) => `${g.active_cards_count} aktif kart · ${g.pos_device_count} cihaz`}
+      getDescription={(g) => `${g.active_cards_count} aktif kart · ${g.pos_device_count} POS cihazı`}
     />
   );
 }

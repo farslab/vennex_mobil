@@ -63,9 +63,9 @@ function DeviceRow({
 export function TopDevicesCard({ items, onOpenDevice }: { items: TopDevice[]; onOpenDevice: OpenDevice }) {
   const styles = useStyles();
   return (
-    <AppCard title="En çok satan cihazlar" padded={false} testID="top-devices">
+    <AppCard title="En çok satan POS cihazları" padded={false} testID="top-devices">
       {items.length === 0 ? (
-        <AppEmptyState compact icon="monitor" title="Bu dönemde satış yok" />
+        <AppEmptyState compact icon="pos" title="Bu dönemde satış yok" />
       ) : (
         <View style={styles.list}>
           {items.map((d, i) => (
@@ -94,8 +94,8 @@ export function TechnicalErrorsCard({ items, onOpenDevice }: { items: ErrorBreak
   const shown = items.slice(0, 5);
   return (
     <AppCard
-      title="Teknik hata veren cihazlar"
-      subtitle={items.length > shown.length ? `İlk ${shown.length} / ${items.length} cihaz` : undefined}
+      title="Teknik hata veren POS cihazları"
+      subtitle={items.length > shown.length ? `İlk ${shown.length} / ${items.length} POS cihazı` : undefined}
       padded={false}
       testID="technical-errors"
     >

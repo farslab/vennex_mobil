@@ -2,7 +2,7 @@
 appId: tr.com.vennex
 ---
 - runFlow: common/start_demo.yaml
-- tapOn: "Cihazlar"
+- tapOn: "POS Cihazları"
 - tapOn: { id: "device-row-DEMO0001" }
 # 3) Satışlar: durum filtresi + kart son 4 hane
 - tapOn: "Satışlar"

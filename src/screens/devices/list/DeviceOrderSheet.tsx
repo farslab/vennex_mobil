@@ -5,7 +5,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
-import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSingleFlight } from "@/hooks/useSingleFlight";
 import {
@@ -19,7 +19,6 @@ import {
   AppText,
   makeStyles,
   toast,
-  useTheme,
 } from "@/design-system";
 import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
@@ -27,12 +26,12 @@ import { queryKeys } from "@/api/queryKeys";
 import { usePagedList } from "@/hooks/usePagedList";
 import { deviceTitle } from "@/components/devices/deviceHelpers";
 import type { PosDeviceListItem, PosDeviceListResponse } from "@/types/devices";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 export const deviceOrderKey = () => [...queryKeys.devices.all, "order-source"] as const;
 
 export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const queryClient = useQueryClient();
   /** Kullanıcının taşıdığı sıra (SN listesi); null → sunucu sırası */
   const [customSns, setCustomSns] = useState<string[] | null>(null);
@@ -99,7 +98,7 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
       visible={visible}
       onClose={onClose}
       title="Özel sıralama"
-      subtitle="Cihazlar listede bu sırayla görünür (tüm kullanıcılar için)"
+      subtitle="POS cihazları listede bu sırayla görünür (tüm kullanıcılar için)"
       scrollable={false}
       dismissible={!busy}
       testID="device-order-sheet"
@@ -120,7 +119,7 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
       {total > order.length && order.length > 0 ? (
         <AppNotice
           tone="info"
-          message={`${total} cihazdan ${order.length} tanesi yüklendi. Kaydedince yalnız yüklenen cihazların sırası güncellenir; diğerleri sonda kalır.`}
+          message={`${total} POS cihazından ${order.length} tanesi yüklendi. Kaydedince yalnız yüklenen POS cihazlarının sırası güncellenir; diğerleri sonda kalır.`}
         />
       ) : null}
       {list.isLoading ? (
@@ -134,7 +133,7 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
           style={styles.list}
           onEndReached={list.loadMore}
           onEndReachedThreshold={0.4}
-          ListFooterComponent={list.isFetchingMore ? <ActivityIndicator color={colors.primary} style={styles.footer} /> : null}
+          ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
           renderItem={({ item, index }) => (
             <View style={styles.row} testID={`order-row-${item.sn}`}>
               <AppText variant="numericSm" color="textTertiary" style={styles.index}>
@@ -170,7 +169,7 @@ export function DeviceOrderSheet({ visible, onClose }: { visible: boolean; onClo
       <AppConfirmSheet
         visible={confirmReset}
         title="Sıralamayı sıfırla"
-        message="Tüm cihazların özel sırası kaldırılır; liste ada göre sıralanır."
+        message="Tüm POS cihazlarının özel sırası kaldırılır; liste ada göre sıralanır."
         confirmLabel="Sıfırla"
         destructive
         loading={reset.isPending}

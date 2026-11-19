@@ -102,8 +102,8 @@ export function TemplateFormSheet({
         />
         <AppText variant="caption" color={typeLocked ? "warning" : "textTertiary"}>
           {typeLocked
-            ? "Şablon cihazlara eşli olduğu için makine tipi değiştirilemez."
-            : "Şablon yalnız aynı tipteki (Snack/Kahve) cihazlara atanabilir."}
+            ? "Şablon POS cihazlarına eşli olduğu için makine tipi değiştirilemez."
+            : "Şablon yalnız aynı tipteki (Snack/Kahve) POS cihazlarına atanabilir."}
         </AppText>
         {errors.machine_type ? (
           <AppText variant="caption" color="danger">

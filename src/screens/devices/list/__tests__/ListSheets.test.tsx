@@ -194,7 +194,7 @@ describe("DeviceOrderSheet", () => {
     await fireEvent.press(screen.getByText("Sıfırla"));
 
     expect(await screen.findByText("Sıralamayı sıfırla")).toBeOnTheScreen();
-    expect(screen.getByText("Tüm cihazların özel sırası kaldırılır; liste ada göre sıralanır.")).toBeOnTheScreen();
+    expect(screen.getByText("Tüm POS cihazlarının özel sırası kaldırılır; liste ada göre sıralanır.")).toBeOnTheScreen();
     expect(mock.history.post).toHaveLength(0);
 
     await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
@@ -249,13 +249,13 @@ describe("DeviceOrderSheet", () => {
 
     await renderWithProviders(<DeviceOrderSheet visible onClose={jest.fn()} />);
 
-    expect(await screen.findByText(/^30 cihazdan 2 tanesi yüklendi\./)).toBeOnTheScreen();
+    expect(await screen.findByText(/^30 POS cihazından 2 tanesi yüklendi\./)).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("order-up-SN2"));
     await fireEvent(scrollHostOf(screen.getByTestId("order-row-SN1")), "onEndReached");
 
     expect(await screen.findByText("Otomat 26")).toBeOnTheScreen();
     expect(listGets(mock).map((r) => r.params.page)).toEqual([1, 2]);
-    expect(screen.getByText(/^30 cihazdan 3 tanesi yüklendi\./)).toBeOnTheScreen();
+    expect(screen.getByText(/^30 POS cihazından 3 tanesi yüklendi\./)).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByTestId("device-order-save"));
     await waitFor(() => expect(mock.history.post).toHaveLength(1));

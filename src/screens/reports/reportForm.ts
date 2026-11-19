@@ -92,7 +92,7 @@ export interface ReportTypeCard {
 }
 
 const WEB_REPORT_TYPES: ReportTypeCard[] = [
-  { value: "pos_summary", label: "Özet", description: "Cihaz/şirket bazlı satış adetleri ve cirolar" },
+  { value: "pos_summary", label: "Özet", description: "POS cihazı/şirket bazlı satış adetleri ve cirolar" },
   { value: "pos_detail", label: "Detay", description: "Her işlem ayrı satır (kart no, ürün, durum dahil)" },
   {
     value: NFC_LOGS,
@@ -264,10 +264,10 @@ export function validateReportForm(
     if (form.devices.length) devices = form.devices;
     else {
       const scoped = scopeDevices(options, form);
-      if (scoped && scoped.length === 0) errors.scope = "Seçilen bölge/konumlarda cihaz yok.";
+      if (scoped && scoped.length === 0) errors.scope = "Seçilen bölge/konumlarda POS cihazı yok.";
       devices = scoped ?? [];
     }
-    if (devices.length > MAX_DEVICE_COUNT) errors.scope = `En fazla ${MAX_DEVICE_COUNT} cihaz seçilebilir.`;
+    if (devices.length > MAX_DEVICE_COUNT) errors.scope = `En fazla ${MAX_DEVICE_COUNT} POS cihazı seçilebilir.`;
   }
 
   if (Object.keys(errors).length || !start || !end) return { ok: false, errors };

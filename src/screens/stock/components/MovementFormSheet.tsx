@@ -123,12 +123,12 @@ function MovementForm({ visible, mode, onClose, presetLocationId }: MovementForm
   const fromOptions = options(() => null);
   const toOptions = options((l) => {
     if (mode !== "transfer") return null;
-    if (l.location_type === "vending_machine") return { disabled: true, description: "Otomata doğrudan transfer yapılamaz (dolum cihaz sayfasından)" };
+    if (l.location_type === "vending_machine") return { disabled: true, description: "Otomata doğrudan transfer yapılamaz (dolum POS cihazı sayfasından)" };
     if (l.id === fromId) return { disabled: true, description: "Kaynak lokasyon" };
     return null;
   });
   const adjustOptions = options((l) =>
-    l.location_type === "vending_machine" ? { disabled: true, description: "Otomat düzeltmesi cihaz sayfasından yapılır" } : null
+    l.location_type === "vending_machine" ? { disabled: true, description: "Otomat düzeltmesi POS cihazı sayfasından yapılır" } : null
   );
 
   const buildInput = (): { input: StockMovementInput | null; errs: Errors } => {

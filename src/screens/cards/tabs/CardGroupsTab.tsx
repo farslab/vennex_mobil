@@ -83,7 +83,7 @@ export function CardGroupsTab() {
             <AppEmptyState
               icon="layers"
               title={debounced ? "Eşleşen grup yok" : "Henüz kart grubu yok"}
-              description={debounced ? undefined : "Kartları cihazlara göre yetkilendirmek için grup oluşturun."}
+              description={debounced ? undefined : "Kartları POS cihazlarına göre yetkilendirmek için grup oluşturun."}
             />
           }
           ListFooterComponent={<ListFooter loading={false} />}
@@ -101,9 +101,9 @@ function GroupRow({ group, onPress }: { group: CardGroup; onPress: () => void })
     <RuleRow
       testID={`group-row-${group.id}`}
       title={group.name}
-      subtitle={`${formatInteger(group.active_cards_count)} aktif kart · ${formatInteger(group.pos_device_count)} cihaz`}
+      subtitle={`${formatInteger(group.active_cards_count)} aktif kart · ${formatInteger(group.pos_device_count)} POS cihazı`}
       onPress={onPress}
-      accessibilityLabel={`${group.name}, ${group.active_cards_count} aktif kart, ${group.pos_device_count} cihaz`}
+      accessibilityLabel={`${group.name}, ${group.active_cards_count} aktif kart, ${group.pos_device_count} POS cihazı`}
     />
   );
 }
@@ -162,11 +162,11 @@ function GroupDetailSheet({ groupId, onClose }: { groupId: number | null; onClos
       ) : g ? (
         <View style={styles.deviceBox}>
           <AppText variant="overline" color="textTertiary">
-            Yetkili cihazlar ({g.pos_devices.length})
+            Yetkili POS cihazları ({g.pos_devices.length})
           </AppText>
           {g.pos_devices.length === 0 ? (
             <AppText variant="callout" color="textSecondary">
-              Bu gruba henüz cihaz atanmadı.
+              Bu gruba henüz POS cihazı atanmadı.
             </AppText>
           ) : (
             g.pos_devices.map((d) => (
@@ -300,13 +300,13 @@ function GroupFormSheet({ state, onClose }: { state: { group: CardGroupDetail | 
       {canPickDevices ? (
         <AppSelect<number>
           multiple
-          label="Yetkili cihazlar"
+          label="Yetkili POS cihazları"
           value={deviceIds}
           onChange={setDeviceIds}
           options={deviceOptions}
           loading={options.isLoading}
-          placeholder="Cihaz seçin"
-          sheetTitle="Yetkili cihazlar"
+          placeholder="POS cihazı seçin"
+          sheetTitle="Yetkili POS cihazları"
           searchable
           testID="group-form-devices"
         />
@@ -315,8 +315,8 @@ function GroupFormSheet({ state, onClose }: { state: { group: CardGroupDetail | 
           tone="info"
           message={
             options.isError
-              ? "Cihaz listesi alınamadı; mevcut cihaz atamaları değiştirilmeden korunur."
-              : "Hesabınız için cihaz kimliği veren bir liste yok; cihaz ataması web panelinden yapılabilir. Mevcut atamalar korunur."
+              ? "POS cihazı listesi alınamadı; mevcut POS cihazı atamaları değiştirilmeden korunur."
+              : "Hesabınız için POS cihazı kimliği veren bir liste yok; POS cihazı ataması web panelinden yapılabilir. Mevcut atamalar korunur."
           }
         />
       )}

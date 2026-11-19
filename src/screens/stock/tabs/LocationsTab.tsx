@@ -137,7 +137,7 @@ export function LocationsTab({ canManage }: { canManage: boolean }) {
           <AppConfirmSheet
             visible={syncOpen}
             title="Otomatları senkronize et"
-            message="Şirketteki her POS cihazı için otomat lokasyonu oluşturulur; adı değişen cihazların lokasyon adı güncellenir. Mevcut bakiyeler değişmez."
+            message="Şirketteki her POS cihazı için otomat lokasyonu oluşturulur; adı değişen POS cihazlarının lokasyon adı güncellenir. Mevcut bakiyeler değişmez."
             confirmLabel="Senkronize et"
             loading={sync.isPending}
             error={syncError}
@@ -170,7 +170,7 @@ function LocationRow({
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${l.name}, ${meta.label}${l.is_active ? "" : ", pasif"}${l.pos_device_sn ? `, cihaz ${l.pos_device_sn}` : ""}`}
+        accessibilityLabel={`${l.name}, ${meta.label}${l.is_active ? "" : ", pasif"}${l.pos_device_sn ? `, POS cihazı ${l.pos_device_sn}` : ""}`}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
         testID={`location-row-${l.id}`}
       >

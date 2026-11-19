@@ -56,8 +56,20 @@ export function resolveNotificationTarget(
       // Cari ekranı yalnız owner (backend IsOwner)
       return isOwner(user) ? { name: "CompanyAccount" } : null;
     default:
-      return null;
+      return webUrlTarget(data);
   }
+}
+
+/**
+ * Web bildirimleri `data.url` ile web sayfasına bağlanır (ör. "Ödeme hatası" →
+ * `/pos-cihazi/<sn>/`). Bilinen sayfalar mobil karşılığına çevrilir.
+ */
+function webUrlTarget(data: Record<string, unknown>): NotificationTarget | null {
+  const url = nonEmpty(data.url);
+  if (!url) return null;
+  const device = /^\/pos-cihazi\/([^/?#]+)\/?(?:[?#].*)?$/.exec(url);
+  if (device) return { name: "DeviceDetail", params: { sn: decodeURIComponent(device[1]) } };
+  return null;
 }
 
 export function notificationIcon(item: Pick<NotificationItem, "data">): IconName {
@@ -76,5 +88,36 @@ export function notificationIcon(item: Pick<NotificationItem, "data">): IconName
       return "alert-circle";
     default:
       return "bell";
+  }
+}
+
+export interface NotificationWebLink {
+  url: string;
+  /** Kullanıcıya gösterilen alan adı (nereye gidileceği açık olsun) */
+  host: string;
+}
+
+/**
+ * Uygulama içi karşılığı olmayan bağlantı (admin bildirim formundaki "URL" alanı, web sayfası vb.).
+ * Yalnız http(s) açılır; "/yol/" biçimindeki web paneli yolları `webBase` ile tamamlanır.
+ * Uygulama içi hedefi olan bildirimde (ör. /pos-cihazi/<sn>/) null döner — o ekran açılır.
+ */
+export function notificationWebLink(
+  item: Pick<NotificationItem, "data">,
+  user: AuthUser | null | undefined,
+  webBase: string
+): NotificationWebLink | null {
+  const raw = nonEmpty(item.data?.url);
+  if (!raw || resolveNotificationTarget(item, user)) return null;
+  let full: string;
+  if (/^https?:\/\//i.test(raw)) full = raw;
+  else if (raw.startsWith("/") && !raw.startsWith("//")) full = `${webBase.replace(/\/+$/, "")}${raw}`;
+  else return null;
+  try {
+    const u = new URL(full);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+    return { url: u.toString(), host: u.host };
+  } catch {
+    return null;
   }
 }

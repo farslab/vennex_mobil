@@ -18,7 +18,7 @@ export function UserRow({ user, onPress }: { user: StaffUser; onPress: (user: St
     name,
     `kullanıcı adı ${user.username}`,
     user.is_active ? null : "pasif",
-    `${devices} cihaz`,
+    `${devices} POS cihazı`,
     user.group_names.length ? `gruplar: ${user.group_names.join(", ")}` : "yetki grubu yok",
   ]
     .filter(Boolean)
@@ -57,7 +57,7 @@ export function UserRow({ user, onPress }: { user: StaffUser; onPress: (user: St
       </View>
       <View style={styles.side}>
         <View style={styles.meta}>
-          <AppIcon name="cpu" size={13} color="textTertiary" />
+          <AppIcon name="pos" size={13} color="textTertiary" />
           <AppText variant="numericSm" color="textSecondary">
             {devices}
           </AppText>

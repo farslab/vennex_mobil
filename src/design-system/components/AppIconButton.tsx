@@ -12,11 +12,13 @@ export interface AppIconButtonProps {
   badge?: number;
   disabled?: boolean;
   tone?: "default" | "primary" | "danger";
+  /** "lg": öne çıkan header aksiyonu (daha büyük ikon, aynı 44pt dokunma alanı) */
+  size?: "md" | "lg";
   testID?: string;
 }
 
 /** 44x44 dokunma alanlı ikon butonu (header aksiyonları, satır menüleri) */
-export function AppIconButton({ icon, label, onPress, badge, disabled, tone = "default", testID }: AppIconButtonProps) {
+export function AppIconButton({ icon, label, onPress, badge, disabled, tone = "default", size = "md", testID }: AppIconButtonProps) {
   const styles = useStyles();
   const color = tone === "primary" ? "primary" : tone === "danger" ? "danger" : "text";
   const badgeText = badge && badge > 99 ? "99+" : badge ? String(badge) : null;
@@ -30,7 +32,7 @@ export function AppIconButton({ icon, label, onPress, badge, disabled, tone = "d
       accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [styles.root, pressed && styles.pressed, disabled && styles.disabled]}
     >
-      <AppIcon name={icon} size={20} color={color} />
+      <AppIcon name={icon} size={size === "lg" ? 28 : 20} color={color} />
       {badgeText ? (
         <View style={styles.badge}>
           <AppText variant="caption" style={styles.badgeText}>

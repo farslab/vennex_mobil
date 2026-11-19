@@ -120,7 +120,7 @@ export function BulkQuantitiesSheet({
       <AppConfirmSheet
         visible={confirm}
         title="Toplu dolumu onayla"
-        message="Girilen miktarlar kaynak lokasyondan cihaza aktarılır."
+        message="Girilen miktarlar kaynak lokasyondan POS cihazına aktarılır."
         summary={[
           { label: "Kaynak", value: sourceLabel },
           { label: "Güncellenecek slot", value: formatInteger(updates.length) },

@@ -262,7 +262,7 @@ export function TemplateItemSheet({
       <AppConfirmSheet
         visible={confirmDelete}
         title="Kalem silinsin mi?"
-        message="Kalem şablondan silinir; şablona eşli cihazlardan da kaldırılır."
+        message="Kalem şablondan silinir; şablona eşli POS cihazlarından da kaldırılır."
         summary={item ? [{ label: "Kalem", value: displayName || "—" }] : undefined}
         confirmLabel="Sil"
         destructive

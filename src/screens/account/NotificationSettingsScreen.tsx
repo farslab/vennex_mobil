@@ -35,14 +35,14 @@ interface PrefMeta {
 /** Push olayları ve alıcıları: backend `vennex_mobile/tasks.py` */
 const GROUPS: { title: string; items: PrefMeta[] }[] = [
   {
-    title: "Cihazlar",
+    title: "POS Cihazları",
     items: [
-      { key: "device_offline", label: "Cihaz çevrimdışı", description: "Bir cihaz bağlantıyı kaybettiğinde" },
+      { key: "device_offline", label: "POS cihazı çevrimdışı", description: "Bir POS cihazı bağlantıyı kaybettiğinde" },
       { key: "stock_low", label: "Düşük stok", description: "Bir slotta ürün azaldığında" },
       {
         key: "transaction_alerts",
         label: "Yeni işlemler",
-        description: "Cihazlarınızda yeni satış gerçekleştiğinde",
+        description: "POS cihazlarınızda yeni satış gerçekleştiğinde",
         ownerOnly: true,
       },
     ],

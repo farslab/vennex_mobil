@@ -30,10 +30,11 @@ import { businessToday, formatDate, formatDateTime } from "@/utils/date";
 import type { CreatedIdsResponse, QuotaDistribution, QuotaPeriod, RecurringQuotaPayload, RecurringQuotaRule, RecurringTargetType } from "@/types/cards";
 import { cardKeys } from "../hooks/cardKeys";
 import { fieldErrorsOf, generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
-import { ActiveBadge, DateField, ListFooter, RuleRow, apiDateToUser, userDateToApi } from "../components/Common";
+import { ActiveBadge, DateField, RuleRow, apiDateToUser, userDateToApi } from "../components/Common";
 import { CardPicker, GroupPicker, type PickedRef } from "../components/Pickers";
 import { QUOTA_PERIOD_LABELS, normalizeProductNo, validatePositiveInt } from "../components/format";
 import { useOnOpen } from "../hooks/useOnOpen";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 const PERIOD_OPTIONS = (Object.keys(QUOTA_PERIOD_LABELS) as QuotaPeriod[]).map((k) => ({ value: k, label: QUOTA_PERIOD_LABELS[k] }));
 
@@ -103,7 +104,7 @@ export function RecurringQuotaTab() {
               description={debounced ? undefined : "Grup veya kart istihkaklarını dönemsel olarak otomatik yenileyin."}
             />
           }
-          ListFooterComponent={<ListFooter loading={list.isFetchingMore} />}
+          ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
         />
       )}
       <RecurringQuotaFormSheet state={form} onClose={() => setForm(null)} />

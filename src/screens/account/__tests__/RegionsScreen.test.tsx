@@ -49,13 +49,13 @@ describe("RegionsScreen", () => {
 
     expect(await screen.findByText("İstanbul Avrupa")).toBeOnTheScreen();
     expect(screen.getByText("2 konum")).toBeOnTheScreen();
-    expect(screen.getByText("5 cihaz")).toBeOnTheScreen();
+    expect(screen.getByText("5 POS cihazı")).toBeOnTheScreen();
     expect(screen.queryByText("Merkez Plaza")).toBeNull();
 
-    await fireEvent.press(screen.getByLabelText("İstanbul Avrupa, 2 konum, 5 cihaz"));
+    await fireEvent.press(screen.getByLabelText("İstanbul Avrupa, 2 konum, 5 POS cihazı"));
     expect(await screen.findByText("Merkez Plaza")).toBeOnTheScreen();
     expect(screen.getByText("Pasif")).toBeOnTheScreen();
-    expect(screen.getByText("3 cihaz")).toBeOnTheScreen();
+    expect(screen.getByText("3 POS cihazı")).toBeOnTheScreen();
   });
 
   it("boş liste için yönlendirici boş durum gösterir", async () => {
@@ -104,7 +104,7 @@ describe("RegionsScreen", () => {
     mock.onGet("/regions/").reply(200, { results: regions });
     mock.onPost("/locations/").reply((cfg) => [201, { id: 99, ...JSON.parse(cfg.data), pos_device_count: 0 }]);
     await renderWithProviders(<RegionsScreen />);
-    await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 cihaz"));
+    await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 POS cihazı"));
     await fireEvent.press(await screen.findByText("Konum ekle"));
 
     await fireEvent.changeText(await screen.findByTestId("location-name"), "Yeni Ofis");
@@ -126,7 +126,7 @@ describe("RegionsScreen", () => {
   it("geçersiz ya da tek başına koordinatı reddeder", async () => {
     mock.onGet("/regions/").reply(200, { results: regions });
     await renderWithProviders(<RegionsScreen />);
-    await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 cihaz"));
+    await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 POS cihazı"));
     await fireEvent.press(await screen.findByText("Konum ekle"));
 
     await fireEvent.changeText(await screen.findByTestId("location-name"), "Ofis");
@@ -148,12 +148,12 @@ describe("RegionsScreen", () => {
       return [204];
     });
     await renderWithProviders(<RegionsScreen />);
-    await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 cihaz"));
+    await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 POS cihazı"));
     await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa bölgesini sil"));
 
     expect(
       await screen.findByText(
-        '"İstanbul Avrupa" ve altındaki 2 konum silinecek. Bu konumlardaki cihazların konum bilgisi boşalır.'
+        '"İstanbul Avrupa" ve altındaki 2 konum silinecek. Bu konumlardaki POS cihazlarının konum bilgisi boşalır.'
       )
     ).toBeOnTheScreen();
     await fireEvent.press(screen.getByText("Sil"));

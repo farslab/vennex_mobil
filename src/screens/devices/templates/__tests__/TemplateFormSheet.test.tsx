@@ -100,7 +100,7 @@ describe("TemplateFormSheet", () => {
     expect(screen.getByText("Kaydet")).toBeOnTheScreen();
     expect(screen.getByTestId("template-name").props.value).toBe("Kahve Menüsü");
     expect(selectedType()).toHaveTextContent("Kahve");
-    expect(screen.getByText("Şablon yalnız aynı tipteki (Snack/Kahve) cihazlara atanabilir.")).toBeOnTheScreen();
+    expect(screen.getByText("Şablon yalnız aynı tipteki (Snack/Kahve) POS cihazlarına atanabilir.")).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId("template-name"), "Kahve Menüsü 2 ");
     await fireEvent.changeText(screen.getByDisplayValue(""), " Sabah ");
@@ -119,7 +119,7 @@ describe("TemplateFormSheet", () => {
     mock.onPatch("/product-templates/1/").reply(200, { id: 1, name: "Ofis Snack v2", description: "Kat dizilimi", machine_type: 0 });
     await openSheet(assignedTpl);
 
-    expect(screen.getByText("Şablon cihazlara eşli olduğu için makine tipi değiştirilemez.")).toBeOnTheScreen();
+    expect(screen.getByText("Şablon POS cihazlarına eşli olduğu için makine tipi değiştirilemez.")).toBeOnTheScreen();
     await fireEvent.press(within(screen.getByTestId("template-machine-type")).getByText("Kahve"));
     expect(selectedType()).toHaveTextContent("Snack");
 

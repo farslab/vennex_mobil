@@ -13,6 +13,15 @@
 - Mağaza hazırlığı: iOS gizlilik manifesti, şifreleme beyanı, minimum Android izinleri, uygulama içi hesap silme.
 - Yerel mock sunucu (`mock-server/`) ve gerçek backend kodunun izole yerel kurulumu (`../backend-local`).
 
+### Altıncı tur (2026-11-19) — arayüz düzeni ve bildirimler (canlı tur geri bildirimi)
+- **Alt çubuk:** Genel Bakış (eski "Panel") ortada büyük, yuvarlak düğme; grafik ikonu. Sıra: POS Cihazları · Kartlar · Genel Bakış · Stok · Profil.
+- **Adlandırma:** makineyi kastettiği her yerde "POS cihazı" / "POS Cihazları" (sekme, sayaçlar, seçiciler, bildirim ayarları, şablon işlemleri). Telefonu kastedenler değişmedi.
+- **POS ikonu:** çip ikonu yerine el tipi POS terminali (Feather çizgi stilinde özel SVG).
+- **POS cihazı detayı:** "Nakit & Ciro" ayrı sekme değil, Genel sekmesinin en altında. Uzaktan satış başlığın sağ üstünde büyük ikon (remote_vend yetkisiyle).
+- **Bildirimler:** dokununca tam metin alttan açılan sayfada; ilgili ekran düğmesi (POS cihazı, kart, rapor, cari) ya da web bağlantısı ("Bağlantıyı aç", alan adı gösterilir, yalnız http/https). Web "Ödeme hatası" bildirimlerinin `/pos-cihazi/<sn>/` bağlantısı uygulama içinde POS cihazını açar.
+- **Sayfalı listeler:** sonraki sayfa hata verirse liste sessizce durmaz; "Devamı yüklenemedi" + "Tekrar dene" (13 liste). Yüklenmiş kayıtlar kalır.
+- **Backend (canlıda, `23dee86`):** bildirim listesinde modeli silinmiş içerik tipine bağlı kayıt sayfanın tamamını 500 yapıyordu (canlı: demo hesabı 4. sayfa). Düzeltildi; 83 bildirimin hepsi geliyor.
+
 ### Beşinci tur (2026-11-19) — web paritesi, büyük veri, canlı doğrulama
 - **Rapor formu web ile birebir** (kritik düzeltmeler):
   - "Başarılı/Başarısız" filtresi `success|fail` gidiyordu, backend yalnız `true|false` tanıdığı için **sessizce yok sayılıyordu**. Örneğin "Başarısız" seçilen rapor tüm işlemleri içeriyordu. Düzeltildi; varsayılan durum web gibi Başarılı.
