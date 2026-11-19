@@ -173,16 +173,6 @@ function PaymentForm({
       scroll
       keyboardShouldPersistTaps="handled"
       testID="cari-pay"
-      footer={
-        <AppButton
-          title={pay.isPending ? "Bankaya bağlanılıyor…" : `${formatCurrency(parseAmountTr(amountValue) || 0)} öde`}
-          icon="lock"
-          onPress={submit}
-          loading={pay.isPending}
-          fullWidth
-          testID="cari-pay-submit"
-        />
-      }
     >
       <AppCard>
         <AppText variant="caption" color="textSecondary">
@@ -258,6 +248,16 @@ function PaymentForm({
           </View>
         </View>
         {pay.isError ? <AppNotice tone="danger" title="Ödeme başlatılamadı" message={errorMessage(pay.error)} /> : null}
+        <View style={styles.payButton}>
+          <AppButton
+            title={pay.isPending ? "Bankaya bağlanılıyor…" : `${formatCurrency(parseAmountTr(amountValue) || 0)} öde`}
+            icon="lock"
+            onPress={submit}
+            loading={pay.isPending}
+            fullWidth
+            testID="cari-pay-submit"
+          />
+        </View>
         <View style={styles.secure}>
           <AppIcon name="shield" size={14} color="textTertiary" />
           <AppText variant="caption" color="textTertiary" style={styles.flex}>
@@ -381,6 +381,7 @@ const useStyles = makeStyles((t) =>
     form: { gap: t.spacing.md, marginTop: t.spacing.md },
     row: { flexDirection: "row", gap: t.spacing.sm },
     secure: { flexDirection: "row", gap: 6, alignItems: "flex-start" },
+    payButton: { alignSelf: "stretch", marginTop: t.spacing.xs },
     bankBar: {
       flexDirection: "row",
       alignItems: "center",
