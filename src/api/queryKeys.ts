@@ -24,6 +24,7 @@ export const queryKeys = {
     list: (filters: Filters) => ["devices", "list", filters] as const,
     detail: (sn: string) => ["devices", "detail", sn] as const,
     summary: (sn: string) => ["devices", "summary", sn] as const,
+    stats: (sn: string, params: Filters) => ["devices", "stats", sn, params] as const,
     products: (sn: string) => ["devices", "products", sn] as const,
     transactions: (sn: string, filters: Filters) => ["devices", "transactions", sn, filters] as const,
     txReceipt: (sn: string, txId: number) => ["devices", "tx-receipt", sn, txId] as const,

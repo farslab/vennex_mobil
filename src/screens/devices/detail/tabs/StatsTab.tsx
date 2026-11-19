@@ -1,8 +1,10 @@
 /**
- * İstatistikler — YALNIZ gerçek veri: cihaz `summary` (4 dönem), bugünkü işlem `summary`'si ve
- * son ciro sayımının ödeme türü kırılımı. Tahmini/türetilmiş finansal değer gösterilmez.
+ * İstatistikler — web cihaz sayfası İstatistikler sekmesi gibi: zaman filtresi (hızlı seçim, özel tarih,
+ * günlük saat penceresi) → Ciro / Toplam / Başarılı / Başarısız, Ödeme Tipine Göre, Başarısız Neden,
+ * Ürün Bazında Satışlar (`GET pos-devices/{sn}/stats/`). Altta dönem karşılaştırması ve son ciro sayımı.
+ * Yalnız gerçek veri; tahmini finansal değer gösterilmez.
  */
-import React from "react";
+import React, { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { AppCard, AppKpi, AppNotice, AppSkeleton, AppText, makeStyles, useTheme } from "@/design-system";
@@ -10,25 +12,37 @@ import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
 import { FillBar, MetricCell } from "@/components/devices/DeviceUi";
-import { ptTypeLabel } from "@/components/devices/deviceHelpers";
+import { ptBadge, ptTypeLabel } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger, formatPercent, percentChange } from "@/utils/number";
-import { businessToday, formatDateTime, toApiDate } from "@/utils/date";
+import { formatDateTime } from "@/utils/date";
 import { useDeviceSummary, useRevenueCounts } from "../useDeviceQueries";
+import { defaultStatsFilter, StatsPeriodFilter, type StatsFilter } from "../components/StatsPeriodFilter";
+import { webBadgeColors } from "@/components/devices/webBadgeColors";
+import type { DeviceStatsParams } from "@/types/devices";
 
 export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing: boolean; onRefresh: () => void }) {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const summary = useDeviceSummary(sn, true);
   const counts = useRevenueCounts(sn, true);
-  const today = toApiDate(businessToday());
-  const todayTx = useQuery({
-    queryKey: [...queryKeys.devices.all, "tx-summary", sn, today] as const,
-    queryFn: ({ signal }) => devicesApi.transactions(sn, { start_date: today, end_date: today }, signal),
+  const [filter, setFilter] = useState<StatsFilter>(() => defaultStatsFilter());
+  const params: DeviceStatsParams = {
+    start_date: filter.range.start,
+    end_date: filter.range.end,
+    ...(filter.startTime ? { start_time: filter.startTime } : {}),
+    ...(filter.endTime ? { end_time: filter.endTime } : {}),
+  };
+  const stats = useQuery({
+    queryKey: queryKeys.devices.stats(sn, { ...params }),
+    queryFn: ({ signal }) => devicesApi.stats(sn, params, signal),
+    placeholderData: (prev) => prev,
   });
 
   const s = summary.data;
-  const tx = todayTx.data?.summary ?? null;
-  const successRate = tx && tx.total ? ((tx.success ?? 0) / tx.total) * 100 : null;
+  const st = stats.data;
+  const tx = st?.summary ?? null;
+  const successRate = tx && tx.total ? (tx.success / tx.total) * 100 : null;
+  const ptTotal = st ? st.payment_types.reduce((a, p) => a + p.revenue, 0) : 0;
   const lastCount = counts.data?.results[0] ?? null;
   const breakdown = lastCount
     ? Object.entries(lastCount.by_pt_type)
@@ -43,6 +57,108 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       testID="tab-stats"
     >
+      <StatsPeriodFilter value={filter} onChange={setFilter} />
+
+      {stats.isLoading ? (
+        <AppSkeleton height={120} radius={12} />
+      ) : stats.isError ? (
+        <AppNotice tone="warning" message={`İstatistik alınamadı: ${errorMessage(stats.error)}`} />
+      ) : st ? (
+        <>
+          <AppCard testID="stats-kpis">
+            <View style={styles.gap}>
+              <View style={styles.grid}>
+                <MetricCell label="Ciro" value={formatCurrency(tx?.revenue)} />
+                <MetricCell label="Toplam İşlem" value={formatInteger(tx?.total)} />
+                <MetricCell label="Başarılı" value={formatInteger(tx?.success)} />
+                <MetricCell label="Başarısız" value={formatInteger(tx?.failed)} />
+              </View>
+              <FillBar
+                pct={successRate}
+                tone={successRate == null ? "neutral" : successRate >= 90 ? "success" : successRate >= 70 ? "warning" : "danger"}
+                height={6}
+                accessibilityLabel={`Başarı oranı ${formatPercent(successRate)}`}
+              />
+              <AppText variant="caption" color="textTertiary">
+                Başarı oranı {formatPercent(successRate)}
+              </AppText>
+            </View>
+          </AppCard>
+
+          {st.payment_types.length ? (
+            <AppCard title="Ödeme Tipine Göre" testID="stats-payment-types">
+              <View style={styles.gap}>
+                {st.payment_types.map((p) => {
+                  const pct = ptTotal > 0 ? (p.revenue / ptTotal) * 100 : 0;
+                  const c = webBadgeColors(ptBadge(p.pt_type).color, isDark);
+                  return (
+                    <View key={p.pt_type} style={styles.bdRow}>
+                      <View style={styles.bdHead}>
+                        <AppText variant="callout" style={styles.flex} numberOfLines={1}>
+                          {p.label}
+                        </AppText>
+                        <AppText variant="caption" color="textTertiary">
+                          {formatInteger(p.count)} işlem · {formatPercent(pct)}
+                        </AppText>
+                        <AppText variant="numericSm" style={styles.money}>
+                          {formatCurrency(p.revenue)}
+                        </AppText>
+                      </View>
+                      <View style={[styles.track, { backgroundColor: colors.surfaceMuted }]}>
+                        <View style={[styles.trackFill, { width: `${pct}%`, backgroundColor: c.fg }]} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </AppCard>
+          ) : null}
+
+          {st.failure_reasons.length ? (
+            <AppCard title="Başarısız Neden" testID="stats-failure-reasons">
+              <View style={styles.gap}>
+                {st.failure_reasons.map((f) => (
+                  <View key={f.key} style={styles.bdHead}>
+                    <AppText variant="callout" style={styles.flex}>
+                      {f.label}
+                    </AppText>
+                    <AppText variant="numericSm" color="textSecondary">
+                      {formatCurrency(f.amount)}
+                    </AppText>
+                    <AppText variant="numeric" style={styles.count}>
+                      {formatInteger(f.count)}
+                    </AppText>
+                  </View>
+                ))}
+              </View>
+            </AppCard>
+          ) : null}
+
+          {st.product_sales.length ? (
+            <AppCard title="Ürün Bazında Satışlar" padded={false} testID="stats-product-sales">
+              {st.product_sales.map((r, i) => (
+                <View key={r.product_no} style={[styles.productRow, i > 0 && styles.productBorder]}>
+                  <View style={styles.flex}>
+                    <AppText variant="callout" numberOfLines={1}>
+                      {r.name || "—"}
+                    </AppText>
+                    <AppText variant="caption" color="textTertiary">
+                      Ürün No {r.product_no}
+                    </AppText>
+                  </View>
+                  <View style={styles.productRight}>
+                    <AppText variant="numericSm">{formatCurrency(r.revenue)}</AppText>
+                    <AppText variant="caption" color="textTertiary">
+                      {formatInteger(r.qty)} adet
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </AppCard>
+          ) : null}
+        </>
+      ) : null}
+
       <AppText variant="overline" color="textTertiary">
         Dönem karşılaştırması
       </AppText>
@@ -77,25 +193,7 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
         </AppText>
       ) : null}
 
-      <AppCard title="Bugünkü işlemler">
-        {todayTx.isLoading ? (
-          <AppSkeleton height={58} />
-        ) : todayTx.isError ? (
-          <AppNotice tone="warning" message={errorMessage(todayTx.error)} />
-        ) : (
-          <View style={styles.gap}>
-            <View style={styles.grid}>
-              <MetricCell label="Toplam" value={formatInteger(tx?.total)} />
-              <MetricCell label="Başarılı" value={formatInteger(tx?.success)} />
-              <MetricCell label="Başarısız" value={formatInteger(tx?.failed)} />
-              <MetricCell label="Başarı oranı" value={formatPercent(successRate)} />
-            </View>
-            <FillBar pct={successRate} tone={successRate == null ? "neutral" : successRate >= 90 ? "success" : successRate >= 70 ? "warning" : "danger"} height={6} accessibilityLabel={`Başarı oranı ${formatPercent(successRate)}`} />
-          </View>
-        )}
-      </AppCard>
-
-      <AppCard title="Ödeme türü kırılımı" subtitle={lastCount ? `Son ciro sayımı · ${formatDateTime(lastCount.datetime)}` : "Son ciro sayımına göre"}>
+      <AppCard testID="stats-count-breakdown" title="Ödeme türü kırılımı" subtitle={lastCount ? `Son ciro sayımı · ${formatDateTime(lastCount.datetime)}` : "Son ciro sayımına göre"}>
         {counts.isLoading ? (
           <AppSkeleton height={80} />
         ) : counts.isError ? (
@@ -137,6 +235,14 @@ const useStyles = makeStyles((t) =>
     grid: { flexDirection: "row", flexWrap: "wrap", gap: t.spacing.sm },
     gap: { gap: t.spacing.md },
     bdRow: { gap: 4 },
-    bdHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+    bdHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing.sm },
+    flex: { flex: 1, minWidth: 0 },
+    money: { minWidth: 84, textAlign: "right" },
+    count: { minWidth: 40, textAlign: "right" },
+    track: { height: 6, borderRadius: t.radius.pill, overflow: "hidden" },
+    trackFill: { height: "100%", borderRadius: t.radius.pill },
+    productRow: { flexDirection: "row", alignItems: "center", gap: t.spacing.md, paddingHorizontal: t.layout.cardPadding, paddingVertical: t.spacing.sm },
+    productBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.colors.border },
+    productRight: { alignItems: "flex-end", gap: 2 },
   })
 );

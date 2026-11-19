@@ -253,43 +253,67 @@ describe("GeneralTab", () => {
 describe("StatsTab", () => {
   const today = toApiDate(businessToday());
 
-  it("doğru uçları doğru parametrelerle çağırır; KPI, değişim ve bugünkü işlemler eşlenir", async () => {
+  const statsBody = {
+    summary: { revenue: 30, total: 3, success: 2, failed: 1 },
+    payment_types: [
+      { pt_type: 1, label: "Kredi Kartı", revenue: 20, count: 1 },
+      { pt_type: 0, label: "Nakit", revenue: 10, count: 1 },
+    ],
+    failure_reasons: [{ key: "bank", label: "Banka Reddi", count: 1, amount: 5 }],
+    product_sales: [{ product_no: 4, name: "Su", qty: 2, revenue: 30 }],
+    period: { start_date: today, end_date: today, start_time: "00:00", end_time: "23:59" },
+  };
+
+  it("web gibi: zaman filtresi (bugün) ile stats/ çağrılır; KPI, ödeme tipi, başarısız neden, ürün satışları", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {
       today: { revenue: 250, count: 7 },
       yesterday: { revenue: 100, count: 3 },
       this_month: { revenue: 4000, count: 120 },
       last_month: { revenue: 0, count: 0 },
     });
-    mock.onGet(`${base}/transactions/`).reply(200, { count: 3, results: [], summary: { total: 3, success: 2, failed: 1, revenue: 30 } });
+    mock.onGet(`${base}/stats/`).reply(200, statsBody);
     mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
 
     await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
 
-    const todayKpi = await screen.findByTestId("stats-today");
-    expect(within(todayKpi).getByText("₺250,00")).toBeOnTheScreen();
-    expect(within(todayKpi).getByText("▲ %150")).toBeOnTheScreen();
-    expect(screen.getByTestId("stats-today-caption")).toHaveTextContent("Dün ₺100,00");
-    const month = screen.getByTestId("stats-month");
-    expect(within(month).getByText("₺4.000,00")).toBeOnTheScreen();
-    // önceki dönem 0 → yüzde değişim uydurulmaz
-    expect(within(month).queryByText(/[▲▼]/)).toBeNull();
-    expect(screen.getByTestId("stats-month-caption")).toHaveTextContent("Geçen ay ₺0,00");
-
-    expect(await screen.findByLabelText("Toplam: 3")).toBeOnTheScreen();
+    expect(await screen.findByLabelText("Ciro: ₺30,00")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Toplam İşlem: 3")).toBeOnTheScreen();
     expect(screen.getByLabelText("Başarılı: 2")).toBeOnTheScreen();
     expect(screen.getByLabelText("Başarısız: 1")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Başarı oranı: %66,7")).toBeOnTheScreen();
+    expect(screen.getByText("Başarı oranı %66,7")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("stats-payment-types")).getByText("1 işlem · %66,7")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("stats-failure-reasons")).getByText("Banka Reddi")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("stats-product-sales")).getByText("Ürün No 4")).toBeOnTheScreen();
+    expect(getsTo(mock, `${base}/stats/`)[0].params).toEqual({ start_date: today, end_date: today });
 
-    const tx = getsTo(mock, `${base}/transactions/`);
-    expect(tx).toHaveLength(1);
-    expect(tx[0].params).toEqual({ page: 1, start_date: today, end_date: today });
-    expect(getsTo(mock, `${base}/revenue-counts/`)[0].params).toEqual({ limit: 25 });
-    expect(getsTo(mock, `${base}/summary/`)).toHaveLength(1);
+    // dönem karşılaştırması aşağıda korunur
+    const todayKpi = screen.getByTestId("stats-today");
+    expect(within(todayKpi).getByText("▲ %150")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("stats-month")).queryByText(/[▲▼]/)).toBeNull();
+  });
+
+  it("günlük saat aralığı seçilince start_time/end_time ile tekrar istenir", async () => {
+    mock.onGet(`${base}/summary/`).reply(200, {});
+    mock.onGet(`${base}/stats/`).reply(200, statsBody);
+    mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
+    await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
+    await screen.findByLabelText("Ciro: ₺30,00");
+
+    await fireEvent.press(screen.getByTestId("stats-time"));
+    await fireEvent.changeText(await screen.findByTestId("stats-time-start"), "22:00");
+    await fireEvent.changeText(screen.getByTestId("stats-time-end"), "2:00");
+    await fireEvent.press(screen.getByTestId("stats-time-apply"));
+    expect(await screen.findByText("SS:DD biçiminde girin (örn. 14:00).")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("stats-time-end"), "02:00");
+    await fireEvent.press(screen.getByTestId("stats-time-apply"));
+    await waitFor(() => expect(getsTo(mock, `${base}/stats/`)).toHaveLength(2));
+    expect(getsTo(mock, `${base}/stats/`)[1].params).toEqual({ start_date: today, end_date: today, start_time: "22:00", end_time: "02:00" });
+    expect(screen.getByLabelText("Saat aralığı: 22:00–02:00")).toBeOnTheScreen();
   });
 
   it("ödeme türü kırılımı en son sayımdan, sıfırlar atılarak büyükten küçüğe sıralanır", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {});
-    mock.onGet(`${base}/transactions/`).reply(200, { results: [] });
+    mock.onGet(`${base}/stats/`).reply(200, statsBody);
     mock.onGet(`${base}/revenue-counts/`).reply(200, {
       results: [
         { id: 2, datetime: localIso(2026, 11, 18, 9, 5), total_revenue: "350.75", notes: "", counted_by: "ali", by_pt_type: { "0": 100, "1": "250.75", "2": 0 } },
@@ -300,7 +324,9 @@ describe("StatsTab", () => {
     await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
 
     expect(await screen.findByText("Son ciro sayımı · 18.11.2026 09:05")).toBeOnTheScreen();
-    const labels = screen.getAllByText(/^(Nakit|Kredi Kartı|İstanbulKart|Multinet)$/).map((n) => n.props.children);
+    const labels = within(screen.getByTestId("stats-count-breakdown"))
+      .getAllByText(/^(Nakit|Kredi Kartı|İstanbulKart|Multinet)$/)
+      .map((n) => n.props.children);
     expect(labels).toEqual(["Kredi Kartı", "Nakit"]);
     expect(screen.getByText("₺250,75")).toBeOnTheScreen();
     expect(screen.getByText("₺100,00")).toBeOnTheScreen();
@@ -308,24 +334,25 @@ describe("StatsTab", () => {
     expect(screen.queryByText("₺999,00")).toBeNull();
   });
 
-  it("boş yanıtlarda sahte değer göstermez: KPI '—', işlem özeti '—', sayım yoksa açıklama", async () => {
+  it("boş yanıtlarda sahte değer göstermez; boş bölümler (ödeme tipi, neden, ürün) çizilmez", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {});
-    mock.onGet(`${base}/transactions/`).reply(200, { results: [] });
+    mock.onGet(`${base}/stats/`).reply(200, { ...statsBody, summary: { revenue: 0, total: 0, success: 0, failed: 0 }, payment_types: [], failure_reasons: [], product_sales: [] });
     mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
 
     await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
 
     expect(await screen.findByText("Henüz ciro sayımı yapılmamış; kırılım gösterilemiyor.")).toBeOnTheScreen();
     expect(within(screen.getByTestId("stats-today")).getByText("—")).toBeOnTheScreen();
-    expect(within(screen.getByTestId("stats-today")).queryByText(/[▲▼]/)).toBeNull();
-    expect(await screen.findByLabelText("Toplam: —")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Başarı oranı: —")).toBeOnTheScreen();
-    expect(screen.queryByText(/₺\d/)).toBeNull();
+    expect(await screen.findByLabelText("Toplam İşlem: 0")).toBeOnTheScreen();
+    expect(screen.getByText("Başarı oranı —")).toBeOnTheScreen();
+    expect(screen.queryByTestId("stats-payment-types")).toBeNull();
+    expect(screen.queryByTestId("stats-failure-reasons")).toBeNull();
+    expect(screen.queryByTestId("stats-product-sales")).toBeNull();
   });
 
   it("son sayımda tüm türler sıfırsa 'Son sayımda ciro yok.' der", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {});
-    mock.onGet(`${base}/transactions/`).reply(200, { results: [] });
+    mock.onGet(`${base}/stats/`).reply(200, statsBody);
     mock.onGet(`${base}/revenue-counts/`).reply(200, {
       results: [{ id: 3, datetime: localIso(2026, 11, 18, 10, 0), total_revenue: 0, by_pt_type: { "0": 0, "1": 0 } }],
     });
@@ -337,13 +364,13 @@ describe("StatsTab", () => {
 
   it("her bölüm kendi hatasını sunucu mesajıyla gösterir", async () => {
     mock.onGet(`${base}/summary/`).reply(500, { detail: "Sunucu hatası" });
-    mock.onGet(`${base}/transactions/`).reply(403, { detail: "Satışları görme yetkiniz yok." });
+    mock.onGet(`${base}/stats/`).reply(403, { detail: "Satışları görme yetkiniz yok." });
     mock.onGet(`${base}/revenue-counts/`).reply(500, {});
 
     await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
 
     expect(await screen.findByText("Özet alınamadı: Sunucu hatası")).toBeOnTheScreen();
-    expect(await screen.findByText("Satışları görme yetkiniz yok.")).toBeOnTheScreen();
+    expect(await screen.findByText("İstatistik alınamadı: Satışları görme yetkiniz yok.")).toBeOnTheScreen();
     expect(await screen.findByText("Sunucuda bir hata oluştu. Lütfen daha sonra tekrar deneyin.")).toBeOnTheScreen();
     expect(screen.queryByTestId("stats-today")).toBeNull();
   });
@@ -383,14 +410,15 @@ describe("CashSection (Genel sekmesinin altı)", () => {
     expect(getsTo(mock, `${base}/revenue-counts/`)[0].params).toEqual({ limit: 25 });
   });
 
-  it("boş geçmişte boş durum, hatalı geçmişte sunucu mesajı gösterilir", async () => {
+  it("geçmiş yoksa kart gösterilmez; hatalı geçmişte sunucu mesajı gösterilir", async () => {
     mock.onGet(`${base}/cash-history/`).reply(200, { results: [] });
     mock.onGet(`${base}/revenue-counts/`).reply(500, { detail: "Sayım geçmişi alınamadı." });
 
     await renderWithProviders(<CashSection sn={SN} detail={detail()} access={access()} />);
 
-    expect(await screen.findByText("Bu POS cihazı için nakit toplama yapılmamış.")).toBeOnTheScreen();
     expect(await screen.findByText("Sayım geçmişi alınamadı.")).toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByTestId("cash-history")).toBeNull());
+    expect(screen.queryByText("Kayıt yok")).toBeNull();
   });
 
   it("ciro say: not kırpılarak gönderilir; başarıda son sayım kartı, sunucu mesajı ve geçmiş yenilenir", async () => {
@@ -406,7 +434,7 @@ describe("CashSection (Genel sekmesinin altı)", () => {
     await renderWithProviders(
       <CashSection sn={SN} detail={detail()} access={access({ manageSettings: false })} />
     );
-    expect(await screen.findByText("Bu POS cihazı için ciro sayımı yapılmamış.")).toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryByTestId("count-history")).toBeNull()); // kayıt yok → kart yok
     expect(screen.getByTestId("collect-cash-button")).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId("cash-notes"), "  akşam sayımı  ");

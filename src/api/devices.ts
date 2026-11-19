@@ -36,6 +36,8 @@ import type {
   TransactionFilters,
   TransactionsResponse,
   TxReceiptState,
+  DeviceStats,
+  DeviceStatsParams,
 } from "@/types/devices";
 
 /* ------------------------------------------------------------ yardımcılar */
@@ -395,6 +397,12 @@ export const devicesApi = {
         signal,
       })
       .then((r) => normalizeDeviceTransactions(r.data)),
+
+  /** İstatistikler — web cihaz sayfası ?tab=stats ile aynı (tarih aralığı + günlük saat penceresi) */
+  stats: (sn: string, params: DeviceStatsParams, signal?: AbortSignal) =>
+    apiClient
+      .get<DeviceStats>(`/pos-devices/${encodeURIComponent(sn)}/stats/`, { params: cleanParams({ ...params }), signal })
+      .then((r) => r.data),
 
   /** Dijital fiş + son uzaktan iade durumu (web `receipt_refund_state`); `refund.poll` iken 2–3 sn'de bir tekrar istenir */
   txReceipt: (sn: string, txId: number, signal?: AbortSignal) =>

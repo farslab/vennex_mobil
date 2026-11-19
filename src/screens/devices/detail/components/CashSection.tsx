@@ -12,7 +12,6 @@ import {
   AppCard,
   AppConfirmSheet,
   AppDivider,
-  AppEmptyState,
   AppInput,
   AppListSkeleton,
   AppNotice,
@@ -144,53 +143,54 @@ export function CashSection({ sn, detail, access }: { sn: string; detail: PosDev
 
       {access.sales ? (
         <>
-          <AppCard title="Nakit toplama geçmişi" padded={false} subtitle="Son 25 kayıt">
-            {cash.isLoading ? (
-              <AppListSkeleton rows={3} />
-            ) : cash.isError ? (
-              <View style={styles.pad}>
-                <AppNotice tone="warning" message={errorMessage(cash.error)} />
-              </View>
-            ) : !cash.data?.results.length ? (
-              <AppEmptyState compact icon="archive" title="Kayıt yok" description="Bu POS cihazı için nakit toplama yapılmamış." />
-            ) : (
-              cash.data.results.map((c, i) => (
-                <HistoryRow
-                  key={c.id}
-                  title={formatCurrency(c.amount)}
-                  when={formatDateTime(c.datetime)}
-                  by={c.collected_by}
-                  notes={c.notes}
-                  last={i === cash.data.results.length - 1}
-                />
-              ))
-            )}
-          </AppCard>
+          {/* Geçmiş kartları yalnız kayıt varsa (yüklenirken / hatada kart kalır) */}
+          {cash.isLoading || cash.isError || cash.data?.results.length ? (
+            <AppCard title="Nakit toplama geçmişi" padded={false} subtitle="Son 25 kayıt" testID="cash-history">
+              {cash.isLoading ? (
+                <AppListSkeleton rows={3} />
+              ) : cash.isError ? (
+                <View style={styles.pad}>
+                  <AppNotice tone="warning" message={errorMessage(cash.error)} />
+                </View>
+              ) : (
+                (cash.data?.results ?? []).map((c, i, all) => (
+                  <HistoryRow
+                    key={c.id}
+                    title={formatCurrency(c.amount)}
+                    when={formatDateTime(c.datetime)}
+                    by={c.collected_by}
+                    notes={c.notes}
+                    last={i === all.length - 1}
+                  />
+                ))
+              )}
+            </AppCard>
+          ) : null}
 
-          <AppCard title="Ciro sayım geçmişi" padded={false} subtitle="Son 25 kayıt">
-            {counts.isLoading ? (
-              <AppListSkeleton rows={3} />
-            ) : counts.isError ? (
-              <View style={styles.pad}>
-                <AppNotice tone="warning" message={errorMessage(counts.error)} />
-              </View>
-            ) : !counts.data?.results.length ? (
-              <AppEmptyState compact icon="archive" title="Kayıt yok" description="Bu POS cihazı için ciro sayımı yapılmamış." />
-            ) : (
-              counts.data.results.map((c, i) => (
-                <HistoryRow
-                  key={c.id}
-                  title={formatCurrency(c.total_revenue)}
-                  when={formatDateTime(c.datetime)}
-                  by={c.counted_by}
-                  notes={c.notes}
-                  last={i === counts.data.results.length - 1}
-                >
-                  <PtBreakdown byPtType={c.by_pt_type} compact />
-                </HistoryRow>
-              ))
-            )}
-          </AppCard>
+          {counts.isLoading || counts.isError || counts.data?.results.length ? (
+            <AppCard title="Ciro sayım geçmişi" padded={false} subtitle="Son 25 kayıt" testID="count-history">
+              {counts.isLoading ? (
+                <AppListSkeleton rows={3} />
+              ) : counts.isError ? (
+                <View style={styles.pad}>
+                  <AppNotice tone="warning" message={errorMessage(counts.error)} />
+                </View>
+              ) : (
+                (counts.data?.results ?? []).map((c, i, all) => (
+                  <HistoryRow
+                    key={c.id}
+                    title={formatCurrency(c.total_revenue)}
+                    when={formatDateTime(c.datetime)}
+                    by={c.counted_by}
+                    notes={c.notes}
+                    last={i === all.length - 1}
+                  >
+                    <PtBreakdown byPtType={c.by_pt_type} compact />
+                  </HistoryRow>
+                ))
+              )}
+            </AppCard>
+          ) : null}
         </>
       ) : null}
 

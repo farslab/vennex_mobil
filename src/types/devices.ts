@@ -436,3 +436,20 @@ export interface DeviceLocationOption {
   region_id: number | null;
   region_name: string | null;
 }
+
+
+/** `GET pos-devices/{sn}/stats/` — web cihaz İstatistikler sekmesiyle aynı hesap */
+export interface DeviceStatsParams {
+  start_date: string;
+  end_date: string;
+  /** "HH:MM" — günlük saat penceresi (yoksa tüm gün; başlangıç > bitiş ise gece aşırı) */
+  start_time?: string;
+  end_time?: string;
+}
+export interface DeviceStats {
+  summary: { revenue: number; total: number; success: number; failed: number };
+  payment_types: { pt_type: number; label: string; revenue: number; count: number }[];
+  failure_reasons: { key: string; label: string; count: number; amount: number }[];
+  product_sales: { product_no: number; name: string | null; qty: number; revenue: number }[];
+  period: { start_date: string; end_date: string; start_time: string; end_time: string };
+}
