@@ -161,7 +161,8 @@ describe("DashboardScreen", () => {
     await renderWithProviders(<DashboardScreen />);
     await screen.findByText("₺12.345,50");
 
-    await fireEvent.press(screen.getByText("Geçen Hafta"));
+    await fireEvent.press(screen.getByTestId("period-select"));
+    await fireEvent.press(await screen.findByText("Geçen Hafta"));
     await waitFor(() => expect(dashboardGets(mock)).toHaveLength(2));
     expect(dashboardGets(mock)[1].params).toEqual({ period: "last_week", top_limit: 5, recent_limit: 5 });
   });
@@ -171,8 +172,9 @@ describe("DashboardScreen", () => {
     await renderWithProviders(<DashboardScreen />);
     await screen.findByText("₺12.345,50");
 
-    await fireEvent.press(screen.getByText("Özel aralık"));
-    await fireEvent.changeText(screen.getByTestId("custom-range-start"), "10.11.2026");
+    await fireEvent.press(screen.getByTestId("period-select"));
+    await fireEvent.press(await screen.findByText("Özel aralık"));
+    await fireEvent.changeText(await screen.findByTestId("custom-range-start"), "10.11.2026");
     await fireEvent.changeText(screen.getByTestId("custom-range-end"), "01.11.2026");
     await fireEvent.press(screen.getByTestId("custom-range-apply"));
     expect(screen.getByText("Başlangıç tarihi bitiş tarihinden sonra olamaz.")).toBeOnTheScreen();
@@ -202,16 +204,41 @@ describe("DashboardScreen", () => {
     expect(mockNavigate).toHaveBeenCalledWith("DeviceDetail", { sn: "SN-TOP-1", name: "Lobi Otomat" });
   });
 
-  it("konum listesi varsa filtreyi gösterir ve location_id gönderir", async () => {
-    mock.onGet("/overview/locations/").reply(200, { results: [{ id: 7, name: "Kampüs A", region_id: 1, region_name: "Bölge" }] });
+  it("konum filtresi web gibi çoklu ve bölge gruplu: bölge tüm konumlarını seçer, location_ids gönderir", async () => {
+    mock.onGet("/overview/locations/").reply(200, {
+      results: [
+        { id: 7, name: "Kampüs A", region_id: 1, region_name: "Merkez" },
+        { id: 8, name: "Kampüs B", region_id: 1, region_name: "Merkez" },
+        { id: 9, name: "Kafe", region_id: 2, region_name: "Kuzey" },
+      ],
+    });
     mock.onGet("/overview/dashboard/").reply(200, salesBundle());
     await renderWithProviders(<DashboardScreen />);
     await screen.findByText("₺12.345,50");
+    expect(await screen.findByText("Tüm konumlar")).toBeOnTheScreen();
 
-    await fireEvent.press(await screen.findByTestId("location-select"));
-    await fireEvent.press(await screen.findByText("Kampüs A"));
+    // Bölge → iki konumu birden seçer; "Uygula" ile tek istek
+    await fireEvent.press(screen.getByTestId("location-select"));
+    await fireEvent.press(await screen.findByTestId("region-r1"));
+    expect(dashboardGets(mock)).toHaveLength(1);
+    await fireEvent.press(screen.getByTestId("location-apply"));
     await waitFor(() => expect(dashboardGets(mock)).toHaveLength(2));
-    expect(dashboardGets(mock)[1].params).toMatchObject({ location_id: 7 });
+    expect(dashboardGets(mock)[1].params).toMatchObject({ location_ids: "7,8" });
+    expect(await screen.findByText("Merkez")).toBeOnTheScreen();
+
+    // Başka bölgeden bir konum eklenir → "3 konum"
+    await fireEvent.press(screen.getByTestId("location-select"));
+    await fireEvent.press(await screen.findByTestId("location-9"));
+    await fireEvent.press(screen.getByTestId("location-apply"));
+    await waitFor(() => expect(dashboardGets(mock)).toHaveLength(3));
+    expect(dashboardGets(mock)[2].params).toMatchObject({ location_ids: "7,8,9" });
+    expect(await screen.findByText("3 konum")).toBeOnTheScreen();
+
+    // Temizle → tüm konumlar (ilk sorguya döner; 30 sn içinde önbellekten gelir, yeni istek yok)
+    await fireEvent.press(screen.getByTestId("location-select"));
+    await fireEvent.press(await screen.findByTestId("location-clear"));
+    expect(await screen.findByText("Tüm konumlar")).toBeOnTheScreen();
+    expect(dashboardGets(mock).filter((r) => r.params.location_ids === undefined)).toHaveLength(1);
   });
 
   /** Son setOptions çağrısındaki başlığı çizip içindeki Excel düğmesini döndürür */

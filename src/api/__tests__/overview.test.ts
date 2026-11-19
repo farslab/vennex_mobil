@@ -40,8 +40,10 @@ describe("overviewApi.dashboard", () => {
     expect(lastParams()).toMatchObject({ start_date: "2026-01-01", end_date: "2026-01-31" });
   });
 
-  it("nocache ve location_id parametrelerini ekler", async () => {
-    await overviewApi.dashboard({ period: "today", nocache: true, location_id: 0 });
-    expect(lastParams()).toMatchObject({ nocache: 1, location_id: 0 });
+  it("nocache ve çoklu konum (sıralı, virgüllü) parametrelerini ekler", async () => {
+    await overviewApi.dashboard({ period: "today", nocache: true, location_ids: [9, 7] });
+    expect(lastParams()).toMatchObject({ nocache: 1, location_ids: "7,9" });
+    await overviewApi.dashboard({ period: "today", location_ids: [] });
+    expect(lastParams().location_ids).toBeUndefined();
   });
 });

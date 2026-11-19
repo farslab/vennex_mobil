@@ -21,8 +21,9 @@ export interface DashboardParams {
   period: ApiPeriod;
   top_limit?: number;
   recent_limit?: number;
-  /** Tek konum (`overview.py:36-44`); bölge filtresi yok */
-  location_id?: number;
+  /** Konumlar — web Genel Bakış gibi çoklu; boş = tümü. Bölge seçimi istemcide konumlara açılır.
+   *  Backend `location_ids=1,2` (`parse_location_ids`); eski tek `location_id` de kabul edilir. */
+  location_ids?: number[];
   start_date?: string; // yalnızca period === 'custom' iken (YYYY-MM-DD)
   end_date?: string; // yalnızca period === 'custom' iken (YYYY-MM-DD, dahil)
   /** Pull-to-refresh: 30 sn Redis cache'ini atlar (`cache.py:129-132`) */
@@ -35,7 +36,7 @@ export function buildDashboardQuery(params: DashboardParams): Record<string, str
     top_limit: params.top_limit ?? 5,
     recent_limit: params.recent_limit ?? 5,
   };
-  if (params.location_id != null) query.location_id = params.location_id;
+  if (params.location_ids?.length) query.location_ids = [...params.location_ids].sort((a, b) => a - b).join(",");
   if (params.period === "custom" && params.start_date) query.start_date = params.start_date;
   if (params.period === "custom" && params.end_date) query.end_date = params.end_date;
   if (params.nocache) query.nocache = 1;

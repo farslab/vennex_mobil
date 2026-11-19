@@ -16,12 +16,13 @@ export const DASHBOARD_NOCACHE_COOLDOWN_MS = 15_000;
 export interface DashboardFilterState {
   period: ApiPeriod;
   customRange: CustomRange | null;
-  locationId: number | null;
+  /** Boş = tüm konumlar */
+  locationIds: number[];
 }
 
 export function buildDashboardParams(f: DashboardFilterState): DashboardParams {
   const params: DashboardParams = { period: f.period, top_limit: 5, recent_limit: 5 };
-  if (f.locationId != null) params.location_id = f.locationId;
+  if (f.locationIds.length) params.location_ids = f.locationIds;
   if (f.period === "custom" && f.customRange) {
     params.start_date = f.customRange.start;
     params.end_date = f.customRange.end;
@@ -38,7 +39,7 @@ export function buildDashboardParams(f: DashboardFilterState): DashboardParams {
 export function useDashboard() {
   const isFocused = useIsFocused();
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<DashboardFilterState>({ period: "today", customRange: null, locationId: null });
+  const [filters, setFilters] = useState<DashboardFilterState>({ period: "today", customRange: null, locationIds: [] });
   const [refreshing, setRefreshing] = useState(false);
   const lastNoCacheAt = useRef(0);
 
@@ -71,8 +72,8 @@ export function useDashboard() {
     setFilters((f) => ({ ...f, period: "custom", customRange: range }));
   }, []);
 
-  const setLocationId = useCallback((locationId: number | null) => {
-    setFilters((f) => ({ ...f, locationId }));
+  const setLocationIds = useCallback((locationIds: number[]) => {
+    setFilters((f) => ({ ...f, locationIds }));
   }, []);
 
   /** Pull-to-refresh: cooldown dışındaysa cache'i atlayarak (nocache=1) çeker. Hata fırlatır. */
@@ -97,7 +98,7 @@ export function useDashboard() {
     filters,
     setPeriod,
     applyCustomRange,
-    setLocationId,
+    setLocationIds,
     data: query.data,
     isLoading: query.isLoading,
     isError: query.isError,

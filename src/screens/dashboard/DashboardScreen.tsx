@@ -51,12 +51,12 @@ export default function DashboardScreen() {
   // Excel: web Genel Bakış'taki gibi ekrandaki dönem + konumla (aynı dosya); başlıkta zilin yanında
   const excel = useExcelExport();
   const canExport = canViewSales(user);
-  const { period, customRange, locationId } = dash.filters;
+  const { period, customRange, locationIds } = dash.filters;
   const { exporting, run: runExport } = excel;
   useLayoutEffect(() => {
-    const p = buildDashboardParams({ period, customRange, locationId });
+    const p = buildDashboardParams({ period, customRange, locationIds });
     const query: Record<string, string | number> = { period: p.period };
-    if (p.location_id != null) query.location_id = p.location_id;
+    if (p.location_ids?.length) query.location_ids = [...p.location_ids].sort((a, b) => a - b).join(",");
     if (p.start_date) query.start_date = p.start_date;
     if (p.end_date) query.end_date = p.end_date;
     navigation.setOptions({
@@ -78,7 +78,7 @@ export default function DashboardScreen() {
         />
       ),
     });
-  }, [navigation, canExport, period, customRange, locationId, exporting, runExport]);
+  }, [navigation, canExport, period, customRange, locationIds, exporting, runExport]);
 
   // Konum filtresi: bundle ile paralel değil, ilk panel verisi geldikten sonra bir kez çekilir
   const locationsQuery = useQuery({
@@ -114,8 +114,8 @@ export default function DashboardScreen() {
         onPeriodChange={dash.setPeriod}
         onCustomRange={dash.applyCustomRange}
         locations={locationsQuery.data ?? []}
-        locationId={dash.filters.locationId}
-        onLocationChange={dash.setLocationId}
+        locationIds={dash.filters.locationIds}
+        onLocationsChange={dash.setLocationIds}
       />
 
       {dash.isLoading ? (
