@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { makeStyles } from "../theme";
 import { AppText } from "./AppText";
 import { AppIcon } from "./AppIcon";
@@ -52,6 +52,9 @@ export function AppSelect<V extends string | number>(props: AppSelectProps<V>) {
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<V[]>([]);
   const searchable = props.searchable ?? options.length >= 8;
+  // Liste ekran yüksekliğine göre: kısa listeler (ör. 12 ödeme türü) kaydırmadan sığar
+  const { height: windowHeight } = useWindowDimensions();
+  const listMaxHeight = Math.max(420, Math.round(windowHeight * 0.62));
 
   const filtered = useMemo(() => {
     const q = normalizeForSearch(query);
@@ -149,7 +152,7 @@ export function AppSelect<V extends string | number>(props: AppSelectProps<V>) {
           data={filtered}
           keyExtractor={(o) => String(o.value)}
           keyboardShouldPersistTaps="handled"
-          style={styles.list}
+          style={[styles.list, { maxHeight: listMaxHeight }]}
           initialNumToRender={20}
           ListEmptyComponent={<AppEmptyState compact title="Sonuç yok" icon="search" />}
           renderItem={({ item }) => {

@@ -58,9 +58,10 @@ export function priceManagementLabel(value: unknown): string {
 
 /* -------------------------------------------------------- Ödeme türleri */
 
+/** Web POS cihazı sayfasıyla aynı adlar (dashboard_v2/views/pos_devices.py PT_TYPE_LABELS) */
 export const PT_TYPE_LABELS: Record<number, string> = {
   0: "Nakit",
-  1: "Kredi/Banka Kartı",
+  1: "Kredi Kartı",
   2: "İstanbulKart",
   3: "Multinet",
   4: "Metropol",

@@ -321,6 +321,7 @@ function MoreFiltersSheet({
       <AppSelect<number>
         label="Ödeme türü"
         testID="sales-pt-type"
+        searchable={false}
         options={[{ value: -1, label: "Tümü" }, ...PT_TYPE_OPTIONS]}
         value={draft.ptType ?? -1}
         onChange={(v) => setDraft((d) => ({ ...d, ptType: v === -1 ? null : v }))}

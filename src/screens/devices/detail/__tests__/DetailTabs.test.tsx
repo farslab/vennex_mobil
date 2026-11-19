@@ -300,8 +300,8 @@ describe("StatsTab", () => {
     await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
 
     expect(await screen.findByText("Son ciro sayımı · 18.11.2026 09:05")).toBeOnTheScreen();
-    const labels = screen.getAllByText(/^(Nakit|Kredi\/Banka Kartı|İstanbulKart|Multinet)$/).map((n) => n.props.children);
-    expect(labels).toEqual(["Kredi/Banka Kartı", "Nakit"]);
+    const labels = screen.getAllByText(/^(Nakit|Kredi Kartı|İstanbulKart|Multinet)$/).map((n) => n.props.children);
+    expect(labels).toEqual(["Kredi Kartı", "Nakit"]);
     expect(screen.getByText("₺250,75")).toBeOnTheScreen();
     expect(screen.getByText("₺100,00")).toBeOnTheScreen();
     expect(screen.getByText("₺350,75")).toBeOnTheScreen();
@@ -374,7 +374,7 @@ describe("CashSection (Genel sekmesinin altı)", () => {
 
     const count = await screen.findByLabelText("₺300,00, 17.11.2026 18:30, ayse");
     expect(within(count).getByText("İşlemi yapan: ayse")).toBeOnTheScreen();
-    expect(within(count).getByText("Kredi/Banka Kartı")).toBeOnTheScreen();
+    expect(within(count).getByText("Kredi Kartı")).toBeOnTheScreen();
     expect(within(count).getByText("₺200,00")).toBeOnTheScreen();
     expect(within(count).getByText("Nakit")).toBeOnTheScreen();
     expect(within(count).queryByText("Personel Kart")).toBeNull();
@@ -562,7 +562,7 @@ describe("TransactionDetailSheet", () => {
     expect(screen.getByLabelText("Tarih: 18.11.2026 08:15")).toBeOnTheScreen();
     expect(screen.getByLabelText("Ürün: Su")).toBeOnTheScreen();
     expect(screen.getByLabelText("Ürün no: 4")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Ödeme türü: Kredi/Banka Kartı")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Ödeme türü: Kredi Kartı")).toBeOnTheScreen();
     expect(screen.getByLabelText("Kart: 5400********1234")).toBeOnTheScreen();
     expect(screen.getByLabelText("İşlem no: TX5")).toBeOnTheScreen();
     expect(screen.queryByText("Hata nedeni")).toBeNull();
