@@ -52,6 +52,9 @@ describe("kart yardımcıları", () => {
     expect(amountInputTr(1250.5)).toBe("1250,50");
     expect(RETURN_URL_RE.test("https://sp.serpetpay.com/cari-odeme/success/?x=1")).toBe(true);
     expect(RETURN_URL_RE.test("https://bank.example/3d")).toBe(false);
+    // sağlayıcı sayfası dönüş adresini parametre olarak taşısa da eşleşmez (görünüm erken kapanmasın)
+    expect(RETURN_URL_RE.test("https://portal.qnbpay.com.tr/3d?return_url=https://sp.serpetpay.com/cari-odeme/success/")).toBe(false);
+    expect(RETURN_URL_RE.test("https://sp.serpetpay.com/cari-odeme/fail")).toBe(true);
   });
 
   it("form kuralları", () => {

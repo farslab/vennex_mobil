@@ -43,8 +43,12 @@ import {
   type CardForm,
 } from "./card";
 
-/** Bankanın dönüş sayfası (sunucuda sonuç işlenir): /cari-odeme/success/ | /cari-odeme/fail/ */
-export const RETURN_URL_RE = /\/cari-odeme\/(success|fail)\/?/;
+/**
+ * Bankanın dönüş sayfası (sunucuda sonuç işlenir): https://<host>/cari-odeme/success|fail/ — YALNIZ yol eşleşir.
+ * Sağlayıcı sayfalarının adresi dönüş adresini parametre olarak taşıyabilir (…?return_url=…/cari-odeme/success/);
+ * bu durumda eşleşmemeli, yoksa görünüm erken kapanır ve dönüş sunucuya hiç ulaşmaz.
+ */
+export const RETURN_URL_RE = /^https?:\/\/[^/?#]+\/cari-odeme\/(success|fail)\/?(?:[?#]|$)/;
 const STATUS_POLL_MS = 2000;
 const STATUS_POLL_MAX_MS = 45_000;
 
