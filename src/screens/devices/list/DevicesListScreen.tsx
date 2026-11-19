@@ -30,7 +30,7 @@ import { usePagedList } from "@/hooks/usePagedList";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAuthStore } from "@/store/authStore";
 import { canManageDeviceSettings, canViewSales } from "@/auth/permissions";
-import { DEVICE_SORT_OPTIONS, revenueColumnForSort } from "@/components/devices/deviceHelpers";
+import { DEVICE_SORT_OPTIONS } from "@/components/devices/deviceHelpers";
 import { formatInteger } from "@/utils/number";
 import type { RootStackParamList } from "@/navigation/types";
 import type { DeviceListQuery, PosDeviceListItem, PosDeviceListResponse } from "@/types/devices";
@@ -96,7 +96,7 @@ export default function DevicesListScreen() {
     fetchPage: (page, signal) => devicesApi.list({ ...query, page }, signal),
   });
 
-  const revenue = salesAllowed && !hideRevenue ? revenueColumnForSort(effectiveFilters.sortBy) : null;
+  const showRevenue = salesAllowed && !hideRevenue;
   const filterCount = activeFilterCount(effectiveFilters);
   const sortLabel = DEVICE_SORT_OPTIONS.find((o) => o.value === effectiveFilters.sortBy)?.label;
 
@@ -106,8 +106,8 @@ export default function DevicesListScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: PosDeviceListItem }) => <DeviceRow device={item} onPress={openDevice} revenue={revenue} />,
-    [openDevice, revenue]
+    ({ item }: { item: PosDeviceListItem }) => <DeviceRow device={item} onPress={openDevice} showRevenue={showRevenue} />,
+    [openDevice, showRevenue]
   );
 
   const first = list.firstPage;

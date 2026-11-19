@@ -7,7 +7,6 @@ import {
   presetRange,
   priceManagementLabel,
   ptTypeLabel,
-  revenueColumnForSort,
   scheduleFromDetail,
   scheduleToWrite,
   slotFill,
@@ -51,18 +50,7 @@ describe("doluluk", () => {
     expect(slotFill({ quantity: 5, max_quantity: 10 }).label).toBe("%50");
     expect(slotFill({ quantity: 5, max_quantity: 0 }).pct).toBeNull();
   });
-});
 
-describe("liste ciro sütunu sıralamayı takip eder", () => {
-  it.each([
-    ["default", "today_revenue"],
-    ["fill_rate_desc", "today_revenue"],
-    ["yesterday_revenue_asc", "yesterday_revenue"],
-    ["this_month_revenue_desc", "this_month_revenue"],
-    ["last_month_revenue_desc", "last_month_revenue"],
-  ] as const)("%s → %s", (sort, key) => {
-    expect(revenueColumnForSort(sort).key).toBe(key);
-  });
 });
 
 describe("çalışma saatleri dönüşümü", () => {

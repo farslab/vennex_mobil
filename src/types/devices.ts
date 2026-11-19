@@ -46,6 +46,9 @@ export interface PosDeviceListItem {
   sort_order: number;
   today_revenue: number | null;
   today_tx_count: number | null;
+  yesterday_tx_count: number | null;
+  this_month_tx_count: number | null;
+  last_month_tx_count: number | null;
   yesterday_revenue: number | null;
   this_month_revenue: number | null;
   last_month_revenue: number | null;

@@ -207,13 +207,6 @@ export const DEVICE_SORT_OPTIONS: { value: DeviceSortBy; label: string; sales?: 
 export type RevenueColumn = "today_revenue" | "yesterday_revenue" | "this_month_revenue" | "last_month_revenue";
 
 /** Satırda gösterilecek ciro dönemi sıralamayı takip eder (dün cirosuna göre sıralanınca dün cirosu görünür) */
-export function revenueColumnForSort(sort: DeviceSortBy): { key: RevenueColumn; label: string } {
-  if (sort.startsWith("yesterday_revenue")) return { key: "yesterday_revenue", label: "Dün" };
-  if (sort.startsWith("this_month_revenue")) return { key: "this_month_revenue", label: "Bu ay" };
-  if (sort.startsWith("last_month_revenue")) return { key: "last_month_revenue", label: "Geçen ay" };
-  return { key: "today_revenue", label: "Bugün" };
-}
-
 export function deviceTitle(d: Pick<PosDeviceListItem, "pos_name" | "sn">): string {
   return d.pos_name?.trim() || d.sn;
 }

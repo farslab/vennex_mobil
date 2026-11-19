@@ -70,8 +70,9 @@ describe("DevicesListScreen", () => {
     expect(screen.getByTestId("devices-count-total")).toHaveTextContent("30 POS cihazı");
     expect(screen.getByTestId("devices-count-online")).toHaveTextContent("21 çevrimiçi");
     expect(screen.getByTestId("devices-count-offline")).toHaveTextContent("9 çevrimdışı");
-    expect(screen.getAllByText("%72").length).toBe(3);
-    expect(screen.getAllByText("₺1.234,50").length).toBe(3);
+    expect(screen.getAllByText("%72 · 36 / 50").length).toBe(3); // web: yüzde + adet
+    expect(screen.getAllByText("₺1.234,50").length).toBe(3); // Bugün
+    expect(screen.getAllByText("₺5.000,00").length).toBe(3); // Bu Ay (dört dönem birlikte)
     expect(mock.history.get.some((r) => (r.url ?? "").includes("/products/"))).toBe(false);
     expect(listRequests(mock)[0].params).toEqual({ page: 1 });
   });
