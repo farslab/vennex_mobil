@@ -40,6 +40,7 @@ export type RootStackParamList = {
   EditProfile: undefined;
   NotificationSettings: undefined;
   CompanyAccount: undefined;
+  CariPayment: undefined;
   Regions: undefined;
   Feedback: undefined;
 };

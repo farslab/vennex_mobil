@@ -1,6 +1,14 @@
 import { apiClient } from "./client";
 import { unwrapResults } from "./pagination";
-import type { CariInvoice, CariInvoicePdf, CariSummary, CompanyDetail } from "@/types/account";
+import type {
+  CariInvoice,
+  CariInvoicePdf,
+  CariPayRequest,
+  CariPayStart,
+  CariPaymentResult,
+  CariSummary,
+  CompanyDetail,
+} from "@/types/account";
 
 /**
  * Şirket ve cari (Paraşüt) uçları — yalnız görüntüleme, ÖDEME YOK (backend urls.py:156).
@@ -24,6 +32,17 @@ export const accountApi = {
     apiClient
       .get<{ results?: CariInvoice[] }>("/cari/invoices/", { signal })
       .then((r) => unwrapResults<CariInvoice>(r.data)),
+
+  /**
+   * Uygulama içi cari ödeme başlat (web ile aynı çekirdek). Banka 3D formu döner; kart bilgisi saklanmaz.
+   * Sağlayıcı çağrısı sürebilir → uzun zaman aşımı. Otomatik yeniden deneme YOK (çift ödeme riski).
+   */
+  cariPay: (body: CariPayRequest) =>
+    apiClient.post<CariPayStart>("/cari/pay/", body, { timeout: 45_000 }).then((r) => r.data),
+
+  /** Ödeme sonucu: pending | success | failed (banka dönüşünü sunucu işledikten sonra) */
+  cariPaymentStatus: (ref: string, signal?: AbortSignal) =>
+    apiClient.get<CariPaymentResult>(`/cari/payments/${encodeURIComponent(ref)}/`, { signal }).then((r) => r.data),
 
   /** {pdf_url}; 404 e-belge yok, 502 Paraşüt hatası, 503 PDF hazır değil */
   cariInvoicePdf: (id: number) =>

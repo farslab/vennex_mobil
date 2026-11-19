@@ -94,3 +94,32 @@ export interface CariInvoice {
 export interface CariInvoicePdf {
   pdf_url: string;
 }
+
+/** POST cari/pay/ gövdesi — web cari_payment_initiate ile aynı alanlar (kart bilgisi saklanmaz) */
+export interface CariPayRequest {
+  amount: string;
+  card_number: string;
+  card_holder_name: string;
+  month: string;
+  /** 4 haneli yıl */
+  year: string;
+  cvv: string;
+}
+
+/** POST cari/pay/ yanıtı: 3D formu (bank_html) ya da doğrudan sonuç (redirect) */
+export interface CariPayStart {
+  success?: boolean;
+  bank_html?: string;
+  redirect?: string;
+  client_ref_code?: string;
+  error?: string;
+}
+
+/** GET cari/payments/<ref>/ (fatura `payment_status` ile karışmasın diye ayrı ad) */
+export interface CariPaymentResult {
+  client_ref_code: string;
+  status: "pending" | "success" | "failed";
+  amount: number;
+  reference_code: string | null;
+  completed_at: string | null;
+}

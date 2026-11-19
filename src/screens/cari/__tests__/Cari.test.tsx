@@ -1,5 +1,4 @@
 import React from "react";
-import { Linking } from "react-native";
 import MockAdapter from "axios-mock-adapter";
 import { fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
@@ -8,7 +7,6 @@ import { makeUser, renderWithProviders } from "@/test/utils";
 import { CariBanner } from "@/screens/cari/CariBanner";
 import { CariLockedScreen } from "@/screens/cari/CariLockedScreen";
 import { CariOverduePopup, resetCariPopupSession } from "@/screens/cari/CariOverduePopup";
-import { cariPaymentUrl } from "@/screens/cari/useCari";
 
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 const mockNavigate = jest.fn();
@@ -73,15 +71,13 @@ describe("cari — web ile aynı şerit / uyarı / kilit", () => {
     expect(mock.history.get.some((r) => r.url === "/cari/summary/")).toBe(false);
   });
 
-  it("'Hemen Öde' web ödeme sayfasını açar", async () => {
+  it("'Hemen Öde' uygulama içi ödeme ekranını açar", async () => {
     login("owner");
-    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     mock.onGet("/app/config/").reply(200, config(1));
     mock.onGet("/cari/summary/").reply(200, summary(10));
     await renderWithProviders(<CariBanner />);
     await fireEvent.press(await screen.findByTestId("cari-banner-pay"));
-    expect(open).toHaveBeenCalledWith(cariPaymentUrl("/v2/cari-odeme/"));
-    open.mockRestore();
+    expect(mockNavigate).toHaveBeenCalledWith("CariPayment");
   });
 
   it("durum 3: 'Ödeme Uyarısı' oturumda bir kez", async () => {

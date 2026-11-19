@@ -1,6 +1,6 @@
 /**
  * Cari hesabı kilitli şirket (durum 4) — web `dashboard/middleware.py` ile aynı: şirkete bağlı tüm ekranlar kapalı.
- *  - Sahip: web'de ödeme sayfasına yönlendirilir → burada borç tutarı, faturalar ve web ödeme sayfası.
+ *  - Sahip/admin: borç tutarı, uygulama içi ödeme ve faturalar.
  *  - Teknisyen: web `cari_account_locked.html` ("Hesap Kısıtlanmıştır", yöneticinizle iletişime geçin).
  * Kilit kalkınca (ödeme sonrası) ekran kendiliğinden kapanır: yapılandırma dakikada bir yenilenir.
  */
@@ -12,7 +12,7 @@ import { AppButton, AppCard, AppIcon, AppScreen, AppText, makeStyles } from "@/d
 import { useAuthStore } from "@/store/authStore";
 import { formatCurrency } from "@/utils/number";
 import type { RootStackParamList } from "@/navigation/types";
-import { CARI_LOCKED_MESSAGE, openCariPayment, useCari } from "./useCari";
+import { CARI_LOCKED_MESSAGE, useCari } from "./useCari";
 
 const RECHECK_MS = 60_000;
 
@@ -52,13 +52,15 @@ export function CariLockedScreen() {
       </AppCard>
 
       <View style={styles.actions}>
-        <AppButton
-          title={cari.nonTech ? "Ödeme Yap (web)" : "Cari Ödeme Yap"}
-          icon="external-link"
-          onPress={() => openCariPayment(cari.paymentPath)}
-          fullWidth
-          testID="cari-locked-pay"
-        />
+        {cari.nonTech ? (
+          <AppButton
+            title="Ödeme yap"
+            icon="credit-card"
+            onPress={() => navigation.navigate("CariPayment")}
+            fullWidth
+            testID="cari-locked-pay"
+          />
+        ) : null}
         {cari.owner ? (
           <AppButton
             title="Faturaları gör"
@@ -72,9 +74,6 @@ export function CariLockedScreen() {
         <AppButton title="Durumu yenile" icon="refresh-cw" variant="ghost" onPress={refetch} fullWidth testID="cari-locked-refresh" />
         <AppButton title="Çıkış yap" icon="log-out" variant="dangerOutline" onPress={() => logout().catch(() => {})} fullWidth testID="cari-locked-logout" />
       </View>
-      <AppText variant="caption" color="textTertiary" style={styles.centerText}>
-        Ödeme web panelinde yapılır; ödeme sayfası tarayıcıda açılır ve web hesabınızla giriş ister.
-      </AppText>
     </AppScreen>
   );
 }

@@ -7,6 +7,10 @@ import CompanyAccountScreen from "@/screens/account/CompanyAccountScreen";
 import { makeUser, renderWithProviders } from "@/test/utils";
 
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
+jest.mock("@react-navigation/native", () => ({
+  ...jest.requireActual("@react-navigation/native"),
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+}));
 
 const company = {
   id: 10,

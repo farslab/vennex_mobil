@@ -25,6 +25,7 @@ import EditProfileScreen from "@/screens/account/EditProfileScreen";
 import SecurityScreen from "@/screens/account/SecurityScreen";
 import NotificationSettingsScreen from "@/screens/account/NotificationSettingsScreen";
 import CompanyAccountScreen from "@/screens/account/CompanyAccountScreen";
+import CariPaymentScreen from "@/screens/cari/CariPaymentScreen";
 import RegionsScreen from "@/screens/account/RegionsScreen";
 import FeedbackScreen from "@/screens/account/FeedbackScreen";
 
@@ -66,6 +67,7 @@ export const screenRegistry: {
     { name: "Security", component: SecurityScreen, title: "Güvenlik" },
     { name: "NotificationSettings", component: NotificationSettingsScreen, title: "Bildirim tercihleri" },
     { name: "CompanyAccount", component: CompanyAccountScreen, title: "Şirket ve cari" },
+    { name: "CariPayment", component: CariPaymentScreen, title: "Cari ödeme" },
     { name: "Regions", component: RegionsScreen, title: "Bölge ve konumlar" },
     { name: "Feedback", component: FeedbackScreen, title: "Geri bildirim" },
     { name: "StockLocationDetail", component: StockLocationDetailScreen, title: "Lokasyon" },

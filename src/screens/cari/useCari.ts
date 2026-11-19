@@ -4,17 +4,14 @@
  *  - `api/notifications/notification_processor.py`: durum 1–3'te sahip için üst şerit (1 sarı, 2–3 kırmızı),
  *    tutar = faturaların kalan TL toplamı, yoksa cari bakiye; tutar yoksa şerit yok.
  *  - `v2/partials/cari_popup.html`: durum 3'te genel bakışta "Ödeme Uyarısı" penceresi.
- * Ödeme mobilde yapılmaz; "Hemen Öde" web ödeme sayfasını tarayıcıda açar.
+ * "Hemen Öde": uygulama içi ödeme (CariPaymentScreen, web ile aynı ödeme çekirdeği).
  */
-import { Linking } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { accountApi } from "@/api/account";
 import { queryKeys } from "@/api/queryKeys";
 import { isOwner } from "@/auth/permissions";
-import { API_BASE_URL } from "@/config/env";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { useAuthStore } from "@/store/authStore";
-import { toast } from "@/design-system";
 
 export const CARI_LOCKED_MESSAGE = "Şirketinizin cari hesabı ödenmemiş borç nedeniyle kilitlendi.";
 
@@ -22,13 +19,7 @@ export function cariBannerText(state: number): string {
   return state === 1 ? "Ödenmemiş cari borcunuz bulunmaktadır." : "Vadesi geçmiş faturanız bulunmaktadır.";
 }
 
-export function cariPaymentUrl(paymentPath: string | undefined): string {
-  return `${API_BASE_URL}${paymentPath || "/v2/cari-odeme/"}`;
-}
 
-export function openCariPayment(paymentPath: string | undefined) {
-  Linking.openURL(cariPaymentUrl(paymentPath)).catch(() => toast.error("Ödeme sayfası açılamadı."));
-}
 
 export function useCari() {
   const user = useAuthStore((s) => s.user);

@@ -1,8 +1,12 @@
 import React, { useState } from "react";
 import { FlatList, Linking, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "@/navigation/types";
 import {
   AppBadge,
+  AppButton,
   AppCard,
   AppEmptyState,
   AppErrorState,
@@ -68,7 +72,7 @@ function CariSummaryCard({ summary }: { summary: CariSummary }) {
         <AppNotice
           tone="danger"
           title="Cari hesap kilitli"
-          message="Gecikmiş ödemeler nedeniyle hesabınız kilitlendi. Ödeme ve hesap açılışı için Vennex ile iletişime geçin."
+          message="Gecikmiş ödemeler nedeniyle hesabınız kilitlendi. Ödeme yapıldığında erişim açılır."
         />
       ) : null}
       {summary.balance_only ? (
@@ -83,6 +87,7 @@ function CariSummaryCard({ summary }: { summary: CariSummary }) {
  * cari uçları yalnız sahibe açıktır (backend IsOwner). Ödeme mobilde yoktur.
  */
 export default function CompanyAccountScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const styles = useStyles();
   const owner = isOwner(useAuthStore((s) => s.user));
   const company = useSelectedCompany();
@@ -183,7 +188,9 @@ export default function CompanyAccountScreen() {
           ) : summaryQuery.data ? (
             <CariSummaryCard summary={summaryQuery.data} />
           ) : null}
-          <AppNotice tone="info" message="Ödemeler mobil uygulamadan yapılmaz; faturalarınızı buradan görüntüleyebilirsiniz." />
+          {summaryQuery.data && Number(summaryQuery.data.all_total) > 0 ? (
+            <AppButton title="Ödeme yap" icon="credit-card" onPress={() => navigation.navigate("CariPayment")} fullWidth testID="company-cari-pay" />
+          ) : null}
         </AppSection>
       ) : (
         <AppNotice tone="info" message="Cari ve fatura bilgileri yalnızca şirket sahibine gösterilir." />

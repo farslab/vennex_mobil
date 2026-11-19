@@ -6,7 +6,10 @@ import React, { useState } from "react";
 import { AppConfirmSheet } from "@/design-system";
 import { useAuthStore } from "@/store/authStore";
 import { formatCurrency } from "@/utils/number";
-import { openCariPayment, useCari } from "./useCari";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "@/navigation/types";
+import { useCari } from "./useCari";
 
 const shownFor = new Set<number>();
 
@@ -17,6 +20,7 @@ export function resetCariPopupSession() {
 
 export function CariOverduePopup() {
   const cari = useCari();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const companyId = useAuthStore((s) => s.selectedCompanyId);
   const [dismissed, setDismissed] = useState(false);
   const eligible = cari.showPopup && companyId != null && !shownFor.has(companyId);
@@ -37,7 +41,7 @@ export function CariOverduePopup() {
       destructive
       onConfirm={() => {
         close();
-        openCariPayment(cari.paymentPath);
+        navigation.navigate("CariPayment");
       }}
       onCancel={close}
     />
