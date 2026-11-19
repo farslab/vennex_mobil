@@ -16,7 +16,7 @@ import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
 import { formatCurrency, formatInteger, formatPercent } from "@/utils/number";
 import { ptBadge } from "@/components/devices/deviceHelpers";
-import { webBadgeColors, type WebBadgeColor } from "@/components/devices/webBadgeColors";
+import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import type { DashboardSales, PaymentBreakdownItem } from "@/types/overview";
 
 /** Personel Kart ödeme tipi (`pt_type`) */
@@ -115,12 +115,13 @@ export function PaymentBreakdownCard({
 
 /* ------------------------------------------------------ Failure reasons */
 
-const REASONS: { key: keyof DashboardSales["failures"]; label: string; color: WebBadgeColor }[] = [
-  { key: "timeout", label: "Zaman aşımı", color: "sky" },
-  { key: "bank", label: "Banka reddi", color: "amber" },
+/** Neden renkleri birbirinden net ayrılır (açık ve koyu temada okunur orta tonlar) */
+const REASONS: { key: keyof DashboardSales["failures"]; label: string; color: string }[] = [
+  { key: "timeout", label: "Zaman aşımı", color: "#0EA5E9" },
+  { key: "bank", label: "Banka reddi", color: "#EAB308" },
   // Web: "Teknik İ." (Teknik İptal — POS Dağılımı)
-  { key: "technical", label: "Teknik iptal", color: "red" },
-  { key: "other", label: "Diğer", color: "gray" },
+  { key: "technical", label: "Teknik iptal", color: "#DC2626" },
+  { key: "other", label: "Diğer", color: "#64748B" },
 ];
 
 /** Başarısız işlemlerin nedenleri (`iptalNo` 1/2/3/diğer, `overview.py:81-84`) */
@@ -135,14 +136,14 @@ export function FailureReasonsCard({
   onTechnicalPress?: () => void;
 }) {
   const styles = useStyles();
-  const { isDark, colors } = useTheme();
+  const { colors } = useTheme();
   return (
     <DashSection title="Başarısızlık nedenleri" subtitle={`${formatInteger(failed)} başarısız işlem`} testID="failure-reasons">
       <View style={styles.list}>
         {/* Nedenlerin dağılımı */}
         <View style={styles.stack} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {REASONS.filter((r) => (failures[r.key] ?? 0) > 0).map((r) => (
-            <View key={`seg-${r.key}`} style={{ flex: failures[r.key] ?? 0, backgroundColor: webBadgeColors(r.color, isDark).fg }} />
+            <View key={`seg-${r.key}`} style={{ flex: failures[r.key] ?? 0, backgroundColor: r.color }} />
           ))}
         </View>
         {REASONS.map((r) => {
@@ -151,7 +152,7 @@ export function FailureReasonsCard({
           const isLink = r.key === "technical" && !!onTechnicalPress && v > 0;
           const content = (
             <>
-              <View style={[styles.dot, { backgroundColor: v > 0 ? webBadgeColors(r.color, isDark).fg : colors.borderStrong }]} />
+              <View style={[styles.dot, { backgroundColor: v > 0 ? r.color : colors.borderStrong }]} />
               <View style={styles.flex}>
                 <AppText variant="calloutStrong" color={v > 0 ? undefined : "textTertiary"} numberOfLines={1}>
                   {r.label}
