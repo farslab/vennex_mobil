@@ -241,6 +241,65 @@ describe("DashboardScreen", () => {
     expect(dashboardGets(mock).filter((r) => r.params.location_ids === undefined)).toHaveLength(1);
   });
 
+  it("web gibi: teknik hata veren cihazlar ana sayfada değil, 'Teknik hata' satırından alttan açılır", async () => {
+    mock.onGet("/overview/dashboard/").reply(
+      200,
+      salesBundle({
+        error_breakdown: {
+          results: Array.from({ length: 7 }, (_, i) => ({ sn: `SN-E${i}`, pos_name: `Hatalı ${i}`, count: 10 - i })),
+        },
+      })
+    );
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    expect(screen.queryByText("Teknik hata veren POS cihazları")).toBeNull();
+
+    await fireEvent.press(screen.getByTestId("failure-technical"));
+    expect(await screen.findByText("Teknik hata veren POS cihazları")).toBeOnTheScreen();
+    expect(screen.getByText("7 POS cihazı · 49 teknik hata")).toBeOnTheScreen();
+    expect(screen.getByTestId("technical-error-SN-E6")).toBeOnTheScreen(); // ilk 5 ile sınırlı değil
+
+    jest.useFakeTimers();
+    try {
+      await fireEvent.press(screen.getByTestId("technical-error-SN-E0"));
+      jest.advanceTimersByTime(400);
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(mockNavigate).toHaveBeenCalledWith("DeviceDetail", { sn: "SN-E0", name: "Hatalı 0" });
+  });
+
+  it("web gibi: Personel Kart satırı grup dağılımını ekrandaki filtreyle açar", async () => {
+    mock.onGet("/overview/dashboard/").reply(
+      200,
+      salesBundle({
+        payment_breakdown: {
+          results: [
+            { pt_type: 1, label: "Kredi/Banka Kartı", color: "#1E88E5", amount: 9000, count: 80 },
+            { pt_type: 5, label: "Personel Kart", color: "#999", amount: 3000, count: 82 },
+          ],
+        },
+      })
+    );
+    mock.onGet("/overview/personel-groups/").reply(200, {
+      total: 3000,
+      groups: [
+        { name: "Muhasebe", amount: 2000, count: 50, cards: 12 },
+        { name: "Grupsuz", amount: 1000, count: 32, cards: 3 },
+      ],
+    });
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    expect(mock.history.get.some((r) => r.url === "/overview/personel-groups/")).toBe(false); // açılmadan istek yok
+
+    await fireEvent.press(screen.getByTestId("payment-personel"));
+    expect(await screen.findByText("Muhasebe")).toBeOnTheScreen();
+    expect(screen.getByText("12 kart · 50 işlem")).toBeOnTheScreen();
+    expect(screen.getByText("Toplam ₺3.000,00")).toBeOnTheScreen();
+    const req = mock.history.get.find((r) => r.url === "/overview/personel-groups/");
+    expect(req?.params).toEqual({ period: "today" });
+  });
+
   /** Son setOptions çağrısındaki başlığı çizip içindeki Excel düğmesini döndürür */
   const headerExcel = () => {
     const calls = mockSetOptions.mock.calls.filter((c) => "header" in (c[0] as object));

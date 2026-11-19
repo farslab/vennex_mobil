@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { AppCard, AppEmptyState, AppIcon, AppText, makeStyles } from "@/design-system";
-import { formatCurrency, formatInteger } from "@/utils/number";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppCard, AppEmptyState, AppIcon, AppSheet, AppText, makeStyles } from "@/design-system";
+import { formatCurrency, formatInteger, formatPercent } from "@/utils/number";
 import type { ErrorBreakdownItem, TopDevice } from "@/types/overview";
 
 type OpenDevice = (sn: string, name?: string) => void;
@@ -15,6 +15,7 @@ function DeviceRow({
   onPress,
   last,
   testID,
+  flush,
 }: {
   rank: number;
   name: string;
@@ -24,6 +25,8 @@ function DeviceRow({
   onPress: () => void;
   last: boolean;
   testID?: string;
+  /** Alttan açılan sayfa içinde: yatay iç boşluk sayfadan gelir */
+  flush?: boolean;
 }) {
   const styles = useStyles();
   return (
@@ -33,7 +36,7 @@ function DeviceRow({
       accessibilityRole="button"
       accessibilityLabel={`${rank}. ${name}, ${value}, ${caption}`}
       accessibilityHint="Cihaz detayını açar"
-      style={({ pressed }) => [styles.row, !last && styles.rowBorder, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.row, flush && styles.rowFlush, !last && styles.rowBorder, pressed && styles.pressed]}
     >
       <View style={styles.rank}>
         <AppText variant="numericSm" color="textSecondary">
@@ -87,35 +90,62 @@ export function TopDevicesCard({ items, onOpenDevice }: { items: TopDevice[]; on
   );
 }
 
-/** Teknik hata (iptalNo=3) veren cihazlar — yalnız kayıt varsa gösterilir */
-export function TechnicalErrorsCard({ items, onOpenDevice }: { items: ErrorBreakdownItem[]; onOpenDevice: OpenDevice }) {
+/**
+ * Teknik hata (iptalNo=3) veren POS cihazlarının tamamı — web Genel Bakış'taki gibi
+ * "Başarısızlık nedenleri → Teknik hata" satırına dokununca alttan açılır (adet + pay).
+ * Cihaza dokununca sayfa kapanır, ardından cihaz detayı açılır.
+ */
+export function TechnicalErrorsSheet({
+  visible,
+  onClose,
+  items,
+  onOpenDevice,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  items: ErrorBreakdownItem[];
+  onOpenDevice: OpenDevice;
+}) {
   const styles = useStyles();
-  if (items.length === 0) return null;
-  const shown = items.slice(0, 5);
+  const total = items.reduce((acc, d) => acc + d.count, 0);
   return (
-    <AppCard
+    <AppSheet
+      visible={visible}
+      onClose={onClose}
       title="Teknik hata veren POS cihazları"
-      subtitle={items.length > shown.length ? `İlk ${shown.length} / ${items.length} POS cihazı` : undefined}
-      padded={false}
-      testID="technical-errors"
+      subtitle={`${formatInteger(items.length)} POS cihazı · ${formatInteger(total)} teknik hata`}
+      scrollable={false}
+      testID="technical-errors-sheet"
     >
-      <View style={styles.list}>
-        {shown.map((d, i) => (
+      <FlatList
+        data={items}
+        keyExtractor={(d, i) => `${d.sn}-${i}`}
+        style={styles.sheetList}
+        initialNumToRender={20}
+        ListEmptyComponent={<AppEmptyState compact icon="check-circle" title="Teknik hata yok" />}
+        renderItem={({ item: d, index: i }) => (
           <DeviceRow
-            key={`${d.sn}-${i}`}
+            testID={`technical-error-${d.sn}`}
             rank={i + 1}
             name={d.pos_name || d.sn}
             sn={d.sn}
             value={formatInteger(d.count)}
-            caption="teknik hata"
-            onPress={() => onOpenDevice(d.sn, d.pos_name ?? undefined)}
-            last={i === shown.length - 1}
+            caption={total > 0 ? `teknik hata · ${formatPercent((d.count / total) * 100)}` : "teknik hata"}
+            onPress={() => {
+              onClose();
+              // Alttan açılan sayfa kapanmadan yeni ekran itilirse iOS'ta görünmez kalabilir
+              setTimeout(() => onOpenDevice(d.sn, d.pos_name ?? undefined), SHEET_HANDOFF_MS);
+            }}
+            last={i === items.length - 1}
+            flush
           />
-        ))}
-      </View>
-    </AppCard>
+        )}
+      />
+    </AppSheet>
   );
 }
+
+const SHEET_HANDOFF_MS = 350;
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
@@ -129,6 +159,8 @@ const useStyles = makeStyles((t) =>
       paddingVertical: t.spacing.sm,
       paddingHorizontal: t.layout.cardPadding,
     },
+    rowFlush: { paddingHorizontal: 0 },
+    sheetList: { maxHeight: 460 },
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.colors.border },
     pressed: { backgroundColor: t.colors.surfacePressed },
     rank: {

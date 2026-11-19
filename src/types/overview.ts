@@ -50,6 +50,18 @@ export interface TopDevice {
 }
 
 /** Teknik hata (iptalNo=3) veren cihazlar (`overview.py:196-216`) */
+/** `GET overview/personel-groups/` — web Genel Bakış "Personel Kart — Grup Dağılımı" ile aynı */
+export interface PersonelGroupRow {
+  name: string;
+  amount: number;
+  count: number;
+  cards: number;
+}
+export interface PersonelGroupBreakdown {
+  total: number;
+  groups: PersonelGroupRow[];
+}
+
 export interface ErrorBreakdownItem {
   sn: string;
   pos_name: string | null;

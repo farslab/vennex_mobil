@@ -16,6 +16,7 @@ export const queryKeys = {
     all: ["overview"] as const,
     dashboard: (params: Filters) => ["overview", "dashboard", params] as const,
     locations: () => ["overview", "locations"] as const,
+    personelGroups: (params: Filters) => ["overview", "personel-groups", params] as const,
   },
 
   devices: {
@@ -25,6 +26,7 @@ export const queryKeys = {
     summary: (sn: string) => ["devices", "summary", sn] as const,
     products: (sn: string) => ["devices", "products", sn] as const,
     transactions: (sn: string, filters: Filters) => ["devices", "transactions", sn, filters] as const,
+    txReceipt: (sn: string, txId: number) => ["devices", "tx-receipt", sn, txId] as const,
     cashHistory: (sn: string) => ["devices", "cash-history", sn] as const,
     revenueCounts: (sn: string) => ["devices", "revenue-counts", sn] as const,
     options: () => ["devices", "options"] as const,

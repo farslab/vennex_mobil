@@ -3,7 +3,7 @@
  * Veri: yalnız `GET /overview/dashboard/` bundle'ı (docs/API_CONTRACTS.md §2.4, §3.8).
  * Satış yetkisi yoksa (istemci `view_sales` veya backend `sales_visible=false`) hiçbir tutar gösterilmez.
  */
-import React, { useCallback, useLayoutEffect } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
@@ -29,8 +29,8 @@ import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { KpiGrid } from "@/components/dashboard/KpiGrid";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { FailureReasonsCard, PaymentBreakdownCard } from "@/components/dashboard/BreakdownCards";
-import { TechnicalErrorsCard, TopDevicesCard } from "@/components/dashboard/DeviceRankCards";
+import { FailureReasonsCard, PaymentBreakdownCard, PersonelGroupsSheet } from "@/components/dashboard/BreakdownCards";
+import { TechnicalErrorsSheet, TopDevicesCard } from "@/components/dashboard/DeviceRankCards";
 import { RecentTransactionsCard } from "@/components/dashboard/RecentTransactionsCard";
 import { TabHeader } from "@/navigation/TabHeader";
 import { EXPORTS } from "@/api/exports";
@@ -46,6 +46,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useAuthStore((s) => s.user);
   const dash = useDashboard();
+  const [sheet, setSheet] = useState<"technical" | "personel" | null>(null);
   const { data } = dash;
 
   // Excel: web Genel Bakış'taki gibi ekrandaki dönem + konumla (aynı dosya); başlıkta zilin yanında
@@ -164,10 +165,26 @@ export default function DashboardScreen() {
           ) : (
             <>
               <RevenueChart mode={sales.timeseries.mode} points={sales.timeseries.points} periodLabel={data.periodLabel} />
-              {failed > 0 ? <FailureReasonsCard failures={sales.failures} failed={failed} /> : null}
-              <PaymentBreakdownCard items={sales.paymentBreakdown} />
+              {failed > 0 ? (
+                <FailureReasonsCard
+                  failures={sales.failures}
+                  failed={failed}
+                  onTechnicalPress={sales.errorBreakdown.length ? () => setSheet("technical") : undefined}
+                />
+              ) : null}
+              <PaymentBreakdownCard items={sales.paymentBreakdown} onPersonelPress={() => setSheet("personel")} />
               <TopDevicesCard items={sales.topDevices} onOpenDevice={openDevice} />
-              <TechnicalErrorsCard items={sales.errorBreakdown} onOpenDevice={openDevice} />
+              <TechnicalErrorsSheet
+                visible={sheet === "technical"}
+                onClose={() => setSheet(null)}
+                items={sales.errorBreakdown}
+                onOpenDevice={openDevice}
+              />
+              <PersonelGroupsSheet
+                visible={sheet === "personel"}
+                onClose={() => setSheet(null)}
+                params={buildDashboardParams(dash.filters)}
+              />
               <RecentTransactionsCard
                 items={sales.recentTransactions}
                 hourly={sales.timeseries.mode === "hourly"}

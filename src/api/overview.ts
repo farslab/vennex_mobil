@@ -12,6 +12,7 @@ import type {
   ErrorBreakdownItem,
   OverviewBundle,
   OverviewLocation,
+  PersonelGroupBreakdown,
   PaymentBreakdownItem,
   RecentTransaction,
   TopDevice,
@@ -53,6 +54,24 @@ export const overviewApi = {
   /** Normalize edilmiş dashboard modeli (ekranlar bunu kullanır) */
   dashboardData: (params: DashboardParams, signal?: AbortSignal) =>
     overviewApi.dashboard(params, signal).then(normalizeDashboard),
+
+  /** Personel Kart grup dağılımı — yalnız satıra dokununca istenir (dashboard'a eklenmedi; sunucu yükü) */
+  personelGroups: (params: DashboardParams, signal?: AbortSignal) => {
+    const { top_limit: _t, recent_limit: _r, ...rest } = buildDashboardQuery(params);
+    return apiClient
+      .get<Partial<PersonelGroupBreakdown>>("/overview/personel-groups/", { params: rest, signal })
+      .then(
+        (r): PersonelGroupBreakdown => ({
+          total: Number(r.data?.total ?? 0),
+          groups: (r.data?.groups ?? []).map((g) => ({
+            name: String(g.name ?? ""),
+            amount: Number(g.amount ?? 0),
+            count: Number(g.count ?? 0),
+            cards: Number(g.cards ?? 0),
+          })),
+        })
+      );
+  },
 
   /** Konum filtresi seçenekleri — cache 300 sn (`overview.py:350-356`) */
   locations: (signal?: AbortSignal) =>
