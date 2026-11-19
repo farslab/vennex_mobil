@@ -124,6 +124,23 @@ describe("DevicesListScreen", () => {
     expect(within(screen.getByTestId("device-last-sale-SN3")).getByText("—")).toBeOnTheScreen();
   });
 
+  it("sayaçlar filtre kısayolu: çevrimiçi/çevrimdışı süzer, tekrar dokunmak ya da toplam tümünü gösterir", async () => {
+    mock.onGet("/pos-devices/").reply(200, page([row(1)]));
+    await renderWithProviders(<DevicesListScreen />);
+    await screen.findByText("Otomat 1");
+
+    await fireEvent.press(screen.getByTestId("devices-count-online"));
+    await waitFor(() => expect(listRequests(mock).some((r) => r.params.online === "true")).toBe(true));
+    expect(screen.getByTestId("devices-count-online")).toHaveProp("accessibilityState", { selected: true });
+
+    await fireEvent.press(screen.getByTestId("devices-count-offline"));
+    await waitFor(() => expect(listRequests(mock).some((r) => r.params.online === "false")).toBe(true));
+
+    await fireEvent.press(screen.getByTestId("devices-count-offline")); // seçiliye tekrar → tümü
+    await waitFor(() => expect(screen.getByTestId("devices-count-total")).toHaveProp("accessibilityState", { selected: true }));
+    expect(screen.getByTestId("devices-count-offline")).toHaveProp("accessibilityState", { selected: false });
+  });
+
   it("view_sales yoksa ciro gösterilmez ve ciro gizleme düğmesi yoktur", async () => {
     useAuthStore.setState({ user: makeUser({ permissions: ["tech"] }) });
     mock.onGet("/pos-devices/").reply(200, page([row(1)]));

@@ -8,7 +8,7 @@
 import { EXPORTS } from "@/api/exports";
 import { useHeaderExcel } from "@/navigation/useHeaderExcel";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -111,13 +111,25 @@ export default function DevicesListScreen() {
   );
 
   const first = list.firstPage;
-  const counts = first
+  const freshCounts = first
     ? {
         total: first.total_count ?? first.count,
         online: first.online_count,
         offline: first.offline_count,
       }
     : null;
+  // Filtre değişip yeni sayfa yüklenirken sayaçlar kaybolmasın: son bilinen değer gösterilir
+  // (sayaçlar çevrimiçi filtresinden önce hesaplanır; render sırasında durum düzeltme deseni).
+  const [lastCounts, setLastCounts] = useState<typeof freshCounts>(null);
+  if (
+    freshCounts &&
+    (lastCounts?.total !== freshCounts.total ||
+      lastCounts?.online !== freshCounts.online ||
+      lastCounts?.offline !== freshCounts.offline)
+  ) {
+    setLastCounts(freshCounts);
+  }
+  const counts = freshCounts ?? lastCounts;
 
   const clearFilters = () => {
     setFilters(DEFAULT_FILTERS);
@@ -195,20 +207,31 @@ export default function DevicesListScreen() {
         </ScrollView>
 
         <View style={styles.summary}>
-          <View style={styles.counts} accessible accessibilityLabel={counts ? `${counts.total} POS cihazı, ${counts.online ?? 0} çevrimiçi, ${counts.offline ?? 0} çevrimdışı` : "Sayaçlar yükleniyor"}>
+          {/* Sayaçlar filtre kısayolu: çevrimiçi/çevrimdışı dokununca süzer; seçiliye tekrar dokunmak ya da toplam → tümü */}
+          <View style={styles.counts}>
             {counts ? (
               <>
-                <AppText variant="numericSm" testID="devices-count-total">
-                  {formatInteger(counts.total)} POS cihazı
-                </AppText>
-                <View style={[styles.dot, styles.dotOnline]} />
-                <AppText variant="numericSm" color="textSecondary" testID="devices-count-online">
-                  {formatInteger(counts.online)} çevrimiçi
-                </AppText>
-                <View style={[styles.dot, styles.dotOffline]} />
-                <AppText variant="numericSm" color="textSecondary" testID="devices-count-offline">
-                  {formatInteger(counts.offline)} çevrimdışı
-                </AppText>
+                <CountChip
+                  label={`${formatInteger(counts.total)} POS cihazı`}
+                  selected={effectiveFilters.online === "all"}
+                  onPress={() => setFilters((f) => ({ ...f, online: "all" }))}
+                  testID="devices-count-total"
+                  strong
+                />
+                <CountChip
+                  label={`${formatInteger(counts.online)} çevrimiçi`}
+                  dot={colors.success}
+                  selected={effectiveFilters.online === "online"}
+                  onPress={() => setFilters((f) => ({ ...f, online: f.online === "online" ? "all" : "online" }))}
+                  testID="devices-count-online"
+                />
+                <CountChip
+                  label={`${formatInteger(counts.offline)} çevrimdışı`}
+                  dot={colors.danger}
+                  selected={effectiveFilters.online === "offline"}
+                  onPress={() => setFilters((f) => ({ ...f, online: f.online === "offline" ? "all" : "offline" }))}
+                  testID="devices-count-offline"
+                />
               </>
             ) : (
               <AppText variant="caption" color="textTertiary">
@@ -266,6 +289,41 @@ export default function DevicesListScreen() {
   );
 }
 
+/** Sayaç + filtre: seçiliyken altı çizili ve vurgulu */
+function CountChip({
+  label,
+  dot,
+  selected,
+  onPress,
+  strong,
+  testID,
+}: {
+  label: string;
+  dot?: string;
+  selected: boolean;
+  onPress: () => void;
+  strong?: boolean;
+  testID?: string;
+}) {
+  const styles = useStyles();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${label}${selected ? ", seçili" : ""}`}
+      hitSlop={6}
+      style={({ pressed }) => [styles.countChip, selected && styles.countChipOn, pressed && styles.countPressed]}
+      testID={testID}
+    >
+      {dot ? <View style={[styles.dot, { backgroundColor: dot }]} /> : null}
+      <AppText variant="numericSm" color={selected || strong ? "text" : "textSecondary"} style={selected ? styles.countTextOn : undefined}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
+
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     listContent: { paddingTop: t.spacing.md },
@@ -292,10 +350,13 @@ const useStyles = makeStyles((t) =>
       paddingRight: t.spacing.sm,
       minHeight: 44,
     },
-    counts: { flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 },
-    dot: { width: 6, height: 6, borderRadius: 3, marginLeft: t.spacing.xs },
-    dotOnline: { backgroundColor: t.colors.success },
-    dotOffline: { backgroundColor: t.colors.danger },
+    // Tek satıra sığsın: dar iç boşluk (seçili rozet zemini yine görünür)
+    counts: { flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 2, marginLeft: -4 },
+    countChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 4, paddingVertical: 3, borderRadius: t.radius.xs },
+    countChipOn: { backgroundColor: t.colors.surfaceMuted },
+    countPressed: { opacity: 0.6 },
+    countTextOn: { fontWeight: "700" },
+    dot: { width: 6, height: 6, borderRadius: 3 },
     sortLabel: { paddingHorizontal: t.layout.screenPadding, paddingBottom: t.spacing.sm },
     footer: { paddingVertical: t.spacing.lg },
   })
