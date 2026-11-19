@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { EXPORTS } from "@/api/exports";
+import { useHeaderExcel } from "@/navigation/useHeaderExcel";
 import { StyleSheet, View } from "react-native";
 import { AppNotice, AppSegmented, makeStyles } from "@/design-system";
 import { useAuthStore } from "@/store/authStore";
@@ -26,6 +28,8 @@ export default function StockScreen() {
   const user = useAuthStore((s) => s.user);
   const canManage = canManageStock(user);
   const [tab, setTab] = useState<TabKey>("overview");
+  // Excel (stok özeti): Genel Bakış gibi başlıkta; yalnız Özet sekmesindeyken
+  useHeaderExcel("Stok", tab === "overview" ? EXPORTS.stockOverview : null);
   const [visited, setVisited] = useState<Set<TabKey>>(() => new Set<TabKey>(["overview"]));
 
   const select = (key: TabKey) => {
