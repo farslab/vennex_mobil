@@ -9,7 +9,7 @@
  * Güvenlik: kart bilgisi yalnız bellekte; gönderimden sonra numara ve CVV silinir, hiçbir yere yazılmaz/loglanmaz.
  * İstek otomatik tekrarlanmaz (çift ödeme riski) ve tek uçuşla korunur.
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView, type WebViewNavigation } from "react-native-webview";
 import { useNavigation } from "@react-navigation/native";
@@ -52,7 +52,18 @@ export const RETURN_URL_RE = /^https?:\/\/[^/?#]+\/cari-odeme\/(success|fail)\/?
 const STATUS_POLL_MS = 2000;
 const STATUS_POLL_MAX_MS = 45_000;
 
-type Phase = { kind: "form" } | { kind: "3d"; html: string; ref: string } | { kind: "result"; ref: string; cancelled?: boolean };
+type Phase =
+  | { kind: "form" }
+  | { kind: "3d"; html: string; ref: string }
+  /** `bankHtml`: dönüş görüldü ama banka görünümü arka planda açık tutulur (aşağıya bkz.) */
+  | { kind: "result"; ref: string; cancelled?: boolean; bankHtml?: string };
+
+/**
+ * Dönüş adresi görüldükten sonra banka görünümü bu kadar süre ARKA PLANDA açık kalır. Dönüş isteği
+ * sunucuya varmadan önce ara bir sayfa (ör. Cloudflare doğrulaması) gelebilir; görünüm hemen kapanırsa
+ * istek iptal olur ve dönüş sunucuya hiç ulaşmaz (canlı denemede görüldü). Sonuç sunucudan sorgulanır.
+ */
+const KEEP_BANK_VIEW_MS = 30_000;
 
 export default function CariPaymentScreen() {
   const navigation = useNavigation();
@@ -61,7 +72,13 @@ export default function CariPaymentScreen() {
     queryKey: queryKeys.account.cariSummary(),
     queryFn: ({ signal }) => accountApi.cariSummary(signal),
   });
+  const styles = useStyles();
   const [phase, setPhase] = useState<Phase>({ kind: "form" });
+  // Sabit referans: sonuç ekranının zamanlayıcısı her çizimde sıfırlanmasın
+  const closeBankView = useCallback(
+    () => setPhase((p) => (p.kind === "result" ? { kind: "result", ref: p.ref, cancelled: p.cancelled } : p)),
+    []
+  );
 
   const finish = () => {
     // Borç ve kilit durumu yeniden alınır (Paraşüt işleyince güncellenir)
@@ -70,13 +87,32 @@ export default function CariPaymentScreen() {
     navigation.goBack();
   };
 
-  if (phase.kind === "3d") {
+  if (phase.kind === "3d" || (phase.kind === "result" && phase.bankHtml)) {
+    const html = phase.kind === "3d" ? phase.html : phase.bankHtml!;
+    const showingResult = phase.kind === "result";
     return (
-      <BankVerification
-        html={phase.html}
-        onReturned={() => setPhase({ kind: "result", ref: phase.ref })}
-        onCancel={() => setPhase({ kind: "result", ref: phase.ref, cancelled: true })}
-      />
+      <View style={styles.flex}>
+        {/* Aynı görünüm örneği: sonuç ekranına geçince gizlenir ama kapanmaz (dönüş sunucuya ulaşsın) */}
+        <View style={showingResult ? styles.hidden : styles.flex}>
+          <BankVerification
+            html={html}
+            onReturned={() => {
+              if (phase.kind !== "3d") return;
+              setPhase({ kind: "result", ref: phase.ref, bankHtml: phase.html });
+            }}
+            onCancel={() => setPhase({ kind: "result", ref: phase.ref, cancelled: true })}
+          />
+        </View>
+        {showingResult ? (
+          <PaymentResult
+            refCode={phase.ref}
+            cancelled={phase.cancelled}
+            onDone={finish}
+            onRetry={() => setPhase({ kind: "form" })}
+            onSettled={closeBankView}
+          />
+        ) : null}
+      </View>
     );
   }
   if (phase.kind === "result") {
@@ -330,11 +366,14 @@ function PaymentResult({
   cancelled,
   onDone,
   onRetry,
+  onSettled,
 }: {
   refCode: string;
   cancelled?: boolean;
   onDone: () => void;
   onRetry: () => void;
+  /** Sonuç kesinleşti ya da süre doldu: arka plandaki banka görünümü kapatılabilir */
+  onSettled?: () => void;
 }) {
   const styles = useStyles();
   // Bankadan sonuç bu süre içinde gelmezse beklemeyi bırak (sonuç "netleşmedi" olarak gösterilir)
@@ -350,6 +389,13 @@ function PaymentResult({
   });
   const s = status.data?.status;
   const waiting = !cancelled && (status.isLoading || (s === "pending" && !timedOut));
+  // Arka plandaki banka görünümü: sonuç kesinleşince (dönüş isteğine kısa süre tanıyarak) ya da süre dolunca kapanır
+  const final = s === "success" || s === "failed";
+  useEffect(() => {
+    if (!onSettled) return;
+    const id = setTimeout(onSettled, final ? 5_000 : KEEP_BANK_VIEW_MS);
+    return () => clearTimeout(id);
+  }, [final, onSettled]);
 
   let icon: "check-circle" | "x-circle" | "clock" = "clock";
   let tone: "success" | "danger" | "textSecondary" = "textSecondary";
@@ -398,6 +444,8 @@ function PaymentResult({
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1 },
+    // Gizli ama bağlı (unmount değil): yükleme sürer
+    hidden: { position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden" },
     form: { gap: t.spacing.md, marginTop: t.spacing.md },
     row: { flexDirection: "row", gap: t.spacing.sm },
     secure: { flexDirection: "row", gap: 6, alignItems: "flex-start" },

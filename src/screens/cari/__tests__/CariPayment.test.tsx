@@ -112,6 +112,8 @@ describe("CariPaymentScreen", () => {
     const onNav = mockWebView.props?.onNavigationStateChange as (n: { url: string; loading: boolean }) => void;
     await waitFor(() => onNav({ url: "https://sp.serpetpay.com/cari-odeme/success/", loading: false }));
     expect(await screen.findByText("Ödemeniz alındı")).toBeOnTheScreen();
+    // banka görünümü hemen kapanmaz: arka planda açık kalır (dönüş isteği sunucuya ulaşsın)
+    expect(screen.getByTestId("cari-pay-webview")).toBeTruthy();
     await fireEvent.press(screen.getByTestId("cari-pay-done"));
     expect(mockGoBack).toHaveBeenCalled();
   });
