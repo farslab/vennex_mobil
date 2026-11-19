@@ -1,7 +1,7 @@
 import {
   balanceEffectText,
   canReverseUid,
-  maskUid,
+  cardUid,
   normalizeProductNo,
   projectBalances,
   reversedUid,
@@ -10,11 +10,11 @@ import {
 } from "../format";
 
 describe("kart format yardımcıları", () => {
-  it("maskUid bayt gruplarında son iki grubu, düz UID'de son 4 karakteri gösterir", () => {
-    expect(maskUid("04 A2 3B 1C")).toBe("•• •• 3B 1C");
-    expect(maskUid("ABCDEF1234")).toBe("•••• 1234");
-    expect(maskUid("AB12")).toBe("AB12");
-    expect(maskUid("")).toBe("—");
+  it("kart numarası (UID) web gibi açık ve tam gösterilir", () => {
+    expect(cardUid("04 A2 3B 1C")).toBe("04 A2 3B 1C");
+    expect(cardUid(" ABCDEF1234 ")).toBe("ABCDEF1234");
+    expect(cardUid("")).toBe("—");
+    expect(cardUid(null)).toBe("—");
   });
 
   it("ters UID yalnız çok parçalı UID'de", () => {

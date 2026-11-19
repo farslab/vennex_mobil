@@ -4,7 +4,7 @@ import { AppBadge, AppButton, AppIcon, AppText, makeStyles } from "@/design-syst
 import { formatCurrency } from "@/utils/number";
 import { initials } from "@/utils/text";
 import type { PersonnelCard } from "@/types/cards";
-import { cardDisplayName, maskUid } from "./format";
+import { cardDisplayName, cardUid } from "./format";
 
 export interface CardRowProps {
   card: PersonnelCard;
@@ -45,7 +45,7 @@ export const CardRow = memo(function CardRow({
         delayLongPress={350}
         accessibilityRole={selectionMode ? "checkbox" : "button"}
         accessibilityState={selectionMode ? { checked: selected } : undefined}
-        accessibilityLabel={`${name}, UID ${maskUid(card.uid)}, ${groupsText(card)}, bakiye ${balance}${pending ? ", onay bekliyor" : ""}`}
+        accessibilityLabel={`${name}, UID ${cardUid(card.uid)}, ${groupsText(card)}, bakiye ${balance}${pending ? ", onay bekliyor" : ""}`}
         accessibilityHint={selectionMode ? "Seçimi değiştirir" : "Kart detayını açar. Seçim için basılı tutun."}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       >
@@ -69,7 +69,7 @@ export const CardRow = memo(function CardRow({
           </View>
           <View style={styles.metaLine}>
             <AppText variant="mono" color="textTertiary" numberOfLines={1}>
-              {maskUid(card.uid)}
+              {cardUid(card.uid)}
             </AppText>
             <AppText variant="caption" color="textTertiary">
               ·

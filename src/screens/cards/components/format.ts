@@ -46,18 +46,10 @@ export function cardDisplayName(card: Pick<PersonnelCard, "full_name" | "first_n
   return name || "İsimsiz kart";
 }
 
-/**
- * UID maskesi: bayt grupları ("04 A2 3B 1C") varsa son iki grup, değilse son 4 karakter görünür.
- * Tam UID yalnız detay ekranında gösterilir.
- */
-export function maskUid(uid: string | null | undefined): string {
+/** Kart numarası (UID) — web kart listesi gibi tam ve açık gösterilir */
+export function cardUid(uid: string | null | undefined): string {
   const value = (uid ?? "").trim();
-  if (!value) return "—";
-  const parts = value.split(/\s+/);
-  if (parts.length > 2) return [...parts.slice(0, -2).map(() => "••"), ...parts.slice(-2)].join(" ");
-  const compact = value.replace(/\s+/g, "");
-  if (compact.length <= 4) return compact;
-  return `•••• ${compact.slice(-4)}`;
+  return value || "—";
 }
 
 /** Ters çevrilebilir UID: backend boşlukla ayrılmış en az iki parça ister (views:240-247) */
