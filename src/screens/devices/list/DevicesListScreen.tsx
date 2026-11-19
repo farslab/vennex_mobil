@@ -219,14 +219,16 @@ export default function DevicesListScreen() {
                   strong
                 />
                 <CountChip
-                  label={`${formatInteger(counts.online)} çevrimiçi`}
+                  label={formatInteger(counts.online)}
+                  a11yLabel={`${formatInteger(counts.online)} çevrimiçi`}
                   dot={colors.success}
                   selected={effectiveFilters.online === "online"}
                   onPress={() => setFilters((f) => ({ ...f, online: f.online === "online" ? "all" : "online" }))}
                   testID="devices-count-online"
                 />
                 <CountChip
-                  label={`${formatInteger(counts.offline)} çevrimdışı`}
+                  label={formatInteger(counts.offline)}
+                  a11yLabel={`${formatInteger(counts.offline)} çevrimdışı`}
                   dot={colors.danger}
                   selected={effectiveFilters.online === "offline"}
                   onPress={() => setFilters((f) => ({ ...f, online: f.online === "offline" ? "all" : "offline" }))}
@@ -292,6 +294,7 @@ export default function DevicesListScreen() {
 /** Sayaç + filtre: seçiliyken altı çizili ve vurgulu */
 function CountChip({
   label,
+  a11yLabel,
   dot,
   selected,
   onPress,
@@ -299,6 +302,8 @@ function CountChip({
   testID,
 }: {
   label: string;
+  /** Ekran okuyucu metni (görünür etiket yalnız rakamsa) */
+  a11yLabel?: string;
   dot?: string;
   selected: boolean;
   onPress: () => void;
@@ -311,12 +316,12 @@ function CountChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${label}${selected ? ", seçili" : ""}`}
+      accessibilityLabel={`${a11yLabel ?? label}${selected ? ", seçili" : ""}`}
       hitSlop={6}
       style={({ pressed }) => [styles.countChip, selected && styles.countChipOn, pressed && styles.countPressed]}
       testID={testID}
     >
-      {dot ? <View style={[styles.dot, { backgroundColor: dot }]} /> : null}
+      {dot ? <View style={[styles.countDot, { backgroundColor: dot }]} /> : null}
       <AppText variant="numericSm" color={selected || strong ? "text" : "textSecondary"} style={selected ? styles.countTextOn : undefined}>
         {label}
       </AppText>
@@ -351,12 +356,12 @@ const useStyles = makeStyles((t) =>
       minHeight: 44,
     },
     // Tek satıra sığsın: dar iç boşluk (seçili rozet zemini yine görünür)
-    counts: { flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 2, marginLeft: -4 },
-    countChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 4, paddingVertical: 3, borderRadius: t.radius.xs },
+    counts: { flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginLeft: -4 },
+    countChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 6, paddingVertical: 3, borderRadius: t.radius.xs },
     countChipOn: { backgroundColor: t.colors.surfaceMuted },
     countPressed: { opacity: 0.6 },
     countTextOn: { fontWeight: "700" },
-    dot: { width: 6, height: 6, borderRadius: 3 },
+    countDot: { width: 10, height: 10, borderRadius: 5 },
     sortLabel: { paddingHorizontal: t.layout.screenPadding, paddingBottom: t.spacing.sm },
     footer: { paddingVertical: t.spacing.lg },
   })

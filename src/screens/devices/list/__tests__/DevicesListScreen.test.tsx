@@ -68,8 +68,11 @@ describe("DevicesListScreen", () => {
 
     expect(await screen.findByText("Otomat 1")).toBeOnTheScreen();
     expect(screen.getByTestId("devices-count-total")).toHaveTextContent("30 POS cihazı");
-    expect(screen.getByTestId("devices-count-online")).toHaveTextContent("21 çevrimiçi");
-    expect(screen.getByTestId("devices-count-offline")).toHaveTextContent("9 çevrimdışı");
+    // yalnız rakam + renkli nokta; ekran okuyucu tam metni okur
+    expect(screen.getByTestId("devices-count-online")).toHaveTextContent("21");
+    expect(screen.getByTestId("devices-count-online")).toHaveProp("accessibilityLabel", "21 çevrimiçi");
+    expect(screen.getByTestId("devices-count-offline")).toHaveTextContent("9");
+    expect(screen.queryByText("9 çevrimdışı")).toBeNull();
     expect(screen.getAllByText("%72 · 36 / 50").length).toBe(3); // web: yüzde + adet
     expect(screen.getAllByText("₺1.234,50").length).toBe(3); // Bugün
     expect(screen.getAllByText("₺5.000,00").length).toBe(3); // Bu Ay (dört dönem birlikte)
