@@ -237,6 +237,8 @@ export default function DevicesListScreen() {
         data={list.items}
         keyExtractor={(d) => d.sn}
         renderItem={renderItem}
+        // İlk kartın üstünde kartlar arasındaki kadar boşluk
+        contentContainerStyle={styles.listContent}
         onEndReached={list.loadMore}
         onEndReachedThreshold={0.5}
         keyboardShouldPersistTaps="handled"
@@ -266,6 +268,7 @@ export default function DevicesListScreen() {
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
+    listContent: { paddingTop: t.spacing.md },
     root: { flex: 1, backgroundColor: t.colors.background },
     flex: { flex: 1 },
     toolbar: {
