@@ -99,7 +99,7 @@ describe("DashboardScreen", () => {
     expect(screen.queryByText(/Grup Dağılımı/)).toBeNull();
 
     expect(dashboardGets(mock)).toHaveLength(1);
-    expect(dashboardGets(mock)[0].params).toEqual({ period: "today", top_limit: 5, recent_limit: 5 });
+    expect(dashboardGets(mock)[0].params).toEqual({ period: "today", top_limit: 5, recent_limit: 30 });
     // Ayrı overview/* widget uçları çağrılmaz
     expect(mock.history.get.some((r) => /overview\/(summary|revenue|payment|top|recent|error)/.test(r.url ?? ""))).toBe(false);
   });
@@ -164,7 +164,7 @@ describe("DashboardScreen", () => {
     await fireEvent.press(screen.getByTestId("period-select"));
     await fireEvent.press(await screen.findByText("Geçen Hafta"));
     await waitFor(() => expect(dashboardGets(mock)).toHaveLength(2));
-    expect(dashboardGets(mock)[1].params).toEqual({ period: "last_week", top_limit: 5, recent_limit: 5 });
+    expect(dashboardGets(mock)[1].params).toEqual({ period: "last_week", top_limit: 5, recent_limit: 30 });
   });
 
   it("özel aralık doğrulanır, geçerliyse start/end gönderilir", async () => {
@@ -186,7 +186,7 @@ describe("DashboardScreen", () => {
     expect(dashboardGets(mock)[1].params).toEqual({
       period: "custom",
       top_limit: 5,
-      recent_limit: 5,
+      recent_limit: 30,
       start_date: "2026-11-10",
       end_date: "2026-11-15",
     });

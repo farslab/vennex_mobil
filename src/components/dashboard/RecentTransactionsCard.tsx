@@ -1,11 +1,17 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { AppBadge, AppCard, AppEmptyState, AppText, makeStyles } from "@/design-system";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppBadge, AppCard, AppEmptyState, AppText, makeStyles, useTheme } from "@/design-system";
+import { ptBadge } from "@/components/devices/deviceHelpers";
+import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import { formatCurrency } from "@/utils/number";
 import { formatDateTime, formatTime } from "@/utils/date";
 import type { RecentTransaction } from "@/types/overview";
 
-/** Son işlemler — dokununca ilgili cihazın detayı açılır */
+/** Web Genel Bakış ile aynı: son 30 işlem; kartta ~5 satır görünür, fazlası kart içinde kaydırılır */
+export const RECENT_TX_LIMIT = 30;
+const VISIBLE_ROWS_HEIGHT = 5 * 60;
+
+/** Son işlemler — web satırı: cihaz + tarih · ödeme tipi rozeti · tutar · durum. Dokununca cihaz detayı. */
 export function RecentTransactionsCard({
   items,
   hourly,
@@ -17,16 +23,18 @@ export function RecentTransactionsCard({
   onOpenDevice: (sn: string, name?: string) => void;
 }) {
   const styles = useStyles();
+  const { isDark } = useTheme();
   return (
     <AppCard title="Son işlemler" padded={false} testID="recent-transactions">
       {items.length === 0 ? (
         <AppEmptyState compact icon="list" title="Bu dönemde işlem yok" />
       ) : (
-        <View style={styles.list}>
+        <ScrollView style={styles.list} nestedScrollEnabled showsVerticalScrollIndicator testID="recent-transactions-scroll">
           {items.map((tx, i) => {
-            const title = tx.product_name || tx.pt_type_label || "İşlem";
-            const when = hourly ? formatTime(tx.datetime) : formatDateTime(tx.datetime);
             const device = tx.pos_name || tx.sn || "—";
+            const title = device;
+            const when = hourly ? formatTime(tx.datetime) : formatDateTime(tx.datetime);
+            const pt = ptBadge(tx.pt_type);
             const sn = tx.sn;
             const body = (
               <>
@@ -35,7 +43,8 @@ export function RecentTransactionsCard({
                     {title}
                   </AppText>
                   <AppText variant="caption" color="textTertiary" numberOfLines={1}>
-                    {device} · {when}
+                    {when}
+                    {tx.product_name ? ` · ${tx.product_name}` : ""}
                     {tx.card_pan ? ` · ${tx.card_pan}` : ""}
                   </AppText>
                 </View>
@@ -43,18 +52,15 @@ export function RecentTransactionsCard({
                   <AppText variant="numeric" color={tx.status ? "text" : "textTertiary"}>
                     {formatCurrency(tx.amount)}
                   </AppText>
-                  {tx.status ? (
-                    <AppText variant="caption" color="textTertiary" numberOfLines={1}>
-                      {tx.pt_type_label || "—"}
-                    </AppText>
-                  ) : (
-                    <AppBadge label="Başarısız" tone="danger" size="sm" />
-                  )}
+                  <View style={styles.badges}>
+                    <AppBadge size="sm" label={pt.label} colors={webBadgeColors(pt.color, isDark)} />
+                    {!tx.status ? <AppBadge label="Başarısız" tone="danger" size="sm" /> : null}
+                  </View>
                 </View>
               </>
             );
             const rowStyle = [styles.row, i < items.length - 1 && styles.rowBorder];
-            const label = `${title}, ${device}, ${when}, ${formatCurrency(tx.amount)}, ${tx.status ? "başarılı" : "başarısız"}`;
+            const label = `${device}, ${when}, ${pt.label}, ${formatCurrency(tx.amount)}, ${tx.status ? "başarılı" : "başarısız"}`;
             return sn ? (
               <Pressable
                 key={`${tx.id}-${i}`}
@@ -72,7 +78,7 @@ export function RecentTransactionsCard({
               </View>
             );
           })}
-        </View>
+        </ScrollView>
       )}
     </AppCard>
   );
@@ -81,7 +87,8 @@ export function RecentTransactionsCard({
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1, minWidth: 0 },
-    list: { marginTop: -t.spacing.xs },
+    list: { marginTop: -t.spacing.xs, maxHeight: VISIBLE_ROWS_HEIGHT },
+    badges: { flexDirection: "row", gap: 4 },
     row: {
       flexDirection: "row",
       alignItems: "center",

@@ -5,6 +5,7 @@ import { overviewApi, type DashboardParams } from "@/api/overview";
 import { queryKeys } from "@/api/queryKeys";
 import type { ApiPeriod } from "@/types/common";
 import type { CustomRange } from "./dashboardPeriod";
+import { RECENT_TX_LIMIT } from "@/components/dashboard/RecentTransactionsCard";
 
 /** Backend cache TTL 30 sn (`overview.py:30`) — bundan sık otomatik yenileme anlamsız */
 export const DASHBOARD_STALE_MS = 30_000;
@@ -21,7 +22,8 @@ export interface DashboardFilterState {
 }
 
 export function buildDashboardParams(f: DashboardFilterState): DashboardParams {
-  const params: DashboardParams = { period: f.period, top_limit: 5, recent_limit: 5 };
+  // Son işlemler: web ile aynı 30 kayıt (kart içinde kaydırılır)
+  const params: DashboardParams = { period: f.period, top_limit: 5, recent_limit: RECENT_TX_LIMIT };
   if (f.locationIds.length) params.location_ids = f.locationIds;
   if (f.period === "custom" && f.customRange) {
     params.start_date = f.customRange.start;
