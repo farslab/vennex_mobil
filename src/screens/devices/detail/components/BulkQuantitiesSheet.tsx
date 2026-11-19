@@ -4,6 +4,7 @@
  * kapasiteyi aşamaz; değişmeyen slotlar gönderilmez. Fark kaynak lokasyondan düşülür.
  */
 import React, { useMemo, useState } from "react";
+import { regularFont } from "@/design-system/tokens/fonts";
 import { useOnOpen } from "@/components/devices/useOnOpen";
 import { FlatList, StyleSheet, TextInput, View } from "react-native";
 import { AppButton, AppConfirmSheet, AppSheet, AppText, makeStyles, useTheme } from "@/design-system";
@@ -112,7 +113,7 @@ export function BulkQuantitiesSheet({
               keyboardType="number-pad"
               accessibilityLabel={`${productDisplayName(item)} yeni miktar`}
               testID={`bulk-input-${item.id}`}
-              style={[styles.input, { color: colors.text, borderColor: errors[item.id] ? colors.danger : colors.border }]}
+              style={[styles.input, { color: colors.text, borderColor: errors[item.id] ? colors.danger : colors.border }, regularFont()]}
             />
           </View>
         )}

@@ -1,4 +1,5 @@
 import React from "react";
+import { regularFont } from "@/design-system/tokens/fonts";
 import { StyleSheet, TextInput, View } from "react-native";
 import { AppButton, AppIconButton, AppSegmented, AppText, makeStyles, useTheme } from "@/design-system";
 import { DAY_LABELS, OPERATING_MODE_OPTIONS, isValidHHMM, type WeekSchedule } from "@/components/devices/deviceHelpers";
@@ -78,6 +79,7 @@ export function OperatingHoursEditor({
                         style={[
                           styles.input,
                           { color: colors.text, borderColor: r[k] && !isValidHHMM(r[k]) ? colors.danger : colors.border },
+                          regularFont(),
                         ]}
                       />
                     ))}

@@ -1,4 +1,5 @@
 import React from "react";
+import { regularFont } from "../tokens/fonts";
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { makeStyles, useTheme } from "../theme";
 import { AppIcon } from "./AppIcon";
@@ -30,7 +31,7 @@ export function AppSearchField({ value, onChangeText, placeholder = "Ara", ...re
         autoCorrect={false}
         autoCapitalize="none"
         accessibilityLabel={rest.accessibilityLabel ?? placeholder}
-        style={[styles.input, { color: colors.text }]}
+        style={[styles.input, { color: colors.text }, regularFont()]}
       />
       {value.length > 0 ? (
         <Pressable

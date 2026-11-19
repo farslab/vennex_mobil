@@ -1,4 +1,5 @@
 import React, { forwardRef, useState } from "react";
+import { regularFont } from "../tokens/fonts";
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { makeStyles, useTheme } from "../theme";
 import { AppText } from "./AppText";
@@ -67,6 +68,7 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
           style={[
             styles.input,
             { color: disabled ? colors.textDisabled : colors.text },
+            regularFont(),
             minInputHeight ? { minHeight: minInputHeight, textAlignVertical: "top", alignSelf: "stretch" } : null,
           ]}
         />

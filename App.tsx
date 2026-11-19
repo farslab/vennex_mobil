@@ -1,4 +1,6 @@
 import React, { useEffect } from "react";
+import { useFonts } from "expo-font";
+import { FONT_ASSETS, markFontsLoaded } from "@/design-system/tokens/fonts";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -28,6 +30,10 @@ function ThemedStatusBar() {
 
 export default function App() {
   useEffect(() => bindQueryLifecycle(), []);
+  // Yazı tipi (Plus Jakarta Sans): yüklenene kadar açılış ekranı; hata olursa sistem yazı tipiyle devam
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
+  if (!fontsLoaded && !fontError) return null;
+  markFontsLoaded(fontsLoaded);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

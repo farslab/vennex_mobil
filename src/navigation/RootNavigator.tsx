@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from "react";
+import { fontStyle } from "@/design-system/tokens/fonts";
 import { StyleSheet, Text, View } from "react-native";
 import {
   DarkTheme,
@@ -101,7 +102,7 @@ function AppTabs() {
             adjustsFontSizeToFit
             minimumFontScale={0.8}
             allowFontScaling={false}
-            style={[styles.tabLabel, { color }]}
+            style={[styles.tabLabel, { color }, fontStyle(styles.tabLabel.fontWeight)]}
           >
             {TAB_META[route.name].title}
           </Text>
@@ -182,7 +183,7 @@ export function RootNavigator() {
     () => ({
       headerStyle: { backgroundColor: theme.colors.surface },
       headerTintColor: theme.colors.primary,
-      headerTitleStyle: { color: theme.colors.text, fontWeight: "600" as const, fontSize: 17 },
+      headerTitleStyle: { color: theme.colors.text, fontWeight: "600" as const, fontSize: 17, ...fontStyle("600") },
       headerShadowVisible: false,
       headerBackButtonDisplayMode: "minimal" as const,
       contentStyle: { backgroundColor: theme.colors.background },

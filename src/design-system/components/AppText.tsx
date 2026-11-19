@@ -1,8 +1,9 @@
 import React from "react";
-import { Text, type TextProps, type TextStyle } from "react-native";
+import { StyleSheet, Text, type TextProps, type TextStyle } from "react-native";
 import { useTheme } from "../theme";
 import type { TypographyVariant } from "../tokens/typography";
 import type { ColorTokens } from "../tokens/colors";
+import { fontStyle } from "../tokens/fonts";
 
 type TextColor = Extract<
   keyof ColorTokens,
@@ -61,6 +62,9 @@ export function AppText({
   const theme = useTheme();
   const isNumeric = variant.startsWith("metric") || variant.startsWith("numeric");
   const upper = UPPERCASE_VARIANTS.has(variant);
+  // Son kalınlık (varyant → weight → style) yazı tipi dosyasını seçer
+  const effectiveWeight =
+    (StyleSheet.flatten(style) as TextStyle | undefined)?.fontWeight ?? weight ?? theme.typography[variant].fontWeight;
   return (
     <Text
       {...rest}
@@ -74,6 +78,7 @@ export function AppText({
         align ? { textAlign: align } : null,
         weight ? { fontWeight: weight } : null,
         style,
+        fontStyle(effectiveWeight),
       ]}
     >
       {upper ? upperChildren(children) : children}
