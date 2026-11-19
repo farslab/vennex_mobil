@@ -278,7 +278,12 @@ function BankVerification({ html, onReturned, onCancel }: { html: string; onRetu
   const styles = useStyles();
   const { colors } = useTheme();
   const [returned, setReturned] = useState(false);
+  // Sağlayıcı dönüşü yeni pencereyle yaparsa (target=_blank / window.open) aynı görünümde açılır;
+  // aksi halde web görünümü isteği yok sayar ve dönüş sunucuya hiç ulaşmaz.
+  const [source, setSource] = useState<{ html: string; baseUrl: string } | { uri: string }>({ html, baseUrl: API_BASE_URL });
   const onNav = (nav: WebViewNavigation) => {
+    // eslint-disable-next-line no-console -- yalnız geliştirmede 3D yönlendirme teşhisi (parametresiz adres)
+    if (__DEV__) console.info("[cari-3d]", nav.loading ? "yükleniyor" : "yüklendi", safeUrl(nav.url));
     if (!returned && !nav.loading && RETURN_URL_RE.test(nav.url)) {
       setReturned(true);
       onReturned();
@@ -294,9 +299,15 @@ function BankVerification({ html, onReturned, onCancel }: { html: string; onRetu
         <AppButton title="Vazgeç" variant="ghost" size="sm" onPress={onCancel} testID="cari-pay-3d-cancel" />
       </View>
       <WebView
-        source={{ html, baseUrl: API_BASE_URL }}
+        source={source}
         originWhitelist={["*"]}
         onNavigationStateChange={onNav}
+        onOpenWindow={(e) => {
+          const url = e.nativeEvent.targetUrl;
+          // eslint-disable-next-line no-console -- yalnız geliştirmede (parametresiz adres)
+          if (__DEV__) console.info("[cari-3d] yeni pencere", safeUrl(url));
+          if (url) setSource({ uri: url });
+        }}
         javaScriptEnabled
         // Ödeme sayfası çerez/oturum dışında bir şey saklamasın
         incognito
@@ -306,6 +317,11 @@ function BankVerification({ html, onReturned, onCancel }: { html: string; onRetu
       />
     </View>
   );
+}
+
+/** Geliştirme kaydı için: yalnız alan adı + yol (parametrelerde ödeme bilgisi olabilir) */
+function safeUrl(url: string | undefined): string {
+  return (url ?? "").split(/[?#]/)[0];
 }
 
 /** Sonuç: sunucudaki kayıt sorgulanır (bekliyorsa kısa süre yeniden denenir) */
