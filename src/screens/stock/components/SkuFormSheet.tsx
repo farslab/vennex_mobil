@@ -347,7 +347,9 @@ function SkuForm({ visible, onClose, sku }: SkuFormSheetProps) {
       <AppConfirmSheet
         visible={deleteOpen}
         title="Ürünü sil"
-        message="Ürüne ait tüm lokasyon bakiyeleri ve hareket geçmişi de silinir. Reçete veya rotada kullanılan ürün silinemeyebilir."
+        // Sunucu hareket geçmişi olan SKU'yu reddeder (views/stock.py:370-377, 400 + detail);
+        // ret mesajı `deleteError` ile onay sayfasında gösterilir.
+        message="Stok hareket geçmişi olan ürün silinemez. Reçete veya rotada kullanılan ürün de silinemeyebilir."
         summary={sku ? [{ label: "Ürün", value: sku.name }, { label: "SKU kodu", value: sku.sku_code }] : []}
         confirmLabel="Sil"
         destructive

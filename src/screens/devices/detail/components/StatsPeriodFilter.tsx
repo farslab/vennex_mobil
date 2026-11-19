@@ -53,6 +53,20 @@ export function statsPresetRange(preset: Exclude<StatsPreset, "custom">, now: Da
   }
 }
 
+/** Hızlı seçimler (web sırası) — Satışlar sekmesi de aynı listeyi kullanır */
+export const STATS_PRESET_OPTIONS: { key: StatsPreset; label: string }[] = (Object.keys(PRESET_LABELS) as StatsPreset[]).map((key) => ({
+  key,
+  label: PRESET_LABELS[key],
+}));
+
+/**
+ * Sorguda kullanılacak aralık: hızlı seçimde her çağrıda `now`dan yeniden hesaplanır (gece yarısından
+ * sonra "Bugün" dünde donmaz); yalnız özel aralık saklanan değeri kullanır.
+ */
+export function resolveStatsRange(f: Pick<StatsFilter, "preset" | "range">, now: Date = new Date()): CustomRange {
+  return f.preset === "custom" ? f.range : statsPresetRange(f.preset, now);
+}
+
 export function defaultStatsFilter(now: Date = new Date()): StatsFilter {
   return { preset: "today", range: statsPresetRange("today", now), startTime: "", endTime: "" };
 }

@@ -5,7 +5,7 @@
  *   (dashboard_v2/capabilities.py — web ile aynı kural); her biri AppConfirmSheet arkasında.
  * - Yanıttaki `_warnings` kullanıcıya gösterilir.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -37,9 +37,21 @@ import { deviceLocationOptionsKey } from "../../list/DeviceFiltersSheet";
 import { OperatingHoursEditor } from "../components/OperatingHoursEditor";
 import { buildSettingsPatch, formFromDetail, isDirty, type SettingsForm } from "../settingsForm";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { useInvalidateDevices, type DeviceAccess } from "../useDeviceQueries";
 
-export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDeviceDetail; access: DeviceAccess }) {
+export function SettingsTab({
+  sn,
+  detail,
+  access,
+  onDirtyChange,
+}: {
+  sn: string;
+  detail: PosDeviceDetail;
+  access: DeviceAccess;
+  /** Kaydedilmemiş değişiklik durumu — ekran sekme değişiminde onay sorar (sekme kapanınca form kaybolur) */
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const styles = useStyles();
   const invalidate = useInvalidateDevices();
   const editable = access.manageSettings;
@@ -53,6 +65,10 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
   const dirty = isDirty(baseline, form);
   // Kaydedilmemiş ayar varken cihaz detayından çıkış onay ister
   useUnsavedChangesGuard(dirty);
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   // Sunucudan yeni detay gelirse ve kullanıcı düzenleme yapmıyorsa formu güncelle
   const [syncedDetail, setSyncedDetail] = useState(detail);
@@ -106,6 +122,9 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
       invalidate();
     },
   });
+
+  // Komut onayı tek uçuşlu: art arda dokunuş ikinci komutu göndermez
+  const confirmCommand = useSingleFlight(() => (command ? runCommand.mutateAsync(command) : Promise.resolve()));
 
   const submit = () => {
     const { patch, errors: errs } = buildSettingsPatch(baseline, form);
@@ -329,7 +348,7 @@ export function SettingsTab({ sn, detail, access }: { sn: string; detail: PosDev
         irreversible={activeCommand?.irreversible}
         loading={runCommand.isPending}
         error={runCommand.error ? errorMessage(runCommand.error) : null}
-        onConfirm={() => command && runCommand.mutate(command)}
+        onConfirm={confirmCommand}
         onCancel={() => setCommand(null)}
       />
     </View>

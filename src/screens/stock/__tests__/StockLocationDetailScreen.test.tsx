@@ -6,7 +6,21 @@ import { useAuthStore } from "@/store/authStore";
 import { makeUser, renderWithProviders } from "@/test/utils";
 import StockLocationDetailScreen from "@/screens/stock/StockLocationDetailScreen";
 import type { RootScreenProps } from "@/navigation/types";
-import { inventory, movement, skus } from "./fixtures";
+import { inventory, locations, movement, skus } from "./fixtures";
+
+// Form sheet'in aldığı prop'ları kaydeder (kapanışta modun korunduğunu doğrulamak için); gerçek bileşen çizilir
+const sheetProps: { visible: boolean; mode: string }[] = [];
+jest.mock("@/screens/stock/components/MovementFormSheet", () => {
+  const actual = jest.requireActual("@/screens/stock/components/MovementFormSheet");
+  const R = jest.requireActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    MovementFormSheet: (p: { visible: boolean; mode: string }) => {
+      sheetProps.push({ visible: p.visible, mode: p.mode });
+      return R.createElement(actual.MovementFormSheet, p);
+    },
+  };
+});
 
 const setOptions = jest.fn();
 const props = (locationId: number, name?: string) =>
@@ -65,6 +79,41 @@ describe("StockLocationDetailScreen", () => {
     await screen.findByText("120 adet");
     expect(screen.queryByTestId("detail-transfer")).toBeNull();
     expect(screen.queryByTestId("detail-adjustment")).toBeNull();
+  });
+
+  it("hareket formu kapanırken son modu korur (Transfer olarak yeniden mount olmaz)", async () => {
+    mock.onGet("/stock/locations/").reply(200, { results: locations });
+    mock.onGet(/\/stock\/locations\/\d+\/inventory\//).reply(200, inventory(1));
+    await renderWithProviders(<StockLocationDetailScreen {...props(1)} />);
+    await screen.findByText("120 adet");
+
+    await fireEvent.press(screen.getByTestId("detail-adjustment"));
+    expect(await screen.findByText("Stok Düzeltme")).toBeOnTheScreen();
+    sheetProps.length = 0;
+
+    await fireEvent.press(screen.getByText("Vazgeç"));
+    await waitFor(() => expect(sheetProps.some((p) => !p.visible)).toBe(true));
+    // Kapanış render'larında mod "adjustment" kalır
+    expect(sheetProps.filter((p) => !p.visible).every((p) => p.mode === "adjustment")).toBe(true);
+    // "Transfer" yalnız aksiyon butonunda; form başlığı olarak yeniden çizilmez
+    expect(screen.queryAllByText("Transfer", { includeHiddenElements: true })).toHaveLength(1);
+  });
+
+  it("pasif lokasyonda hareket butonlarını gizler ve ipucu gösterir", async () => {
+    mock.onGet("/stock/locations/2/inventory/").reply(200, { ...inventory(2), location: { ...locations[1], is_active: false } });
+    await renderWithProviders(<StockLocationDetailScreen {...props(2)} />);
+    expect(await screen.findByText("Pasif lokasyonda stok hareketi yapılamaz. Hareket için lokasyonu Lokasyonlar sekmesinden aktif yapın.")).toBeOnTheScreen();
+    expect(screen.getByText("Pasif")).toBeOnTheScreen();
+    expect(screen.queryByTestId("detail-transfer")).toBeNull();
+    expect(screen.queryByTestId("detail-receipt")).toBeNull();
+    expect(screen.queryByTestId("detail-adjustment")).toBeNull();
+  });
+
+  it("aktif lokasyonda pasif ipucu gösterilmez", async () => {
+    mock.onGet("/stock/locations/1/inventory/").reply(200, inventory(1));
+    await renderWithProviders(<StockLocationDetailScreen {...props(1)} />);
+    await screen.findByText("120 adet");
+    expect(screen.queryByText(/Pasif lokasyonda stok hareketi/)).toBeNull();
   });
 
   it("boş envanter ve hata/tekrar dene durumları", async () => {

@@ -147,6 +147,18 @@ export function stopPushListeners() {
   unsubscribers = [];
 }
 
+/**
+ * Oturum sunucuda düştüğünde (kayıt silme isteği artık yapılamaz): dinleyicileri kapatır ve yerel
+ * FCM token'ını siler — FCM token'ı geçersizleşir, eski kullanıcının bildirimleri bu cihaza gelmez.
+ */
+export async function dropPushLocally(): Promise<void> {
+  stopPushListeners();
+  currentUser = null;
+  if (!isSupported()) return;
+  await AsyncStorage.removeItem(REGISTERED_TOKEN_KEY).catch(() => {});
+  await deleteToken(getMessaging()).catch(() => {});
+}
+
 /** Çıkıştan ÖNCE çağrılır (kayıt silme isteği oturum token'ı ister) */
 export async function stopPush(): Promise<void> {
   stopPushListeners();

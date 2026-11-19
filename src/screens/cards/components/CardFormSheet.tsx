@@ -96,12 +96,25 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
     queryFn: ({ signal }) => cardsApi.groups.list({}, signal),
     enabled: visible,
   });
+  /**
+   * Kartın, kullanıcının göremediği (yetki kapsamı dışındaki) grupları. Backend PATCH'te bunları her
+   * durumda korur (views/personnel_cards.py: kept_groups) → formda kaldırılabilir gösterilmez.
+   */
+  const fixedGroups = useMemo(() => {
+    if (!groupsQuery.data) return [];
+    const visibleIds = new Set(groupsQuery.data.map((g) => g.id));
+    return (card?.groups ?? []).filter((g) => !visibleIds.has(g.id));
+  }, [groupsQuery.data, card]);
+  const fixedIds = useMemo(() => new Set(fixedGroups.map((g) => g.id)), [fixedGroups]);
+
   const groupOptions = useMemo(() => {
     const opts = (groupsQuery.data ?? []).map((g) => ({ value: g.id, label: g.name, description: `${g.active_cards_count} aktif kart` }));
-    // Kapsam dışı (görülemeyen) mevcut gruplar da seçili kalabilsin
-    for (const g of card?.groups ?? []) if (!opts.some((o) => o.value === g.id)) opts.push({ value: g.id, label: g.name, description: "" });
+    // Grup listesi alınamadıysa mevcut gruplar yine seçili görünsün
+    if (!groupsQuery.data)
+      for (const g of card?.groups ?? []) if (!opts.some((o) => o.value === g.id)) opts.push({ value: g.id, label: g.name, description: "" });
     return opts;
   }, [groupsQuery.data, card]);
+  const editableGroupIds = form.group_ids.filter((id) => !fixedIds.has(id));
 
   const mutation = useLockedMutation({
     mutationFn: (payload: CardCreatePayload | CardUpdatePayload) =>
@@ -131,7 +144,8 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
   const submit = () => {
     const { errors: errs, balance } = validate(form, isCreate, canChangeBalance);
     // Kart grubu kısıtlı teknisyen: kart bir grubuna bağlanmalı (backend 400, web formu zorunlu tutar)
-    if (scopeRestricted && form.group_ids.length === 0) errs.group_ids = "Yetkili olduğunuz bir grup seçin.";
+    // Kapsam dışı (sabit) gruplar sayılmaz: backend yetkili gruplardan en az birini ister.
+    if (scopeRestricted && editableGroupIds.length === 0) errs.group_ids = "Yetkili olduğunuz bir grup seçin.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     mutation.reset();
@@ -216,8 +230,9 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
         multiple
         label="Kart grupları"
         required={scopeRestricted}
-        value={form.group_ids}
-        onChange={(v) => set("group_ids", v)}
+        value={editableGroupIds}
+        // Sabit (kapsam dışı) gruplar seçimden bağımsız olarak korunur
+        onChange={(v) => set("group_ids", [...form.group_ids.filter((id) => fixedIds.has(id)), ...v])}
         options={groupOptions}
         loading={groupsQuery.isLoading}
         error={errors.group_ids ?? (groupsQuery.isError ? "Gruplar yüklenemedi." : null)}
@@ -225,6 +240,13 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
         sheetTitle="Kart grupları"
         searchable
       />
+      {fixedGroups.length > 0 ? (
+        <AppNotice
+          tone="info"
+          title="Değiştirilemeyen gruplar"
+          message={`${fixedGroups.map((g) => g.name).join(", ")}: yetki kapsamınız dışında; kartta korunur, buradan kaldırılamaz.`}
+        />
+      ) : null}
       {isCreate && canChangeBalance ? (
         <AppInput
           label="Başlangıç bakiyesi"

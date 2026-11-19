@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { AppBadge, AppCard, AppEmptyState, AppText, makeStyles, useTheme } from "@/design-system";
+import { AppBadge, AppEmptyState, AppIcon, AppText, makeStyles, useTheme } from "@/design-system";
+import { DashSection } from "./DashSection";
 import { ptBadge } from "@/components/devices/deviceHelpers";
 import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import { formatCurrency } from "@/utils/number";
@@ -23,9 +24,9 @@ export function RecentTransactionsCard({
   onOpenDevice: (sn: string, name?: string) => void;
 }) {
   const styles = useStyles();
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
   return (
-    <AppCard title="Son işlemler" padded={false} testID="recent-transactions">
+    <DashSection title="Son işlemler" padded={false} testID="recent-transactions">
       {items.length === 0 ? (
         <AppEmptyState compact icon="list" title="Bu dönemde işlem yok" />
       ) : (
@@ -38,8 +39,11 @@ export function RecentTransactionsCard({
             const sn = tx.sn;
             const body = (
               <>
+                <View style={[styles.statusTile, { backgroundColor: tx.status ? colors.successSubtle : colors.dangerSubtle }]}>
+                  <AppIcon name={tx.status ? "check" : "x"} size={15} color={tx.status ? "success" : "danger"} />
+                </View>
                 <View style={styles.flex}>
-                  <AppText variant="callout" numberOfLines={1}>
+                  <AppText variant="calloutStrong" numberOfLines={1}>
                     {title}
                   </AppText>
                   <AppText variant="caption" color="textTertiary" numberOfLines={1}>
@@ -49,7 +53,7 @@ export function RecentTransactionsCard({
                   </AppText>
                 </View>
                 <View style={styles.right}>
-                  <AppText variant="numeric" color={tx.status ? "text" : "textTertiary"}>
+                  <AppText variant="numeric" weight="700" color={tx.status ? "text" : "textTertiary"}>
                     {formatCurrency(tx.amount)}
                   </AppText>
                   <View style={styles.badges}>
@@ -80,14 +84,15 @@ export function RecentTransactionsCard({
           })}
         </ScrollView>
       )}
-    </AppCard>
+    </DashSection>
   );
 }
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1, minWidth: 0 },
-    list: { marginTop: -t.spacing.xs, maxHeight: VISIBLE_ROWS_HEIGHT },
+    // Kart köşeleri yuvarlak; kaydırılan satırlar köşeden taşmasın
+    list: { maxHeight: VISIBLE_ROWS_HEIGHT, borderRadius: 16, overflow: "hidden" },
     badges: { flexDirection: "row", gap: 4 },
     row: {
       flexDirection: "row",
@@ -100,5 +105,6 @@ const useStyles = makeStyles((t) =>
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.colors.border },
     pressed: { backgroundColor: t.colors.surfacePressed },
     right: { alignItems: "flex-end", gap: 2, maxWidth: "45%" },
+    statusTile: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   })
 );

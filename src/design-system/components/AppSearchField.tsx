@@ -33,7 +33,14 @@ export function AppSearchField({ value, onChangeText, placeholder = "Ara", ...re
         style={[styles.input, { color: colors.text }]}
       />
       {value.length > 0 ? (
-        <Pressable onPress={() => onChangeText("")} hitSlop={10} accessibilityRole="button" accessibilityLabel="Aramayı temizle">
+        <Pressable
+          onPress={() => onChangeText("")}
+          // 16pt ikon + 2×14 → 44pt dokunma alanı
+          hitSlop={14}
+          accessibilityRole="button"
+          accessibilityLabel="Aramayı temizle"
+          testID="search-clear"
+        >
           <AppIcon name="x-circle" size={16} color="textTertiary" />
         </Pressable>
       ) : null}

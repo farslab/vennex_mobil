@@ -16,7 +16,8 @@ import { ptBadge, ptTypeLabel } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger, formatPercent, percentChange } from "@/utils/number";
 import { formatDateTime } from "@/utils/date";
 import { useDeviceSummary, useRevenueCounts } from "../useDeviceQueries";
-import { defaultStatsFilter, StatsPeriodFilter, type StatsFilter } from "../components/StatsPeriodFilter";
+import { defaultStatsFilter, resolveStatsRange, StatsPeriodFilter, type StatsFilter } from "../components/StatsPeriodFilter";
+import { useBusinessDay } from "../useBusinessDay";
 import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import type { DeviceStatsParams } from "@/types/devices";
 
@@ -26,9 +27,12 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
   const summary = useDeviceSummary(sn, true);
   const counts = useRevenueCounts(sn, true);
   const [filter, setFilter] = useState<StatsFilter>(() => defaultStatsFilter());
+  // Hızlı seçim aralığı her çizimde bugünden yeniden hesaplanır (gece yarısı sonrası "Bugün" donmaz)
+  useBusinessDay();
+  const range = resolveStatsRange(filter);
   const params: DeviceStatsParams = {
-    start_date: filter.range.start,
-    end_date: filter.range.end,
+    start_date: range.start,
+    end_date: range.end,
     ...(filter.startTime ? { start_time: filter.startTime } : {}),
     ...(filter.endTime ? { end_time: filter.endTime } : {}),
   };

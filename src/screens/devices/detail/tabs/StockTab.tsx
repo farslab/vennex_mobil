@@ -26,6 +26,7 @@ import {
 import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { FillBar } from "@/components/devices/DeviceUi";
 import { deviceFillInfo, productDisplayName, slotFill, slotLabel } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger } from "@/utils/number";
@@ -125,6 +126,10 @@ export function StockTab({
       invalidate(true);
     },
   });
+
+  // Onaylı işlemler tek uçuşlu: yeniden çizimden önce gelen ikinci dokunuş ikinci isteği göndermez
+  const confirmFillAll = useSingleFlight(fillAll.mutateAsync);
+  const confirmUnassign = useSingleFlight(unassign.mutateAsync);
 
   const estimate = useMemo(() => fillAllEstimate(data?.items ?? []), [data?.items]);
   const fill = deviceFillInfo(data?.fill);
@@ -345,7 +350,7 @@ export function StockTab({
             irreversible
             loading={fillAll.isPending}
             error={fillAll.error ? errorMessage(fillAll.error) : null}
-            onConfirm={() => fillAll.mutate()}
+            onConfirm={confirmFillAll}
             onCancel={() => setFillConfirm(false)}
           />
         </>
@@ -374,7 +379,7 @@ export function StockTab({
             destructive
             loading={unassign.isPending}
             error={unassign.error ? errorMessage(unassign.error) : null}
-            onConfirm={() => unassign.mutate()}
+            onConfirm={confirmUnassign}
             onCancel={() => {
               setUnassignConfirm(false);
               unassign.reset();

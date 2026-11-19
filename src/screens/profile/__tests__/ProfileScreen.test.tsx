@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { useAuthStore } from "@/store/authStore";
-import { useThemePreference } from "@/design-system";
+import { useThemePreference, useToastStore } from "@/design-system";
 import ProfileScreen from "@/screens/profile/ProfileScreen";
 import { createTestQueryClient, makeUser, renderWithProviders } from "@/test/utils";
 import { queryKeys } from "@/api/queryKeys";
@@ -73,6 +73,15 @@ describe("ProfileScreen", () => {
     await fireEvent.press(screen.getByTestId("row-logout"));
     await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
     await waitFor(() => expect(mockLogout).toHaveBeenCalledTimes(1));
+  });
+
+  it("çıkış beklenmedik hata verirse işlenmemiş ret olmaz, kullanıcıya bildirilir", async () => {
+    mockLogout.mockRejectedValueOnce(new Error("ağ"));
+    await renderWithProviders(<ProfileScreen />);
+    await fireEvent.press(screen.getByTestId("row-logout"));
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    await waitFor(() => expect(useToastStore.getState().current?.tone).toBe("danger"));
+    useToastStore.setState({ current: null });
   });
 
   it("tema tercihini değiştirir", async () => {

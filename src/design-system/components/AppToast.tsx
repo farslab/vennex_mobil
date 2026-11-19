@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Animated, Pressable, StyleSheet } from "react-native";
+import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import { makeStyles, useTheme } from "../theme";
@@ -18,8 +18,31 @@ let nextId = 1;
 
 export const useToastStore = create<ToastState>((set) => ({
   current: null,
-  show: (message, tone = "success") => set({ current: { id: nextId++, message, tone } }),
+  show: (message, tone = "success") => {
+    set({ current: { id: nextId++, message, tone } });
+    // iOS VoiceOver canlı bölgeyi (accessibilityLiveRegion) desteklemez → açıkça duyur
+    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(message);
+  },
   hide: () => set({ current: null }),
+}));
+
+/**
+ * Toast'ı gösterecek konak yığını. RN `Modal` ayrı bir pencerede çizilir; kökteki konak açık bir
+ * alttan sayfanın (AppSheet) altında kalır. Bu yüzden açık her sayfa kendi Modal'ının içinde bir
+ * konak kaydeder; toast en üstteki (en son açılan) konakta, hiç sayfa yoksa kökte çizilir.
+ */
+interface ToastHostState {
+  hosts: number[];
+  register: (id: number) => void;
+  unregister: (id: number) => void;
+}
+
+export const ROOT_TOAST_HOST = 0;
+
+export const useToastHostStore = create<ToastHostState>((set) => ({
+  hosts: [],
+  register: (id) => set((s) => (s.hosts.includes(id) ? s : { hosts: [...s.hosts, id] })),
+  unregister: (id) => set((s) => (s.hosts.includes(id) ? { hosts: s.hosts.filter((h) => h !== id) } : s)),
 }));
 
 /** Bileşen dışından da çağrılabilir: toast.success("Kaydedildi") */
@@ -29,9 +52,14 @@ export const toast = {
   info: (message: string) => useToastStore.getState().show(message, "info"),
 };
 
-/** Uygulama kökünde bir kez render edilir */
-export function AppToastHost() {
-  const current = useToastStore((s) => s.current);
+/**
+ * Uygulama kökünde bir kez render edilir (`hostId` verilmeden). AppSheet kendi Modal'ında
+ * `hostId` ile render eder; yalnız en üstteki konak toast'ı çizer.
+ */
+export function AppToastHost({ hostId = ROOT_TOAST_HOST }: { hostId?: number } = {}) {
+  const isTopHost = useToastHostStore((s) => (s.hosts.length ? s.hosts[s.hosts.length - 1] : ROOT_TOAST_HOST) === hostId);
+  const storeCurrent = useToastStore((s) => s.current);
+  const current = isTopHost ? storeCurrent : null;
   const hide = useToastStore((s) => s.hide);
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();

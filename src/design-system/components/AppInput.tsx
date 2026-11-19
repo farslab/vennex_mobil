@@ -16,10 +16,12 @@ export interface AppInputProps extends Omit<TextInputProps, "style" | "editable"
   required?: boolean;
   /** Sağ tarafta sabit sonek (₺, adet vb.) */
   suffix?: string;
+  /** Çok satırlı alanın en küçük yüksekliği (pt); metin üstten başlar */
+  minInputHeight?: number;
 }
 
 export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
-  { label, error, helper, icon, secure, disabled, required, suffix, onFocus, onBlur, ...rest },
+  { label, error, helper, icon, secure, disabled, required, suffix, minInputHeight, onFocus, onBlur, ...rest },
   ref
 ) {
   const { colors } = useTheme();
@@ -62,7 +64,11 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
             setFocused(false);
             onBlur?.(e);
           }}
-          style={[styles.input, { color: disabled ? colors.textDisabled : colors.text }]}
+          style={[
+            styles.input,
+            { color: disabled ? colors.textDisabled : colors.text },
+            minInputHeight ? { minHeight: minInputHeight, textAlignVertical: "top", alignSelf: "stretch" } : null,
+          ]}
         />
         {suffix ? (
           <AppText variant="callout" color="textTertiary">

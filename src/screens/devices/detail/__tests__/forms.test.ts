@@ -3,6 +3,7 @@ import { buildProductPayload, type SlotFormState } from "@/screens/devices/detai
 import { validateBulk } from "@/screens/devices/detail/components/BulkQuantitiesSheet";
 import { fillAllEstimate } from "@/screens/devices/detail/tabs/StockTab";
 import { toTransactionFilters, type SalesFilterState } from "@/screens/devices/detail/tabs/SalesTab";
+import { resolveStatsRange } from "@/screens/devices/detail/components/StatsPeriodFilter";
 import { normalizeDeviceDetail } from "@/api/devices";
 import type { PosProduct } from "@/types/devices";
 
@@ -164,6 +165,27 @@ describe("satış filtreleri", () => {
       cancel_reason: undefined,
       card_last4: undefined,
     });
+  });
+
+  it("hızlı seçimler web/İstatistikler ile aynı: Bu Hafta pazartesiden, Geçen Ay tam ay", () => {
+    // 18.11.2026 çarşamba
+    expect(toTransactionFilters({ ...base, preset: "this_week" }, "", now)).toMatchObject({ start_date: "2026-11-16", end_date: "2026-11-18" });
+    expect(toTransactionFilters({ ...base, preset: "this_month" }, "", now)).toMatchObject({ start_date: "2026-11-01", end_date: "2026-11-18" });
+    expect(toTransactionFilters({ ...base, preset: "last_month" }, "", now)).toMatchObject({ start_date: "2026-10-01", end_date: "2026-10-31" });
+    expect(toTransactionFilters({ ...base, preset: "yesterday" }, "", now)).toMatchObject({ start_date: "2026-11-17", end_date: "2026-11-17" });
+    expect(
+      toTransactionFilters({ ...base, preset: "custom", customStart: new Date(2026, 9, 3), customEnd: new Date(2026, 9, 9) }, "", now)
+    ).toMatchObject({ start_date: "2026-10-03", end_date: "2026-10-09" });
+  });
+
+  it("'Bugün' sorgu anında hesaplanır: gece yarısından sonra yeni güne geçer (TR saati)", () => {
+    const beforeMidnight = new Date("2026-11-18T20:59:00Z"); // TR 23:59
+    const afterMidnight = new Date("2026-11-18T21:01:00Z"); // TR 00:01 (19.11)
+    expect(toTransactionFilters(base, "", beforeMidnight)).toMatchObject({ start_date: "2026-11-18", end_date: "2026-11-18" });
+    expect(toTransactionFilters(base, "", afterMidnight)).toMatchObject({ start_date: "2026-11-19", end_date: "2026-11-19" });
+    expect(resolveStatsRange({ preset: "today", range: { start: "2026-11-18", end: "2026-11-18" } }, afterMidnight)).toEqual({ start: "2026-11-19", end: "2026-11-19" });
+    // özel aralık saklandığı gibi kalır
+    expect(resolveStatsRange({ preset: "custom", range: { start: "2026-10-01", end: "2026-10-02" } }, afterMidnight)).toEqual({ start: "2026-10-01", end: "2026-10-02" });
   });
 
   it("hata nedeni yalnız başarısız durumda; kart son 4 yalnız 4 hane ise", () => {

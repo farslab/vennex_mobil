@@ -1,6 +1,6 @@
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import { useAuthStore } from "@/store/authStore";
 import { makeUser, renderWithProviders } from "@/test/utils";
@@ -93,7 +93,8 @@ describe("DashboardScreen", () => {
 
     expect(await screen.findByText("₺12.345,50")).toBeOnTheScreen();
     expect(screen.getByText(/%23,5/)).toBeOnTheScreen();
-    expect(screen.getByText("4 çevrimiçi · 2 çevrimdışı")).toBeOnTheScreen();
+    expect(screen.getByText("4 çevrimiçi")).toBeOnTheScreen();
+    expect(screen.getByText("2 çevrimdışı")).toBeOnTheScreen();
     expect(screen.getByTestId("top-device-SN-TOP-1")).toBeOnTheScreen();
     expect(screen.getByText("Başarısızlık nedenleri")).toBeOnTheScreen();
     expect(screen.queryByText(/Grup Dağılımı/)).toBeNull();
@@ -241,7 +242,7 @@ describe("DashboardScreen", () => {
     expect(dashboardGets(mock).filter((r) => r.params.location_ids === undefined)).toHaveLength(1);
   });
 
-  it("web gibi: teknik hata veren cihazlar ana sayfada değil, 'Teknik hata' satırından alttan açılır", async () => {
+  it("web gibi: teknik iptal veren cihazlar ana sayfada değil, 'Teknik iptal' satırından alttan açılır", async () => {
     mock.onGet("/overview/dashboard/").reply(
       200,
       salesBundle({
@@ -252,11 +253,11 @@ describe("DashboardScreen", () => {
     );
     await renderWithProviders(<DashboardScreen />);
     await screen.findByText("₺12.345,50");
-    expect(screen.queryByText("Teknik hata veren POS cihazları")).toBeNull();
+    expect(screen.queryByText("Teknik İptal — POS Dağılımı")).toBeNull();
 
     await fireEvent.press(screen.getByTestId("failure-technical"));
-    expect(await screen.findByText("Teknik hata veren POS cihazları")).toBeOnTheScreen();
-    expect(screen.getByText("7 POS cihazı · 49 teknik hata")).toBeOnTheScreen();
+    expect(await screen.findByText("Teknik İptal — POS Dağılımı")).toBeOnTheScreen();
+    expect(screen.getByText("7 POS cihazı · 49 teknik iptal")).toBeOnTheScreen();
     expect(screen.getByTestId("technical-error-SN-E6")).toBeOnTheScreen(); // ilk 5 ile sınırlı değil
 
     jest.useFakeTimers();
@@ -290,14 +291,65 @@ describe("DashboardScreen", () => {
     });
     await renderWithProviders(<DashboardScreen />);
     await screen.findByText("₺12.345,50");
-    expect(mock.history.get.some((r) => r.url === "/overview/personel-groups/")).toBe(false); // açılmadan istek yok
-
-    await fireEvent.press(screen.getByTestId("payment-personel"));
+    // Web gibi: satır yalnız grup kırılımı boş değilse bağlantı → kırılım (Personel Kart cirosu varken) önceden istenir
+    await fireEvent.press(await screen.findByTestId("payment-personel"));
     expect(await screen.findByText("Muhasebe")).toBeOnTheScreen();
     expect(screen.getByText("12 kart · 50 işlem")).toBeOnTheScreen();
     expect(screen.getByText("Toplam ₺3.000,00")).toBeOnTheScreen();
     const req = mock.history.get.find((r) => r.url === "/overview/personel-groups/");
     expect(req?.params).toEqual({ period: "today" });
+  });
+
+  it("web gibi: grup kırılımı boşsa Personel Kart satırı bağlantı değildir", async () => {
+    mock.onGet("/overview/dashboard/").reply(
+      200,
+      salesBundle({
+        payment_breakdown: { results: [{ pt_type: 5, label: "Personel Kart", color: "#999", amount: 3000, count: 82 }] },
+      })
+    );
+    mock.onGet("/overview/personel-groups/").reply(200, { total: 0, groups: [] });
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    await waitFor(() => expect(mock.history.get.some((r) => r.url === "/overview/personel-groups/")).toBe(true));
+    expect(screen.getByText("Personel Kart")).toBeOnTheScreen();
+    expect(screen.queryByTestId("payment-personel")).toBeNull();
+  });
+
+  it("Personel Kart cirosu yoksa grup kırılımı istenmez", async () => {
+    mock.onGet("/overview/dashboard/").reply(200, salesBundle());
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    expect(mock.history.get.some((r) => r.url === "/overview/personel-groups/")).toBe(false);
+  });
+
+  it("web etiketleri: KPI, grafik, ödeme türü ve en çok satan başlıkları", async () => {
+    mock.onGet("/overview/dashboard/").reply(200, salesBundle());
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    for (const t of ["Toplam Ciro", "Toplam İşlem", "Ödeme Türüne Göre", "En Çok Satan Cihazlar"]) {
+      expect(screen.getByText(t)).toBeOnTheScreen();
+    }
+    // Önceki dönem cirosu kısaltılmadan (web turkish_currency)
+    expect(screen.getByText("Dün bu saatte: ₺10.000,00")).toBeOnTheScreen();
+  });
+
+  it("pull-to-refresh: bekleme süresi içinde nocache'siz normal istek atar ve göstergeyi kapatır", async () => {
+    mock.onGet("/overview/dashboard/").reply(200, salesBundle());
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    const pull = async () => {
+      const refreshControl = screen.getByTestId("dashboard-screen-scroll").props.refreshControl;
+      await act(async () => {
+        await refreshControl.props.onRefresh();
+      });
+    };
+    await pull();
+    await pull();
+    const gets = dashboardGets(mock);
+    expect(gets).toHaveLength(3);
+    expect(gets[1].params.nocache).toBe(1);
+    expect(gets[2].params.nocache).toBeUndefined();
+    expect(screen.getByTestId("dashboard-screen-scroll").props.refreshControl.props.refreshing).toBe(false);
   });
 
   /** Son setOptions çağrısındaki başlığı çizip içindeki Excel düğmesini döndürür */

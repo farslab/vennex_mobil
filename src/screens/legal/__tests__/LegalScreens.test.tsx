@@ -57,14 +57,14 @@ describe("LegalConsentGateScreen", () => {
       .replyOnce(200, makeUser({ pending_legal_docs: [] }));
 
     await renderWithProviders(<LegalConsentGateScreen />, { queryClient: makeClient() });
-    expect(await screen.findByText("Yasal onay · Adım 1/2")).toBeOnTheScreen();
+    expect(await screen.findByText("YASAL ONAY · ADIM 1/2")).toBeOnTheScreen();
     expect(await screen.findByText("Sürüm 3 · Güncelleme 01.10.2026")).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByTestId("legal-gate-accept"));
     await waitFor(() => expect(useAuthStore.getState().user?.pending_legal_docs).toEqual(["terms"]));
     expect(JSON.parse(mock.history.post[0].data)).toEqual({ slug: "kvkk", version: 3 });
 
-    expect(await screen.findByText("Yasal onay · Adım 2/2")).toBeOnTheScreen();
+    expect(await screen.findByText("YASAL ONAY · ADIM 2/2")).toBeOnTheScreen();
     await screen.findByText("Sürüm 5 · Güncelleme 01.10.2026");
     await fireEvent.press(screen.getByTestId("legal-gate-accept"));
     await waitFor(() => expect(useAuthStore.getState().user?.pending_legal_docs).toEqual([]));

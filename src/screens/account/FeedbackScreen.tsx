@@ -85,6 +85,7 @@ export default function FeedbackScreen() {
             label="Mesajınız"
             required
             multiline
+            minInputHeight={140}
             value={message}
             onChangeText={(v) => {
               setMessage(v);

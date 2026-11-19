@@ -25,6 +25,27 @@ export interface AppTextProps extends TextProps {
   weight?: TextStyle["fontWeight"];
 }
 
+/** Türkçe büyük harf: i→İ, ı→I (motorun yerel ayar desteğine bağlı kalmadan) */
+export function toUpperTr(text: string): string {
+  return text.replace(/i/g, "İ").replace(/ı/g, "I").toUpperCase();
+}
+
+/** Büyük harfli varyantlar (eskiden `textTransform: "uppercase"`) */
+const UPPERCASE_VARIANTS: ReadonlySet<TypographyVariant> = new Set<TypographyVariant>(["overline"]);
+
+function upperChildren(children: React.ReactNode): React.ReactNode {
+  return React.Children.map(children, (c) =>
+    typeof c === "string" ? toUpperTr(c) : typeof c === "number" ? toUpperTr(String(c)) : c
+  );
+}
+
+/** Yalnız düz metin çocuklardan (iç içe öğe yoksa) okunabilir etiket */
+function plainText(children: React.ReactNode): string | null {
+  const parts = React.Children.toArray(children);
+  if (!parts.every((c) => typeof c === "string" || typeof c === "number")) return null;
+  return parts.join("");
+}
+
 /** Tüm metinler bu bileşenden geçer — tipografi ve renk tema token'larından gelir */
 export function AppText({
   variant = "body",
@@ -33,13 +54,18 @@ export function AppText({
   weight,
   style,
   maxFontSizeMultiplier,
+  children,
+  accessibilityLabel,
   ...rest
 }: AppTextProps) {
   const theme = useTheme();
   const isNumeric = variant.startsWith("metric") || variant.startsWith("numeric");
+  const upper = UPPERCASE_VARIANTS.has(variant);
   return (
     <Text
       {...rest}
+      // Ekran okuyucu büyük harfli kısa kelimeyi harf harf okumasın: özgün metin etiket olur
+      accessibilityLabel={accessibilityLabel ?? (upper ? (plainText(children) ?? undefined) : undefined)}
       // Yoğun sayısal alanlarda büyük yazı tipi ayarı düzeni bozmasın
       maxFontSizeMultiplier={maxFontSizeMultiplier ?? (isNumeric ? 1.3 : 1.6)}
       style={[
@@ -49,6 +75,8 @@ export function AppText({
         weight ? { fontWeight: weight } : null,
         style,
       ]}
-    />
+    >
+      {upper ? upperChildren(children) : children}
+    </Text>
   );
 }

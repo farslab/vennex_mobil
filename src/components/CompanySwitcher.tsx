@@ -25,7 +25,8 @@ export function CompanySwitcher() {
         disabled={!switchable}
         accessibilityRole={switchable ? "button" : "text"}
         accessibilityLabel={`Şirket: ${selected.name}${switchable ? ", değiştirmek için dokunun" : ""}`}
-        hitSlop={6}
+        // Görünür yükseklik ~20pt (caption + 2pt dolgu) → dikey 12pt hitSlop ile 44pt dokunma alanı
+        hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
         style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
         testID="company-switcher"
       >

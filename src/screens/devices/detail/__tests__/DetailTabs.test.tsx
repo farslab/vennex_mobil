@@ -4,7 +4,8 @@
  */
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { AppState } from "react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import { normalizeDeviceDetail, normalizeDeviceTransaction } from "@/api/devices";
 import { useToastStore } from "@/design-system";
@@ -362,6 +363,39 @@ describe("StatsTab", () => {
     expect(await screen.findByText("Son sayımda ciro yok.")).toBeOnTheScreen();
   });
 
+  it("'Bugün' gece yarısından sonra donmaz: uygulama ön plana dönünce yeni günün aralığı istenir", async () => {
+    const listeners: ((s: string) => void)[] = [];
+    // RN jest ön ayarında AppState.addEventListener zaten jest.fn — mockRestore yerine eski davranışa dön
+    const originalAdd = AppState.addEventListener;
+    AppState.addEventListener = ((_t: string, fn: (s: string) => void) => {
+      listeners.push(fn);
+      return { remove: jest.fn() };
+    }) as unknown as typeof AppState.addEventListener;
+    // Yalnız saat sahte (zamanlayıcılar gerçek): TR 23:59, 18.11.2026
+    jest.useFakeTimers({
+      now: new Date("2026-11-18T20:59:00Z"),
+      doNotFake: ["hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate", "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout"],
+    });
+    try {
+      mock.onGet(`${base}/summary/`).reply(200, {});
+      mock.onGet(`${base}/stats/`).reply(200, statsBody);
+      mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
+      const { queryClient } = await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
+      await screen.findByLabelText("Ciro: ₺30,00");
+      expect(getsTo(mock, `${base}/stats/`)[0].params).toEqual({ start_date: "2026-11-18", end_date: "2026-11-18" });
+
+      jest.setSystemTime(new Date("2026-11-18T21:01:00Z")); // TR 00:01, 19.11
+      await act(async () => listeners.forEach((fn) => fn("active")));
+      await waitFor(() => expect(getsTo(mock, `${base}/stats/`).at(-1)?.params).toEqual({ start_date: "2026-11-19", end_date: "2026-11-19" }));
+      // ön plana dönüş diğer sorguları da (react-query focus) tazeleyebilir — test bitmeden otursun
+      await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+      expect(await screen.findByLabelText("Ciro: ₺30,00")).toBeOnTheScreen();
+    } finally {
+      jest.useRealTimers();
+      AppState.addEventListener = originalAdd;
+    }
+  });
+
   it("her bölüm kendi hatasını sunucu mesajıyla gösterir", async () => {
     mock.onGet(`${base}/summary/`).reply(500, { detail: "Sunucu hatası" });
     mock.onGet(`${base}/stats/`).reply(403, { detail: "Satışları görme yetkiniz yok." });
@@ -641,7 +675,7 @@ describe("İşlem detayı · fiş ve uzaktan iade (web ile aynı)", () => {
   const saleTx = normalizeDeviceTransaction({ id: 5, pt_id: "TX5", pt_datetime: localIso(2026, 11, 18, 8, 15), amount: "45.00", pt_type: 1, status: true });
   const state = (o: Record<string, unknown> = {}) => ({
     ok: true,
-    tx: { id: 5, amount: "45,00", status: true, iptal_no: null, datetime: "18.11.2026 08:15:00" },
+    tx: { id: 5, amount: "45.00", status: true, iptal_no: null, datetime: "18.11.2026 08:15:00" },
     receipts: [{ kind: "sale", label: "Satış fişi", text: "VENNEX OTOMAT\nTUTAR: 45,00 TL", created_at: "18.11.2026 08:15:02" }],
     has_sale_receipt: true,
     refund: null,
@@ -682,11 +716,59 @@ describe("İşlem detayı · fiş ve uzaktan iade (web ile aynı)", () => {
     await fireEvent.press(await screen.findByTestId("tx-refund"));
     expect(mock.history.post).toHaveLength(0); // onay olmadan istek yok
     expect(screen.getByText("Bu işlem geri alınamaz.")).toBeOnTheScreen();
+    // onay özetindeki tutar Türkçe para biçiminde (detaydaki tutarla aynı): "₺45.00" değil
+    expect(screen.getAllByText("₺45,00")).toHaveLength(2);
     await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
     await waitFor(() => expect(mock.history.post.map((r) => r.url)).toEqual([refundUrl]));
     expect(await screen.findByText("İade sürüyor")).toBeOnTheScreen();
     expect(await screen.findByText("Başarılı · Kartsız iade", {}, { timeout: 5000 })).toBeOnTheScreen();
     expect(screen.getByTestId("tx-refund-block")).toHaveTextContent("İşlem iade edilmiş.");
+  }, 15000);
+
+  it("iade onayı: yeniden çizim beklenmeden gelen art arda iki dokunuş tek iade isteği gönderir", async () => {
+    mock.onGet(receiptUrl).reply(200, state());
+    const d = deferred();
+    mock.onPost(refundUrl).reply(() => d.promise);
+    await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled />);
+
+    await fireEvent.press(await screen.findByTestId("tx-refund"));
+    const confirm = await screen.findByTestId("confirm-sheet-confirm");
+    jest.useFakeTimers();
+    try {
+      await fireEvent.press(confirm);
+      await fireEvent.press(confirm);
+      d.release([200, { ...state({ refund: req({ status: "failed", label: "Başarısız", poll: false }), can_refund: true }), message: "" }]);
+      await waitFor(() => expect(screen.queryByTestId("confirm-sheet-confirm")).toBeNull());
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(mock.history.post).toHaveLength(1);
+  });
+
+  const txListInvalidations = (spy: jest.SpyInstance) =>
+    spy.mock.calls.filter(([f]) => JSON.stringify((f as { queryKey?: unknown })?.queryKey) === JSON.stringify(["devices", "transactions", SN]));
+
+  it("zaten sonuçlanmış iade açılınca işlem listesi yeniden istenmez", async () => {
+    mock.onGet(receiptUrl).reply(200, state({ refund: req({ status: "ok", label: "Başarılı", poll: false }), can_refund: false, refund_block: "İşlem iade edilmiş." }));
+    const { queryClient } = await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled />);
+    const spy = jest.spyOn(queryClient, "invalidateQueries");
+    expect(await screen.findByText("Başarılı")).toBeOnTheScreen();
+    await act(() => queryClient.refetchQueries({ queryKey: ["devices", "tx-receipt", SN, 5] }));
+    expect(txListInvalidations(spy)).toHaveLength(0);
+  });
+
+  it.each([
+    ["failed", "İade başarısız"],
+    ["timeout", "Zaman aşımı"],
+    ["rejected", "Reddedildi"],
+  ])("iade bu görünümde '%s' ile sonuçlanınca listedeki satır (refund_label) tazelenir", async (status, label) => {
+    mock.onGet(receiptUrl).replyOnce(200, state({ refund: req(), can_refund: false }));
+    mock.onGet(receiptUrl).reply(200, state({ refund: req({ status, label, poll: false }), can_refund: false }));
+    const { queryClient } = await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled />);
+    const spy = jest.spyOn(queryClient, "invalidateQueries");
+    expect(await screen.findByText("İade sürüyor")).toBeOnTheScreen();
+    expect(await screen.findByText(label, {}, { timeout: 5000 })).toBeOnTheScreen();
+    await waitFor(() => expect(txListInvalidations(spy)).toHaveLength(1));
   }, 15000);
 
   it("kart bekleniyorsa uyarı ve geri sayım; kural dışıysa sunucu mesajı", async () => {
@@ -715,6 +797,9 @@ describe("SalesTab işlem kartı (web mobil görünümü)", () => {
     });
     await renderWithProviders(<SalesTab sn={SN} />);
     const card = await screen.findByTestId("tx-row-1");
+    // tarih hızlı seçimleri web ve İstatistikler sekmesiyle aynı
+    for (const label of ["Bugün", "Dün", "Bu Hafta", "Bu Ay", "Geçen Ay", "Özel aralık"]) expect(screen.getByText(label)).toBeOnTheScreen();
+    expect(screen.queryByText("Son 7 gün")).toBeNull();
     expect(within(card).getByText("4074")).toBeOnTheScreen();
     expect(within(card).getByText("Kredi Kartı")).toBeOnTheScreen();
     expect(within(card).getByText("Temassız")).toBeOnTheScreen();

@@ -37,6 +37,13 @@ describe("TwoFactorScreen", () => {
     expect(verify2FA).toHaveBeenCalledTimes(1);
   });
 
+  it("doğrulama beklenmedik hata fırlatırsa yakalanır ve gösterilir", async () => {
+    verify2FA.mockRejectedValueOnce(new Error("Sunucuya ulaşılamadı."));
+    await render(<TwoFactorScreen />);
+    await fireEvent.changeText(screen.getByTestId("otp-input"), "123456");
+    expect(await screen.findByText("Sunucuya ulaşılamadı.")).toBeOnTheScreen();
+  });
+
   it("store hata mesajını gösterir", async () => {
     useAuthStore.setState({ errorMessage: "Geçersiz kod." });
     await render(<TwoFactorScreen />);

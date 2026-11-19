@@ -19,6 +19,9 @@ import { centeredScreenLayout } from "./CenteredScreen";
 import { linking } from "./linking";
 import { flushPendingNavigation, navigationRef } from "./navigationRef";
 import { startPush, stopPushListeners } from "@/push/pushService";
+import { CariBanner } from "@/screens/cari/CariBanner";
+import { CariLockedScreen } from "@/screens/cari/CariLockedScreen";
+import { CariOverduePopup } from "@/screens/cari/CariOverduePopup";
 
 import LoginScreen from "@/screens/auth/LoginScreen";
 import TwoFactorScreen from "@/screens/auth/TwoFactorScreen";
@@ -37,8 +40,26 @@ const TAB_META: Record<keyof TabParamList, { title: string; icon: IconName }> = 
   Devices: { title: "POS Cihazları", icon: "pos" },
   Cards: { title: "Kartlar", icon: "credit-card" },
   Stock: { title: "Stok", icon: "package" },
-  Profile: { title: "Profil", icon: "user" },
+  Profile: { title: "Menü", icon: "menu" },
 };
+
+/**
+ * Şirket değişince sekme ekranı sıfırdan kurulur: önceki şirketin filtreleri, seçili kartları,
+ * sayaçları gibi yerel durum yeni şirkete taşınmaz (sekme ve gezinme durumu korunur).
+ */
+function companyScoped<P extends object>(Screen: React.ComponentType<P>): React.ComponentType<P> {
+  function CompanyScopedScreen(props: P) {
+    const companyId = useAuthStore((s) => s.selectedCompanyId);
+    return <Screen key={companyId ?? "none"} {...props} />;
+  }
+  CompanyScopedScreen.displayName = `CompanyScoped(${Screen.displayName ?? Screen.name ?? "Screen"})`;
+  return CompanyScopedScreen;
+}
+
+const DashboardTab = companyScoped(screenRegistry.Dashboard);
+const DevicesTab = companyScoped(screenRegistry.Devices);
+const CardsTab = companyScoped(screenRegistry.Cards);
+const StockTab = companyScoped(screenRegistry.Stock);
 
 function AppTabs() {
   const theme = useTheme();
@@ -49,12 +70,28 @@ function AppTabs() {
   const cardsVisible = moduleVisible(config?.modules, "cards", () => showCardsModule(user, company));
   const stockVisible = moduleVisible(config?.modules, "stock", () => showStockModule(user, company));
 
+  // Cari hesabı kilitli şirket: web gibi şirkete bağlı tüm ekranlar kapalı (sunucu da 403 döner)
+  if (config?.cari.locked) {
+    return (
+      <View style={[styles.flex, { backgroundColor: theme.colors.background }]}>
+        <TabHeader title="Hesap Kilitli" />
+        <CariLockedScreen />
+      </View>
+    );
+  }
+
   return (
     <Tab.Navigator
       initialRouteName="Dashboard"
       screenLayout={centeredScreenLayout}
       screenOptions={({ route }) => ({
-        header: () => <TabHeader title={TAB_META[route.name].title} logo={route.name === "Dashboard"} />,
+        header: () => (
+          <>
+            <TabHeader title={TAB_META[route.name].title} logo={route.name === "Dashboard"} />
+            <CariBanner />
+            {route.name === "Dashboard" ? <CariOverduePopup /> : null}
+          </>
+        ),
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textTertiary,
         // "POS Cihazları" dar telefonlarda sığsın: tek satır, gerekirse hafif küçülür (kesilmez)
@@ -82,12 +119,12 @@ function AppTabs() {
         sceneStyle: { backgroundColor: theme.colors.background },
       })}
     >
-      {/* Sıra: Genel Bakış · POS Cihazları · Kartlar · Stok · Profil — hepsi aynı standart sekme.
+      {/* Sıra: Genel Bakış · POS Cihazları · Kartlar · Stok · Menü — hepsi aynı standart sekme.
           Yetkiye göre gizlenen sekmeler (Kartlar/Stok) diğerlerinin yerini ve görünümünü bozmaz. */}
-      <Tab.Screen name="Dashboard" component={screenRegistry.Dashboard} />
-      <Tab.Screen name="Devices" component={screenRegistry.Devices} />
-      {cardsVisible ? <Tab.Screen name="Cards" component={screenRegistry.Cards} /> : null}
-      {stockVisible ? <Tab.Screen name="Stock" component={screenRegistry.Stock} /> : null}
+      <Tab.Screen name="Dashboard" component={DashboardTab} />
+      <Tab.Screen name="Devices" component={DevicesTab} />
+      {cardsVisible ? <Tab.Screen name="Cards" component={CardsTab} /> : null}
+      {stockVisible ? <Tab.Screen name="Stock" component={StockTab} /> : null}
       <Tab.Screen name="Profile" component={screenRegistry.Profile} />
     </Tab.Navigator>
   );
@@ -212,6 +249,7 @@ export function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   boot: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   tabLabel: { fontSize: 11, fontWeight: "600", paddingHorizontal: 2, textAlign: "center" },
 });

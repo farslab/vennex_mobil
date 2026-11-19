@@ -35,6 +35,8 @@ import { cardDisplayName, sumBalances } from "../components/format";
 import { useOnValueChange } from "../hooks/useOnOpen";
 import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
+const REJECT_ALL_FILTER_HINT = "Filtre varken kullanılamaz; tüm bekleyen kartları reddeder.";
+
 /** Personel kartları: sunucu tarafı arama/filtre, 30'luk sayfalar, onay akışı, çoklu seçim + toplu işlemler */
 export function PersonnelCardsTab() {
   const styles = useStyles();
@@ -51,6 +53,8 @@ export function PersonnelCardsTab() {
   const [selectionMode, setSelectionMode] = useState(false);
   // Excel: Genel Bakış gibi başlıkta, bildirim zilinin yanında (seçim modunda gizli)
   useHeaderExcel("Kartlar", selectionMode ? null : EXPORTS.cards);
+  // Seçim id ile tutulur; değer yalnız listeden düşmüş kartlar için yedek kopyadır.
+  // Gösterilen/gönderilen kart verisi her zaman güncel liste öğesinden türetilir (yenilemede eski bakiye kalmasın).
   const [selected, setSelected] = useState<Map<number, PersonnelCard>>(new Map());
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -101,7 +105,10 @@ export function PersonnelCardsTab() {
     [toggle]
   );
 
-  const selectedCards = useMemo(() => [...selected.values()], [selected]);
+  const selectedCards = useMemo(() => {
+    const current = new Map(list.items.map((c) => [c.id, c]));
+    return [...selected.entries()].map(([id, snapshot]) => current.get(id) ?? snapshot);
+  }, [selected, list.items]);
   const allLoadedSelected = list.items.length > 0 && list.items.every((c) => selected.has(c.id));
 
   const approve = useLockedMutation({
@@ -133,6 +140,9 @@ export function PersonnelCardsTab() {
 
   const activeCount = list.firstPage?.active_count;
   const pendingCount = list.firstPage?.pending_count;
+  // Backend "tümünü reddet" arama/grup filtresine bakmaz, kapsamdaki TÜM bekleyenleri siler.
+  // Filtreli sayım yanıltıcı olacağından filtre varken işlem sunulmaz.
+  const filterActive = Boolean(debouncedQ || q.trim() || group);
 
   const header = (
     <View style={styles.header}>
@@ -166,12 +176,14 @@ export function PersonnelCardsTab() {
         )}
         {status === "active" ? (
           <AppButton size="sm" icon="plus" title="Yeni kart" onPress={() => setCreateOpen(true)} testID="card-create" />
-        ) : (pendingCount ?? 0) > 0 ? (
+        ) : (pendingCount ?? 0) > 0 || filterActive ? (
           <AppButton
             size="sm"
             variant="dangerOutline"
             icon="x-circle"
             title="Tümünü reddet"
+            disabled={filterActive}
+            accessibilityHint={filterActive ? REJECT_ALL_FILTER_HINT : undefined}
             onPress={() => {
               rejectAll.reset();
               setRejectAllOpen(true);
@@ -180,6 +192,11 @@ export function PersonnelCardsTab() {
           />
         ) : null}
       </View>
+      {status === "pending" && filterActive ? (
+        <AppText variant="caption" color="textTertiary" testID="card-reject-all-hint">
+          {REJECT_ALL_FILTER_HINT}
+        </AppText>
+      ) : null}
       {list.firstPage ? (
         <AppText variant="caption" color="textTertiary" accessibilityLiveRegion="polite">
           {formatInteger(list.total)} kart{debouncedQ || group ? " (filtreli)" : ""}
@@ -372,15 +389,18 @@ export function PersonnelCardsTab() {
       <AppConfirmSheet
         visible={rejectAllOpen}
         title="Tüm bekleyen kartları reddet"
-        message="Onay bekleyen tüm kart kayıtları silinir (yetki kapsamınızdaki kartlar)."
-        summary={[{ label: "Bekleyen kart", value: `${formatInteger(pendingCount ?? 0)} kart` }]}
+        message="Yetki kapsamınızdaki onay bekleyen TÜM kart kayıtları silinir; arama veya grup filtresi uygulanmaz. Kartlarda bakiye varsa sıfırlanır."
+        summary={[{ label: "Reddedilecek bekleyen kart", value: `${formatInteger(pendingCount ?? 0)} kart (tümü)` }]}
         confirmLabel="Tümünü reddet"
         destructive
         irreversible
         loading={rejectAll.isPending}
         error={generalErrorOf(rejectAll.error)}
         onCancel={() => setRejectAllOpen(false)}
-        onConfirm={() => rejectAll.run()}
+        onConfirm={() => {
+          if (filterActive) return;
+          rejectAll.run();
+        }}
       />
     </View>
   );

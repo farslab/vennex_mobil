@@ -168,7 +168,9 @@ function LocationForm({ visible, onClose, location }: LocationFormSheetProps) {
       <AppConfirmSheet
         visible={deleteOpen}
         title="Lokasyonu sil"
-        message="Lokasyondaki tüm stok bakiyeleri silinir; geçmiş hareketlerde lokasyon adı boş görünür. Rotada kullanılan lokasyon silinemeyebilir."
+        // Sunucu (web ile aynı) stok bakiyesi veya hareket geçmişi olan lokasyonu reddeder (400/409 + detail);
+        // ret mesajı `deleteError` ile onay sayfasında gösterilir.
+        message="Stok bakiyesi veya hareket geçmişi olan lokasyon silinemez; bunun yerine pasif yapabilirsiniz. Rotada kullanılan lokasyon da silinemeyebilir."
         summary={location ? [{ label: "Lokasyon", value: location.name }, { label: "Tip", value: STOCK_LOCATION_TYPE_LABELS[location.location_type] }] : []}
         confirmLabel="Sil"
         destructive

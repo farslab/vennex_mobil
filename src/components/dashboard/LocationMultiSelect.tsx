@@ -49,6 +49,8 @@ export interface LocationMultiSelectProps {
   value: number[];
   onChange: (ids: number[]) => void;
   testID?: string;
+  /** Çerçevesiz, kompakt tetikleyici (filtre çubuğu içinde) */
+  bare?: boolean;
 }
 
 /**
@@ -56,7 +58,7 @@ export interface LocationMultiSelectProps {
  * bölge satırı o bölgenin tüm konumlarını seçer/kaldırır; boş seçim = tüm konumlar.
  * Seçim "Uygula" ile gönderilir (her dokunuşta istek atılmaz).
  */
-export function LocationMultiSelect({ locations, value, onChange, testID }: LocationMultiSelectProps) {
+export function LocationMultiSelect({ locations, value, onChange, testID, bare }: LocationMultiSelectProps) {
   const styles = useStyles();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<number[]>(value);
@@ -80,10 +82,10 @@ export function LocationMultiSelect({ locations, value, onChange, testID }: Loca
         accessibilityRole="button"
         accessibilityLabel={`Konum: ${label}`}
         accessibilityState={{ expanded: open }}
-        style={({ pressed }) => [styles.field, pressed && styles.pressed]}
+        style={({ pressed }) => [bare ? styles.fieldBare : styles.field, pressed && styles.pressed]}
       >
-        <AppIcon name="map-pin" size={16} color="textTertiary" />
-        <AppText variant="body" numberOfLines={1} style={styles.flex}>
+        <AppIcon name="map-pin" size={16} color={bare ? "primary" : "textTertiary"} />
+        <AppText variant={bare ? "calloutStrong" : "body"} numberOfLines={1} style={styles.flex}>
           {label}
         </AppText>
         <AppIcon name="chevron-down" size={18} color="textTertiary" />
@@ -192,6 +194,14 @@ const useStyles = makeStyles((t) =>
       flexDirection: "row",
       alignItems: "center",
       gap: t.spacing.sm,
+    },
+    fieldBare: {
+      minHeight: 44,
+      paddingHorizontal: t.spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.spacing.sm,
+      borderRadius: 999,
     },
     pressed: { backgroundColor: t.colors.surfacePressed },
     list: { maxHeight: 440 },

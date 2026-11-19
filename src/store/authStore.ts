@@ -2,10 +2,20 @@ import { create } from "zustand";
 import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi } from "@/api/auth";
-import { refreshSessionIfStale, registerCompanyProvider, registerUnauthorizedHandler } from "@/api/client";
+import {
+  endSessionEpoch,
+  refreshSessionIfStale,
+  registerCariLockedHandler,
+  registerCompanyAccessLostHandler,
+  registerCompanyProvider,
+  registerUnauthorizedHandler,
+  settlePendingRefresh,
+} from "@/api/client";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { queryClient } from "@/store/queryClient";
-import { stopPush } from "@/push/pushService";
+import { queryKeys } from "@/api/queryKeys";
+import { dropPushLocally, stopPush } from "@/push/pushService";
+import { deleteUserFiles } from "@/utils/userFiles";
 import type { AuthUser, Company } from "@/types/auth";
 
 /**
@@ -97,7 +107,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const status = (e as { status?: number }).status;
         if (status === 401 || status === 403) {
           await tokenStorage.clear();
-          set({ status: "unauthenticated", errorMessage: null });
+          // 403: hesap erişimi kapatılmış olabilir → nedeni giriş ekranında görünsün
+          set({ status: "unauthenticated", errorMessage: status === 403 ? (e as Error).message || null : null });
           return;
         }
         // Ağ hatası / sunucu hatası: oturum geçerli olabilir — silme, bağlantı ekranında tekrar denensin
@@ -164,21 +175,38 @@ export const useAuthStore = create<AuthState>((set, get) => {
     cancel2FA: () => set({ ...initialSession, status: "unauthenticated" }),
 
     logout: async () => {
-      // Push kaydı oturum token'ı geçerliyken silinir (aksi halde cihaz bildirim almaya devam eder)
-      await stopPush();
-      const [access, refresh] = await Promise.all([tokenStorage.getAccess(), tokenStorage.getRefresh()]);
-      // Backend refresh token'ı kara listeye alır. Token'lar silinmeden önce, açık token'la ve
-      // beklenerek gönderilir (en fazla 5 sn); başarısız olsa da istemci çıkışı tamamlanır.
-      if (refresh) await authApi.logout(refresh, access).catch(() => {});
-      await tokenStorage.clear();
-      queryClient.clear();
-      set({ ...initialSession, status: "unauthenticated" });
+      try {
+        // Süren token yenilemesi bitsin (yeni token'ı kara listeye alınacak olan olsun), sonra
+        // dönem kapanır: bundan sonra biten bir yenileme token'ları geri yazamaz.
+        await settlePendingRefresh();
+        // Push kaydı oturum token'ı geçerliyken silinir (aksi halde cihaz bildirim almaya devam eder)
+        await stopPush();
+        const [access, refresh] = await Promise.all([tokenStorage.getAccess(), tokenStorage.getRefresh()]);
+        endSessionEpoch();
+        // Backend refresh token'ı kara listeye alır. Token'lar silinmeden önce, açık token'la ve
+        // beklenerek gönderilir (en fazla 5 sn); başarısız olsa da istemci çıkışı tamamlanır.
+        if (refresh) await authApi.logout(refresh, access).catch(() => {});
+      } catch {
+        // anahtar zinciri okunamasa da yerel çıkış tamamlanır
+      } finally {
+        endSessionEpoch();
+        await tokenStorage.clear().catch(() => {});
+        queryClient.clear();
+        deleteUserFiles();
+        set({ ...initialSession, status: "unauthenticated" });
+      }
     },
 
     setUser: (user) => {
       const { selectedCompanyId } = get();
       const stillValid = user.companies?.some((c) => c.id === selectedCompanyId);
-      set({ user, selectedCompanyId: stillValid ? selectedCompanyId : (user.companies?.[0]?.id ?? null) });
+      const nextId = stillValid ? selectedCompanyId : (user.companies?.[0]?.id ?? null);
+      set({ user, selectedCompanyId: nextId });
+      if (nextId !== selectedCompanyId) {
+        // Seçili şirkete erişim kalktı: yeni seçim kaydedilir ve önceki şirketin verisi gösterilmez
+        if (nextId != null) AsyncStorage.setItem(companyKey(user.id), String(nextId)).catch(() => {});
+        queryClient.resetQueries().catch(() => {});
+      }
     },
 
     selectCompany: async (companyId) => {
@@ -202,8 +230,30 @@ export function useSelectedCompany(): Company | null {
 
 // api/client.ts'deki 401 handler'ı ve şirket sağlayıcısını buraya bağlıyoruz (circular import olmadan)
 registerUnauthorizedHandler(() => {
+  endSessionEpoch();
   queryClient.clear();
+  deleteUserFiles();
+  dropPushLocally().catch(() => {});
   useAuthStore.setState({ ...initialSession, status: "unauthenticated", errorMessage: "Oturumunuz sona erdi, lütfen tekrar giriş yapın." });
+});
+
+// Cari kilidi oturum sırasında devreye girdi: yapılandırma yeniden alınır → kilit ekranı açılır
+registerCariLockedHandler(() => {
+  queryClient.invalidateQueries({ queryKey: queryKeys.appConfig() }).catch(() => {});
+});
+
+// Seçili şirkete erişim oturum sırasında kaldırıldı: kullanıcı bilgisi yeniden alınır ve erişilebilen
+// şirkete geçilir (aksi halde her istek 403 döner, uygulama yeniden başlatılana kadar takılı kalırdı)
+let companyRecheck: Promise<void> | null = null;
+registerCompanyAccessLostHandler(() => {
+  if (companyRecheck || useAuthStore.getState().status !== "authenticated") return;
+  companyRecheck = authApi
+    .me()
+    .then((user) => useAuthStore.getState().setUser(user))
+    .catch(() => {})
+    .finally(() => {
+      companyRecheck = null;
+    });
 });
 registerCompanyProvider(() => useAuthStore.getState().selectedCompanyId);
 

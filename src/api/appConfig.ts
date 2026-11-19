@@ -45,6 +45,19 @@ export interface AppConfig {
   version_policy: VersionPolicyResponse;
   /** Teknisyen belirli kart gruplarıyla sınırlı (web: grup oluştur/düzenle/sil gizli, kartta grup zorunlu) */
   card_scope_restricted: boolean;
+  /** Seçili şirketin cari durumu (web snackbar/kilit ile aynı kaynak). Ödeme web'de yapılır. */
+  cari: CariConfig;
+}
+
+export interface CariConfig {
+  /** Sunucuda ödeme sistemi açık mı (kapalıyken cari uyarısı/kilit yok) */
+  enabled: boolean;
+  /** 0 Temiz · 1 Sarı · 2 Kırmızı · 3 Uyarı · 4 Kilitli */
+  state: number;
+  /** Şirkete bağlı tüm ekranlar kapalı (sunucu da 403 `cari_locked` döner) */
+  locked: boolean;
+  /** Web ödeme sayfası yolu (ör. /v2/cari-odeme/) */
+  payment_path: string;
 }
 
 /** Mağaza (native) sürümü; native modül yoksa (test/web) uygulama yapılandırmasındaki sürüm */
@@ -85,6 +98,12 @@ export function normalizeConfig(raw: Partial<AppConfig> | null | undefined): App
     features: Array.isArray(raw?.features) ? raw!.features : [],
     version_policy: raw?.version_policy ?? {},
     card_scope_restricted: raw?.card_scope_restricted === true,
+    cari: {
+      enabled: raw?.cari?.enabled === true,
+      state: Number(raw?.cari?.state) || 0,
+      locked: raw?.cari?.locked === true,
+      payment_path: typeof raw?.cari?.payment_path === "string" ? raw.cari.payment_path : "/v2/cari-odeme/",
+    },
   };
 }
 

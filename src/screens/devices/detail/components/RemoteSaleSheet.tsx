@@ -34,7 +34,9 @@ const ERROR_TEXT: Record<string, string> = {
 /**
  * Uzaktan satış: müşteri otomatta ürün seçince istek buraya düşer; kullanıcı onaylarsa cihaz ürünü verir.
  * Red mesajı yoktur — onaylanmazsa cihaz kendi zaman aşımıyla (~15 sn) iptal eder.
- * Sayfa kapanınca bağlantı kapatılır (cihaza "izleme bitti" sinyali gider).
+ * Sayfa kapanınca bağlantı kapatılır (cihaza "izleme bitti" sinyali gider) — web modalı gibi tek "Kapat".
+ * Yeni bir istek (farklı tx_id) her zaman onaylanabilir duruma döner (web `showPending`); aynı isteğin
+ * tekrarı (geç katılım) mevcut onay durumunu korur. Onay, ref kilidiyle istek başına bir kez gönderilir.
  */
 export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
   visible: boolean;
@@ -48,6 +50,9 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
   const [phase, setPhase] = useState<Phase>("waiting");
   const [pending, setPending] = useState<Pending | null>(null);
   const [result, setResult] = useState<{ tone: "success" | "danger" | "neutral"; text: string } | null>(null);
+  // Olay işleyicisi ve çift dokunuş için senkron kopyalar (state bir sonraki çizime kadar eski kalır)
+  const pendingRef = useRef<Pending | null>(null);
+  const approveLock = useRef<string | null>(null);
 
   // Sayfa her açılışta temiz başlar (effect içinde setState yerine render sırasında önceki değere göre)
   const [wasVisible, setWasVisible] = useState(visible);
@@ -60,21 +65,38 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
       setResult(null);
     }
   }
+  useEffect(() => {
+    if (!visible) return;
+    pendingRef.current = null;
+    approveLock.current = null;
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
     const onEvent = (ev: VendEvent) => {
       switch (ev.type) {
         case "vend_pending":
-          // Geç katılımda aynı istek tekrar gelebilir — tek kez göster
-          setPending((cur) => (cur?.txId === ev.tx_id ? cur : { txId: ev.tx_id, amount: ev.amount, item: ev.item }));
-          setPhase((p) => (p === "approving" || p === "approved" ? p : "pending"));
+          if (pendingRef.current?.txId === ev.tx_id) {
+            // Geç katılımda aynı istek tekrar gelebilir — tek kez göster, onay durumunu koru
+            setPhase((p) => (p === "approving" || p === "approved" ? p : "pending"));
+          } else {
+            // Yeni istek: önceki onay/sonuç durumundan bağımsız, onaylanabilir
+            const next = { txId: ev.tx_id, amount: ev.amount, item: ev.item };
+            pendingRef.current = next;
+            approveLock.current = null;
+            setPending(next);
+            setPhase("pending");
+          }
           setResult(null);
           break;
         case "remote_decision_ack":
+          if (ev.tx_id && pendingRef.current && ev.tx_id !== pendingRef.current.txId) break;
+          if (!ev.ok) approveLock.current = null;
           setPhase(ev.ok ? "approved" : "pending");
           break;
         case "vend_ended": {
+          // Web gibi: başka bir isteğin sonucu güncel bekleyen isteği silmez
+          if (ev.tx_id && pendingRef.current && ev.tx_id !== pendingRef.current.txId) break;
           const map = {
             success: { tone: "success" as const, text: "Satış başarılı — ürün verildi." },
             failure: { tone: "danger" as const, text: "Satış başarısız — ürün verilemedi." },
@@ -82,6 +104,8 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
           };
           const r = map[ev.result as keyof typeof map] ?? { tone: "neutral" as const, text: "Satış sonuçlandı." };
           setResult(r);
+          pendingRef.current = null;
+          approveLock.current = null;
           setPending(null);
           setPhase("result");
           if (ev.result === "success") toast.success("Uzaktan satış tamamlandı");
@@ -89,6 +113,7 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
         }
         case "error":
           toast.error(ERROR_TEXT[ev.error] ?? "Uzaktan satış hatası.");
+          approveLock.current = null;
           setPhase((p) => (p === "approving" ? "pending" : p));
           break;
       }
@@ -103,9 +128,13 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
   }, [visible, sn]);
 
   const approve = () => {
-    if (!pending || phase !== "pending") return;
+    const cur = pendingRef.current;
+    // `phase` bu çizimin değeri; hızlı ikinci dokunuşu senkron kilit yakalar
+    if (!cur || phase !== "pending" || approveLock.current === cur.txId) return;
+    approveLock.current = cur.txId;
     setPhase("approving");
-    if (!channelRef.current?.approve(pending.txId)) {
+    if (!channelRef.current?.approve(cur.txId)) {
+      approveLock.current = null;
       setPhase("pending");
       toast.error("Bağlantı yok; onay gönderilemedi.");
     }
@@ -123,7 +152,7 @@ export function RemoteSaleSheet({ visible, onClose, sn, deviceName }: {
       footer={
         pending && (phase === "pending" || phase === "approving") ? (
           <>
-            <AppButton title="Bekle" variant="outline" onPress={onClose} style={styles.flex} />
+            <AppButton title="Kapat" variant="outline" onPress={onClose} style={styles.flex} testID="remote-sale-close" />
             <AppButton
               testID="remote-sale-approve"
               title="Satışı onayla"

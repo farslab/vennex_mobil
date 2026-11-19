@@ -50,6 +50,7 @@ describe("UserFormScreen", () => {
   let mock: MockAdapter;
   beforeEach(() => {
     mock = new MockAdapter(apiClient);
+    mockGoBack.mockReset();
     mock.onGet("/users/assignable-options/").reply(200, options);
     useAuthStore.setState({ status: "authenticated", user: makeUser({ role: "owner" }), selectedCompanyId: 10 });
   });
@@ -91,6 +92,54 @@ describe("UserFormScreen", () => {
         group_names: ["Stok Yönetimi"],
         default_stock_location_ids: [],
       });
+    });
+
+    it("çift dokunuşta tek kullanıcı oluşturulur (senkron kilit)", async () => {
+      mock.onPost("/users/").reply(
+        () => new Promise((resolve) => setTimeout(() => resolve([201, { ...staff, id: 50, username: "yeni.tek" }]), 40))
+      );
+      await renderWithProviders(<UserFormScreen />, { queryClient: makeClient() });
+      await fireEvent.changeText(await screen.findByTestId("user-username"), "yeni.tek");
+      await fireEvent.changeText(screen.getByTestId("user-password"), "Guclu1234");
+      const submit = screen.getByTestId("user-form-submit");
+      await fireEvent.press(submit);
+      await fireEvent.press(submit);
+      await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+      expect(mock.history.post).toHaveLength(1);
+    });
+
+    it("Bakiye müdahalesi Personel Kart'a bağlıdır; Personel Kart kalkınca bakiye de kalkar (web ile aynı)", async () => {
+      mock.resetHandlers();
+      mock.onGet("/users/assignable-options/").reply(200, {
+        ...options,
+        available_groups: ["Personel Kart", "Personel Kart Bakiye", "Stok Yönetimi"],
+      });
+      mock.onPost("/users/").reply(201, { ...staff, id: 51, username: "kart.tek" });
+      await renderWithProviders(<UserFormScreen />, { queryClient: makeClient() });
+
+      const balance = await screen.findByTestId("group-Personel Kart Bakiye");
+      expect(screen.getByText("Bakiye müdahalesi")).toBeOnTheScreen();
+      expect(screen.queryByText("Personel Kart Bakiye")).toBeNull();
+      expect(balance).toBeDisabled();
+      expect(screen.getByText("Önce Personel Kart yetkisini işaretleyin")).toBeOnTheScreen();
+
+      await fireEvent.press(screen.getByTestId("group-Personel Kart"));
+      expect(screen.getByTestId("group-Personel Kart Bakiye")).toBeEnabled();
+      await fireEvent.press(screen.getByTestId("group-Personel Kart Bakiye"));
+      expect(screen.getByTestId("group-Personel Kart Bakiye")).toBeChecked();
+
+      // Personel Kart kaldırılınca bakiye izni de düşer ve pasifleşir
+      await fireEvent.press(screen.getByTestId("group-Personel Kart"));
+      expect(screen.getByTestId("group-Personel Kart Bakiye")).not.toBeChecked();
+      expect(screen.getByTestId("group-Personel Kart Bakiye")).toBeDisabled();
+
+      await fireEvent.press(screen.getByTestId("group-Personel Kart"));
+      await fireEvent.press(screen.getByTestId("group-Personel Kart Bakiye"));
+      await fireEvent.changeText(screen.getByTestId("user-username"), "kart.tek");
+      await fireEvent.changeText(screen.getByTestId("user-password"), "Guclu1234");
+      await fireEvent.press(screen.getByTestId("user-form-submit"));
+      await waitFor(() => expect(mock.history.post).toHaveLength(1));
+      expect(JSON.parse(mock.history.post[0].data).group_names).toEqual(["Personel Kart", "Personel Kart Bakiye"]);
     });
 
     it("kullanıcı adı çakışmasını alana taşır", async () => {
@@ -136,6 +185,55 @@ describe("UserFormScreen", () => {
 
       await waitFor(() => expect(mock.history.delete).toHaveLength(1));
       await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+    });
+
+    it("silmede çift dokunuşta tek DELETE gider", async () => {
+      mock.onDelete("/users/7/").reply(() => new Promise((resolve) => setTimeout(() => resolve([204]), 40)));
+      await renderWithProviders(<UserFormScreen />, { queryClient: makeClient() });
+      await fireEvent.press(await screen.findByTestId("user-delete"));
+      const confirm = screen.getByTestId("confirm-sheet-confirm");
+      await fireEvent.press(confirm);
+      await fireEvent.press(confirm);
+      await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+      expect(mock.history.delete).toHaveLength(1);
+    });
+
+    describe("başka şirkete ait varsayılan stok lokasyonu", () => {
+      beforeEach(() => {
+        mock.onGet("/users/7/").reply(200, {
+          ...staff,
+          default_stock_locations: [{ id: 99, name: "Diğer Şirket Depo", location_type: "warehouse" }],
+        });
+      });
+
+      it("düzenlenemez bilgi olarak gösterilir; lokasyona dokunulmazsa gövdeye girmez ve onay istenmez", async () => {
+        mock.onPatch("/users/7/").reply(200, staff);
+        await renderWithProviders(<UserFormScreen />, { queryClient: makeClient() });
+        expect(await screen.findByText("Başka şirketlere ait lokasyonlar")).toBeOnTheScreen();
+        expect(screen.getByText(/^Diğer Şirket Depo: buradan değiştirilemez/)).toBeOnTheScreen();
+        // Seçim alanında seçili görünmez
+        expect(screen.getByLabelText("Varsayılan stok lokasyonları: seçilmedi")).toBeOnTheScreen();
+
+        await fireEvent.changeText(screen.getByTestId("user-last-name"), "Yeni");
+        await fireEvent.press(screen.getByTestId("user-form-submit"));
+        await waitFor(() => expect(mock.history.patch).toHaveLength(1));
+        expect(JSON.parse(mock.history.patch[0].data)).toEqual({ last_name: "Yeni" });
+      });
+
+      it("lokasyon seçimi değişirse kayıttan önce kaldırılacaklar için onay ister", async () => {
+        mock.onPatch("/users/7/").reply(200, staff);
+        await renderWithProviders(<UserFormScreen />, { queryClient: makeClient() });
+        await fireEvent.press(await screen.findByLabelText("Varsayılan stok lokasyonları: seçilmedi"));
+        await fireEvent.press(await screen.findByText("Merkez Depo"));
+        await fireEvent.press(screen.getByText("Uygula (1)"));
+        await fireEvent.press(screen.getByTestId("user-form-submit"));
+
+        expect(screen.getByText("Başka şirket lokasyonları kaldırılacak")).toBeOnTheScreen();
+        expect(mock.history.patch).toHaveLength(0);
+        await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+        await waitFor(() => expect(mock.history.patch).toHaveLength(1));
+        expect(JSON.parse(mock.history.patch[0].data)).toEqual({ default_stock_location_ids: [3] });
+      });
     });
 
     it("şifre sıfırlama 8 karakter ve eşleşme kuralını uygular", async () => {

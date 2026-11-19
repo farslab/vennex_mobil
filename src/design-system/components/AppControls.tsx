@@ -4,6 +4,10 @@ import { makeStyles, useTheme } from "../theme";
 import { AppText } from "./AppText";
 import { AppIcon } from "./AppIcon";
 
+/** Görünümü değiştirmeden 44pt dokunma hedefi (34pt + 2×5) */
+const CHIP_HIT_SLOP = { top: 5, bottom: 5, left: 2, right: 2 } as const;
+const PILL_HIT_SLOP = { top: 5, bottom: 5 } as const;
+
 /* ---------------------------------------------------------------- Checkbox */
 
 export interface AppCheckboxProps {
@@ -142,6 +146,8 @@ export function AppSegmented<K extends string>({ items, value, onChange, variant
             onPress={() => onChange(item.key)}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
+            // 34pt görünür yükseklik + dikey hitSlop → 44pt dokunma alanı
+            hitSlop={PILL_HIT_SLOP}
             style={[styles.pill, active && styles.pillActive]}
           >
             <AppText variant="calloutStrong" color={active ? "text" : "textSecondary"} numberOfLines={1}>
@@ -174,6 +180,8 @@ export function AppChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
+      // 34pt görünür yükseklik + dikey hitSlop → 44pt dokunma alanı
+      hitSlop={CHIP_HIT_SLOP}
       style={({ pressed }) => [styles.chip, selected && styles.chipOn, pressed && styles.chipPressed]}
     >
       {icon ? <AppIcon name={icon} size={14} color={selected ? "primary" : "textSecondary"} /> : null}

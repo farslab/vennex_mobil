@@ -40,7 +40,34 @@ type RefreshResult = { token: string } | { invalid: true } | { unavailable: ApiE
 /** Eşzamanlı 401'lerde ve arka plan tazelemesinde tek yenileme isteği */
 let refreshPromise: Promise<RefreshResult> | null = null;
 
+/**
+ * Oturum dönemi: çıkışta / oturum düşünce artar. Bu sırada süren bir yenileme bittiğinde yeni
+ * token'ları anahtar zincirine YAZMAZ (aksi halde çıkıştan sonra oturum geri gelirdi).
+ */
+let sessionEpoch = 0;
+export function endSessionEpoch() {
+  sessionEpoch += 1;
+}
+/** Süren token yenilemesi varsa bitmesini bekler (çıkış öncesi) */
+export async function settlePendingRefresh(): Promise<void> {
+  await refreshPromise?.catch(() => undefined);
+}
+
+let onCompanyAccessLost: (() => void) | null = null;
+/** Seçili şirkete erişim kaldırıldığında (403 "Bu şirkete erişiminiz yok.") çağrılır */
+export function registerCompanyAccessLostHandler(handler: () => void) {
+  onCompanyAccessLost = handler;
+}
+export const COMPANY_ACCESS_LOST_DETAIL = "Bu şirkete erişiminiz yok.";
+
+let onCariLocked: (() => void) | null = null;
+/** Sunucu 403 `code: "cari_locked"` döndüğünde (şirketin cari hesabı kilitlendi) çağrılır */
+export function registerCariLockedHandler(handler: () => void) {
+  onCariLocked = handler;
+}
+
 async function refreshAccessToken(): Promise<RefreshResult> {
+  const epoch = sessionEpoch;
   let refreshToken: string | null;
   try {
     refreshToken = await tokenStorage.getRefresh();
@@ -55,12 +82,13 @@ async function refreshAccessToken(): Promise<RefreshResult> {
       { refresh: refreshToken },
       { skipAuth: true }
     );
+    if (epoch !== sessionEpoch) return { invalid: true }; // bu arada çıkış yapıldı: token'ları geri yazma
     await tokenStorage.setTokens(data.access, data.refresh ?? refreshToken);
     return { token: data.access };
   } catch (e) {
     const status = (e as ApiError).status;
     if (status === 400 || status === 401) {
-      await tokenStorage.clear().catch(() => {});
+      if (epoch === sessionEpoch) await tokenStorage.clear().catch(() => {});
       return { invalid: true };
     }
     return { unavailable: toApiError(e) };
@@ -146,6 +174,17 @@ apiClient.interceptors.response.use(
       }
       onUnauthorized?.();
       return Promise.reject(normalizeError(error));
+    }
+
+    if (
+      error.response?.status === 403 &&
+      original?.headers?.["X-Company-Id"] &&
+      (error.response.data as { detail?: unknown } | undefined)?.detail === COMPANY_ACCESS_LOST_DETAIL
+    ) {
+      onCompanyAccessLost?.();
+    }
+    if (error.response?.status === 403 && (error.response.data as { code?: unknown } | undefined)?.code === "cari_locked") {
+      onCariLocked?.();
     }
 
     return Promise.reject(normalizeError(error));

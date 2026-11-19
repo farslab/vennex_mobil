@@ -44,7 +44,14 @@ export default function StockLocationDetailScreen({ route, navigation }: RootScr
   const [pane, setPane] = useState<Pane>("inventory");
   const [movementsVisited, setMovementsVisited] = useState(false);
   const [q, setQ] = useState("");
-  const [formMode, setFormMode] = useState<MovementMode | null>(null);
+  // Açık/kapalı ayrı tutulur: kapanırken son mod korunur (form key'i moda bağlı → mod değişirse
+  // kapanış animasyonunda "Transfer" olarak yeniden mount olup titrerdi)
+  const [formOpen, setFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<MovementMode>("transfer");
+  const openForm = (mode: MovementMode) => {
+    setFormMode(mode);
+    setFormOpen(true);
+  };
   const [refreshing, setRefreshing] = useState(false);
 
   const inventory = useQuery({
@@ -124,12 +131,16 @@ export default function StockLocationDetailScreen({ route, navigation }: RootScr
         />
       ) : null}
 
-      {canManage && location && !isVending ? (
+      {canManage && location && !isVending && location.is_active ? (
         <View style={styles.actions}>
-          <AppButton title="Transfer" onPress={() => setFormMode("transfer")} style={styles.flex} testID="detail-transfer" />
-          <AppButton title="Giriş" variant="secondary" onPress={() => setFormMode("receipt")} style={styles.flex} testID="detail-receipt" />
-          <AppButton title="Düzeltme" variant="secondary" onPress={() => setFormMode("adjustment")} style={styles.flex} testID="detail-adjustment" />
+          <AppButton title="Transfer" onPress={() => openForm("transfer")} style={styles.flex} testID="detail-transfer" />
+          <AppButton title="Giriş" variant="secondary" onPress={() => openForm("receipt")} style={styles.flex} testID="detail-receipt" />
+          <AppButton title="Düzeltme" variant="secondary" onPress={() => openForm("adjustment")} style={styles.flex} testID="detail-adjustment" />
         </View>
+      ) : null}
+      {/* Hareket formu yalnız aktif lokasyonları listeler → pasif lokasyon ön seçilemezdi (özet `#id` gösterirdi) */}
+      {canManage && location && !isVending && !location.is_active ? (
+        <AppNotice message="Pasif lokasyonda stok hareketi yapılamaz. Hareket için lokasyonu Lokasyonlar sekmesinden aktif yapın." />
       ) : null}
       {isVending ? (
         <AppNotice message="Otomat stoğu dolum ve satışla değişir; düzenleme POS cihazı sayfasındaki ürünler ekranından yapılır." />
@@ -201,7 +212,7 @@ export default function StockLocationDetailScreen({ route, navigation }: RootScr
         />
       )}
       {canManage ? (
-        <MovementFormSheet visible={formMode != null} mode={formMode ?? "transfer"} presetLocationId={locationId} onClose={() => setFormMode(null)} />
+        <MovementFormSheet visible={formOpen} mode={formMode} presetLocationId={locationId} onClose={() => setFormOpen(false)} />
       ) : null}
     </View>
   );

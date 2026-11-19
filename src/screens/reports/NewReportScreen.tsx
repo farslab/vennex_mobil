@@ -29,6 +29,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { cardsApi } from "@/api/cards";
 import { canManagePersonelCard, canViewSales } from "@/auth/permissions";
 import { useAuthStore } from "@/store/authStore";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { formatDate } from "@/utils/date";
 import { formatInteger } from "@/utils/number";
 import {
@@ -125,7 +126,9 @@ export default function NewReportScreen() {
   });
   const apiError = create.error as ApiError | null;
 
-  const submit = () => {
+  // Senkron kilit: `isPending` render'dan okunur; yeniden çizimden önce gelen ikinci dokunuş
+  // aksi halde ikinci POST /reports/ atardı. Hata `create.error` üzerinden gösterilir.
+  const submit = useSingleFlight(async () => {
     if (create.isPending) return;
     const result = validateReportForm({ ...form, reportType }, options);
     if (!result.ok) {
@@ -133,8 +136,8 @@ export default function NewReportScreen() {
       return;
     }
     setErrors({});
-    create.mutate(result.payload);
-  };
+    await create.mutateAsync(result.payload);
+  });
 
   if (!allowed) {
     return (

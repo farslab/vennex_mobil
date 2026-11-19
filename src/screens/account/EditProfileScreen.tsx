@@ -50,6 +50,15 @@ export function buildProfilePatch(initial: Values, values: Values): ProfileUpdat
   return patch;
 }
 
+function valuesFromUser(user: { first_name?: string | null; last_name?: string | null; email?: string | null; phone?: string | null } | null): Values {
+  return {
+    first_name: user?.first_name ?? "",
+    last_name: user?.last_name ?? "",
+    email: user?.email ?? "",
+    phone: user?.phone ?? "",
+  };
+}
+
 export default function EditProfileScreen() {
   const styles = useStyles();
   const navigation = useNavigation();
@@ -57,16 +66,20 @@ export default function EditProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
-  const initial = useMemo<Values>(
-    () => ({
-      first_name: user?.first_name ?? "",
-      last_name: user?.last_name ?? "",
-      email: user?.email ?? "",
-      phone: user?.phone ?? "",
-    }),
-    [user]
-  );
+  // Fark tabanı ekran açılırken dondurulur: arka plandaki /me yenilemesi `user`'ı değiştirse bile
+  // kullanıcının düzenlemediği alanlar PATCH'e girip sunucudaki yeni değeri geri almaz.
+  // Form el değmemişse (taban = değerler) yeni kullanıcıya senkronlanır.
+  const [initial, setInitial] = useState<Values>(() => valuesFromUser(user));
   const [values, setValues] = useState<Values>(initial);
+  const [syncedUser, setSyncedUser] = useState(user);
+  if (user !== syncedUser) {
+    setSyncedUser(user);
+    if (user && Object.keys(buildProfilePatch(initial, values)).length === 0) {
+      const next = valuesFromUser(user);
+      setInitial(next);
+      setValues(next);
+    }
+  }
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 

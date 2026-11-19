@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
@@ -33,6 +33,7 @@ import { PASSWORD_MIN_LENGTH } from "@/utils/validation";
 import { fullName } from "@/utils/text";
 import type { RootStackParamList } from "@/navigation/types";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { stockLocationTypeLabel, type AssignableOptions, type StaffUser } from "@/types/users";
 import {
   USER_FORM_FIELDS,
@@ -47,6 +48,10 @@ import {
   type UserFormValues,
 } from "./form/userFormModel";
 import { ResetPasswordSheet } from "./form/ResetPasswordSheet";
+
+/** Web (`dashboard_v2/views/users.py`) grup adları: bakiye izni Personel Kart'ın alt izni */
+const PERSONEL_KART = "Personel Kart";
+const PERSONEL_KART_BAKIYE = "Personel Kart Bakiye";
 
 /** Yeni/düzenle teknisyen — rota "UserForm" { userId? } */
 export default function UserFormScreen() {
@@ -144,21 +149,36 @@ function UserFormBody({
     return list;
   }, [options, user]);
 
-  const locationOptions = useMemo<SelectOption<number>[]>(() => {
-    const list: SelectOption<number>[] = options.stock_locations.map((l) => ({
-      value: l.id,
-      label: l.name,
-      description: stockLocationTypeLabel(l.location_type),
-    }));
-    for (const l of user?.default_stock_locations ?? []) {
-      if (!list.some((o) => o.value === l.id)) {
-        list.push({ value: l.id, label: l.name, description: `${stockLocationTypeLabel(l.location_type)} · başka şirket` });
-      }
-    }
-    return list;
-  }, [options, user]);
+  const locationOptions = useMemo<SelectOption<number>[]>(
+    () =>
+      options.stock_locations.map((l) => ({
+        value: l.id,
+        label: l.name,
+        description: stockLocationTypeLabel(l.location_type),
+      })),
+    [options]
+  );
+  /**
+   * Kullanıcının seçili şirket dışındaki varsayılan lokasyonları. Backend PATCH'te
+   * `default_stock_location_ids` gelirse kümeyi YALNIZ seçili şirketin lokasyonlarıyla değiştirir
+   * (vennex_mobile/views/users.py) → bu alanda yapılan her değişiklik bunları siler; dokunulmazsa korunur.
+   * Bu yüzden düzenlenebilir seçenek olarak gösterilmez.
+   */
+  const foreignLocations = useMemo(
+    () => (user?.default_stock_locations ?? []).filter((l) => !options.stock_locations.some((o) => o.id === l.id)),
+    [options, user]
+  );
+  const foreignLocationIds = useMemo(() => new Set(foreignLocations.map((l) => l.id)), [foreignLocations]);
+  const [foreignConfirmOpen, setForeignConfirmOpen] = useState(false);
 
-  const patch = useMemo(() => (user ? buildUpdatePatch(initial, values) : null), [user, initial, values]);
+  const patch = useMemo(() => {
+    if (!user) return null;
+    const p = buildUpdatePatch(initial, values);
+    // Başka şirket lokasyonları backend'de zaten düşer; gövde gerçeği yansıtsın
+    if (p.default_stock_location_ids) p.default_stock_location_ids = p.default_stock_location_ids.filter((id) => !foreignLocationIds.has(id));
+    return p;
+  }, [user, initial, values, foreignLocationIds]);
+  const dropsForeignLocations = foreignLocations.length > 0 && patch?.default_stock_location_ids !== undefined;
   const dirty = mode === "create" || Object.keys(patch ?? {}).length > 0;
   // Geri çıkış uyarısı: yalnız kullanıcı gerçekten bir şey değiştirdiyse (oluşturmada boş form uyarmaz)
   const changed = JSON.stringify(values) !== JSON.stringify(initial);
@@ -199,6 +219,10 @@ function UserFormBody({
     },
   });
 
+  // Senkron kilit: render'dan önce gelen ikinci dokunuş ikinci kullanıcı/silme isteği oluşturmasın
+  const runSave = useSingleFlight(useCallback(() => saveMutation.mutateAsync(), [saveMutation]));
+  const runDelete = useSingleFlight(useCallback(() => deleteMutation.mutateAsync(), [deleteMutation]));
+
   const set =
     <K extends UserFormField>(key: K) =>
     (value: UserFormValues[K]) => {
@@ -206,8 +230,42 @@ function UserFormBody({
       if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
     };
 
-  const toggleGroup = (group: string, checked: boolean) =>
-    set("group_names")(checked ? [...values.group_names, group] : values.group_names.filter((g) => g !== group));
+  // Web gibi: "Bakiye müdahalesi" Personel Kart'a bağlıdır; Personel Kart kalkınca bakiye izni de kalkar
+  const personelKartActive = values.group_names.includes(PERSONEL_KART) || lockedGroups.includes(PERSONEL_KART);
+  const toggleGroup = (group: string, checked: boolean) => {
+    let next = checked ? [...values.group_names, group] : values.group_names.filter((g) => g !== group);
+    if (group === PERSONEL_KART && !checked && !lockedGroups.includes(PERSONEL_KART)) {
+      next = next.filter((g) => g !== PERSONEL_KART_BAKIYE);
+    }
+    set("group_names")(next);
+  };
+  const nestBalance = groups.includes(PERSONEL_KART) && groups.includes(PERSONEL_KART_BAKIYE);
+  const renderGroup = (group: string, nested = false) => {
+    if (group === PERSONEL_KART_BAKIYE) {
+      return (
+        <View key={group} style={nested ? styles.nested : undefined}>
+          <AppCheckbox
+            label="Bakiye müdahalesi"
+            description={personelKartActive ? "Personel kart bakiyesini değiştirebilir" : "Önce Personel Kart yetkisini işaretleyin"}
+            checked={values.group_names.includes(group)}
+            disabled={!personelKartActive}
+            onChange={(checked) => toggleGroup(group, checked)}
+            testID={`group-${group}`}
+          />
+        </View>
+      );
+    }
+    return (
+      <AppCheckbox
+        key={group}
+        label={group}
+        description={alwaysAvailable.has(group) ? "Tüm hesap sahiplerince atanabilir" : undefined}
+        checked={values.group_names.includes(group)}
+        onChange={(checked) => toggleGroup(group, checked)}
+        testID={`group-${group}`}
+      />
+    );
+  };
 
   const submit = () => {
     const local = validateUserForm(values, mode);
@@ -218,7 +276,11 @@ function UserFormBody({
       return;
     }
     if (!dirty) return;
-    saveMutation.mutate();
+    if (dropsForeignLocations) {
+      setForeignConfirmOpen(true);
+      return;
+    }
+    runSave();
   };
 
   const selectedDeviceNames = deviceOptions.filter((o) => values.pos_device_ids.includes(o.value)).map((o) => o.label);
@@ -341,16 +403,11 @@ function UserFormBody({
                 Atayabileceğiniz yetki grubu bulunmuyor.
               </AppText>
             ) : (
-              groups.map((group) => (
-                <AppCheckbox
-                  key={group}
-                  label={group}
-                  description={alwaysAvailable.has(group) ? "Tüm hesap sahiplerince atanabilir" : undefined}
-                  checked={values.group_names.includes(group)}
-                  onChange={(checked) => toggleGroup(group, checked)}
-                  testID={`group-${group}`}
-                />
-              ))
+              groups.flatMap((group) => {
+                if (nestBalance && group === PERSONEL_KART_BAKIYE) return [];
+                if (nestBalance && group === PERSONEL_KART) return [renderGroup(group), renderGroup(PERSONEL_KART_BAKIYE, true)];
+                return [renderGroup(group)];
+              })
             )}
             {errors.group_names ? (
               <AppText variant="caption" color="danger">
@@ -403,8 +460,14 @@ function UserFormBody({
                 label="Varsayılan stok lokasyonları"
                 sheetTitle="Stok lokasyonu seçin"
                 options={locationOptions}
-                value={values.default_stock_location_ids}
-                onChange={set("default_stock_location_ids")}
+                value={values.default_stock_location_ids.filter((id) => !foreignLocationIds.has(id))}
+                // Başka şirket lokasyonları formda olduğu gibi tutulur (değişiklik algısı yalnız bu şirketin seçimine bakar)
+                onChange={(v) =>
+                  set("default_stock_location_ids")([
+                    ...values.default_stock_location_ids.filter((id) => foreignLocationIds.has(id)),
+                    ...v,
+                  ])
+                }
                 error={errors.default_stock_location_ids}
                 testID="user-locations"
               />
@@ -413,6 +476,13 @@ function UserFormBody({
                 Seçili şirkette atanabilir stok lokasyonu yok.
               </AppText>
             )}
+            {foreignLocations.length > 0 ? (
+              <AppNotice
+                tone="warning"
+                title="Başka şirketlere ait lokasyonlar"
+                message={`${foreignLocations.map((l) => l.name).join(", ")}: buradan değiştirilemez. Stok lokasyonu seçimine dokunmazsanız korunur; seçimi değiştirip kaydederseniz bu lokasyonlar kaldırılır.`}
+              />
+            ) : null}
           </View>
         </AppCard>
       </AppSection>
@@ -451,6 +521,20 @@ function UserFormBody({
             onClose={() => setResetOpen(false)}
           />
           <AppConfirmSheet
+            visible={foreignConfirmOpen}
+            title="Başka şirket lokasyonları kaldırılacak"
+            message="Stok lokasyonu seçimi değiştiği için kayıt, kullanıcının başka şirketlerdeki varsayılan lokasyonlarını kaldırır (yalnız seçili şirketin lokasyonları tutulur)."
+            summary={[{ label: "Kaldırılacak", value: foreignLocations.map((l) => l.name).join(", ") }]}
+            confirmLabel="Yine de kaydet"
+            destructive
+            loading={saveMutation.isPending}
+            onConfirm={() => {
+              setForeignConfirmOpen(false);
+              runSave();
+            }}
+            onCancel={() => setForeignConfirmOpen(false)}
+          />
+          <AppConfirmSheet
             visible={deleteOpen}
             title="Kullanıcıyı sil"
             message="Kullanıcının hesabı kalıcı olarak silinir ve uygulamaya giriş yapamaz."
@@ -464,7 +548,7 @@ function UserFormBody({
             irreversible
             loading={deleteMutation.isPending}
             error={deleteMutation.isError ? errorMessage(deleteMutation.error) : null}
-            onConfirm={() => deleteMutation.mutate()}
+            onConfirm={runDelete}
             onCancel={() => {
               setDeleteOpen(false);
               deleteMutation.reset();
@@ -482,5 +566,6 @@ const useStyles = makeStyles((t) =>
     form: { gap: t.spacing.lg },
     groups: { gap: t.spacing.xs },
     badges: { flexDirection: "row", flexWrap: "wrap", gap: t.spacing.xs },
+    nested: { paddingLeft: t.spacing.xl },
   })
 );

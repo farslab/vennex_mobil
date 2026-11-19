@@ -197,6 +197,30 @@ describe("BalanceOperationSheet", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["zaman aşımı", (m: MockAdapter) => m.onPost("/cards/bulk/balance/").timeout()],
+    ["ağ hatası", (m: MockAdapter) => m.onPost("/cards/bulk/balance/").networkError()],
+    ["504", (m: MockAdapter) => m.onPost("/cards/bulk/balance/").reply(504)],
+  ])("sonucu belirsiz hata (%s): onay kapanır, yeniden gönderilemez, bakiye geçmişi uyarısı çıkar", async (_label, setup) => {
+    setup(mock);
+    const r = await open([card(1)]);
+    const invalidate = jest.spyOn(r.queryClient, "invalidateQueries");
+    await fillAndContinue("10");
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    expect(await screen.findByText("Sonuç doğrulanamadı")).toBeOnTheScreen();
+    expect(
+      screen.getByText(
+        "İşlemin sonucu doğrulanamadı; sunucu işlemi uygulamış olabilir. Tekrar denemeden önce kartın bakiye geçmişini kontrol edin."
+      )
+    ).toBeOnTheScreen();
+    expect(screen.queryByText("Bakiye işlemini onayla")).toBeNull();
+    expect(screen.queryByTestId("confirm-sheet-confirm")).toBeNull();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["cards"] });
+    expect(mock.history.post).toHaveLength(1);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
   it("kart yoksa Devam pasif ve istek atılmaz", async () => {
     await open([]);
     await fireEvent.changeText(screen.getByTestId("balance-amount"), "10");

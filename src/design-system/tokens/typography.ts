@@ -22,8 +22,11 @@ export const typography = {
   callout: { fontSize: 14, lineHeight: 19, fontWeight: "400" },
   calloutStrong: { fontSize: 14, lineHeight: 19, fontWeight: "600" },
   caption: { fontSize: 12, lineHeight: 16, fontWeight: "500" },
-  /** Küçük büyük harf etiket (tablo başlığı, form grubu) */
-  overline: { fontSize: 11, lineHeight: 14, fontWeight: "600", letterSpacing: 0.6, textTransform: "uppercase" },
+  /**
+   * Küçük büyük harf etiket (tablo başlığı, form grubu). Büyük harfe çevirme `AppText`'te Türkçe
+   * kurallarla yapılır (i→İ, ı→I); `textTransform: "uppercase"` iOS'ta "Şirket"i "ŞIRKET" yapıyordu.
+   */
+  overline: { fontSize: 11, lineHeight: 14, fontWeight: "600", letterSpacing: 0.6 },
   label: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
 
   /** KPI ana değeri */

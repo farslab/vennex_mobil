@@ -54,6 +54,55 @@ describe("RemoteSaleSheet", () => {
     expect(mockApprove).toHaveBeenCalledTimes(1);
   });
 
+  it("bekleyen istekte web gibi 'Kapat' (Bekle yok): sayfayı kapatır", async () => {
+    const onClose = jest.fn();
+    await render(<RemoteSaleSheet visible onClose={onClose} sn="PAV1" />);
+    await act(async () => emit({ type: "vend_pending", tx_id: "t1", amount: 500, item: 1 }));
+    expect(screen.queryByText("Bekle")).toBeNull();
+    await fireEvent.press(screen.getByTestId("remote-sale-close"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("yeniden çizim beklenmeden gelen art arda iki onay dokunuşu tek onay gönderir", async () => {
+    await render(<RemoteSaleSheet visible onClose={jest.fn()} sn="PAV1" />);
+    await act(async () => emit({ type: "vend_pending", tx_id: "t1", amount: 500, item: 1 }));
+    const approve = screen.getByTestId("remote-sale-approve");
+    // İki dokunuş aynı act içinde: ikincisi hâlâ eski (pending) phase ile çizilmiş butona gelir.
+    // (bilerek iç içe act — React'in "overlapping act" uyarısı bu senaryonun kendisi, susturulur)
+    const originalError = console.error;
+    const consoleError = jest.spyOn(console, "error").mockImplementation((msg: unknown, ...rest: unknown[]) => {
+      if (typeof msg === "string" && msg.includes("overlapping act")) return;
+      originalError(msg, ...rest);
+    });
+    try {
+      await act(async () => {
+        void fireEvent.press(approve);
+        void fireEvent.press(approve);
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
+    expect(mockApprove).toHaveBeenCalledTimes(1);
+  });
+
+  it("onaylanmış istekten sonra gelen YENİ istek yeniden onaylanabilir; eski isteğin sonucu yenisini silmez", async () => {
+    await render(<RemoteSaleSheet visible onClose={jest.fn()} sn="PAV1" />);
+    await act(async () => emit({ type: "vend_pending", tx_id: "t1", amount: 500, item: 1 }));
+    await fireEvent.press(screen.getByTestId("remote-sale-approve"));
+    await act(async () => emit({ type: "remote_decision_ack", ok: true, tx_id: "t1" }));
+    expect(screen.queryByTestId("remote-sale-approve")).toBeNull(); // onaylandı
+
+    await act(async () => emit({ type: "vend_pending", tx_id: "t2", amount: 900, item: 3 }));
+    expect(screen.getByTestId("remote-sale-amount")).toHaveTextContent(/9,00/);
+    expect(screen.queryByText(/onay gönderildi/)).toBeNull();
+    await act(async () => emit({ type: "vend_ended", tx_id: "t1", result: "success" }));
+    expect(screen.getByTestId("remote-sale-amount")).toHaveTextContent(/9,00/);
+
+    await fireEvent.press(screen.getByTestId("remote-sale-approve"));
+    expect(mockApprove).toHaveBeenLastCalledWith("t2");
+    expect(mockApprove).toHaveBeenCalledTimes(2);
+  });
+
   it("yetki yoksa açıklama gösterir", async () => {
     await render(<RemoteSaleSheet visible onClose={jest.fn()} sn="PAV1" />);
     await act(async () => setState("unauthorized"));

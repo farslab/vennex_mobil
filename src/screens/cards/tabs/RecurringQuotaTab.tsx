@@ -201,7 +201,8 @@ export function RecurringQuotaFormSheet({
     else if (name.length > 100) errs.name = "Kural adı en fazla 100 karakter olabilir.";
     if (!f.group) errs.group = "Grup seçimi zorunludur.";
     if (f.target_type === "card" && !f.card) errs.card = "Kart seçin.";
-    const pn = normalizeProductNo(f.product_no);
+    // Düzenlemede ürün no salt okunur (backend PATCH ayrıştırma/çakışma kontrolü yapmaz; web de izin vermez)
+    const pn: ReturnType<typeof normalizeProductNo> = rule ? { value: rule.product_no } : normalizeProductNo(f.product_no);
     if ("error" in pn) errs.product_no = pn.error;
     const qty = validatePositiveInt(f.quantity);
     if ("error" in qty) errs.quantity = qty.error;
@@ -231,7 +232,6 @@ export function RecurringQuotaFormSheet({
     // PATCH grup değiştirmez (views:899-916) — grup salt okunur
     const patch: Partial<RecurringQuotaPayload> = {};
     if (full.name !== rule.name) patch.name = full.name;
-    if (full.product_no !== rule.product_no) patch.product_no = full.product_no;
     if (full.period !== rule.period) patch.period = full.period;
     if (full.quantity !== rule.quantity) patch.quantity = full.quantity;
     if (full.is_active !== rule.is_active) patch.is_active = full.is_active;
@@ -319,7 +319,12 @@ export function RecurringQuotaFormSheet({
         value={f.product_no}
         onChangeText={(t) => set("product_no", t)}
         autoCapitalize="none"
-        helper={rule ? "* · 12 · 1,2,3 · 20-40" : "* tüm ürünler · 12 · 1,2,3 · 20-40 (her parça ayrı kural olur)"}
+        disabled={rule != null}
+        helper={
+          rule
+            ? "Ürün no düzenlenemez; gerekirse kuralı silip yeniden oluşturun."
+            : "* tüm ürünler · 12 · 1,2,3 · 20-40 (her parça ayrı kural olur)"
+        }
         error={errors.product_no}
         testID="rq-product"
       />

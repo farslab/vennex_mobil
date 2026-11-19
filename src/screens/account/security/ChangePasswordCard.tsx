@@ -5,6 +5,8 @@ import { AppButton, AppCard, AppInput, AppNotice, makeStyles, toast } from "@/de
 import { authApi } from "@/api/auth";
 import { PASSWORD_MIN_LENGTH, validatePassword } from "@/utils/validation";
 import { splitApiError } from "@/components/account/formErrors";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
+import { useAuthStore } from "@/store/authStore";
 
 type Field = "current_password" | "new_password" | "confirm";
 const SERVER_FIELDS = ["current_password", "new_password"] as const;
@@ -20,7 +22,7 @@ export function validatePasswordChange(current: string, next: string, confirm: s
   return errors;
 }
 
-/** POST auth/change-password/ — backend tüm diğer oturumları sonlandırır (views/auth.py:353-362) */
+/** POST auth/change-password/ — backend tüm oturumları sonlandırır, bu cihaza yeni token çifti verir (views/auth.py PasswordChangeView) */
 export function ChangePasswordCard() {
   const styles = useStyles();
   const [current, setCurrent] = useState("");
@@ -32,12 +34,18 @@ export function ChangePasswordCard() {
 
   const mutation = useMutation({
     mutationFn: () => authApi.changePassword(current, next),
-    onSuccess: () => {
+    onSuccess: (res) => {
       setCurrent("");
       setNext("");
       setConfirm("");
       setErrors({});
       setDone(true);
+      if (!res.sessionKept) {
+        // Sunucu bu cihaza yeni oturum vermedi: eski oturum geçersiz → temiz çıkış, yeni şifreyle giriş
+        toast.success("Şifreniz güncellendi. Yeni şifrenizle tekrar giriş yapın.");
+        useAuthStore.getState().logout();
+        return;
+      }
       toast.success("Şifreniz güncellendi.");
     },
     onError: (error) => {
@@ -46,6 +54,9 @@ export function ChangePasswordCard() {
       setGeneralError(general);
     },
   });
+
+  // Çift dokunma / klavyeden "Bitti" ile iki istek gitmesin
+  const send = useSingleFlight(mutation.mutateAsync);
 
   const clear = (field: Field) => {
     if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
@@ -57,7 +68,7 @@ export function ChangePasswordCard() {
     setErrors(local);
     setGeneralError(null);
     if (Object.keys(local).length > 0) return;
-    mutation.mutate();
+    send();
   };
 
   return (

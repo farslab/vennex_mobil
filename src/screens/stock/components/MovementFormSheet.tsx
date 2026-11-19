@@ -367,9 +367,6 @@ function MovementForm({ visible, mode, onClose, presetLocationId }: MovementForm
           placeholder="Örn. sayım farkı, fire"
           maxLength={200}
           error={errors.reason}
-          // SÖZLEŞME: AdjustmentSerializer `reason` kabul ediyor ama view servise iletmiyor
-          // (views/stock.py:436-442) → hareketin `notes` alanı boş kalıyor. Kullanıcıya açıkça söylenir.
-          helper="Not: Sunucu açıklamayı şu an hareket kaydına yazmıyor."
           testID="movement-reason"
         />
       ) : null}

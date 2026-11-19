@@ -28,6 +28,7 @@ import { devicesApi } from "@/api/devices";
 import { templatesApi } from "@/api/templates";
 import { errorMessage, type ApiError } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { isKnownMachineType, machineTypeLabel } from "@/components/devices/deviceHelpers";
 import { formatInteger } from "@/utils/number";
 import type { ProductTemplateSummary } from "@/types/templates";
@@ -73,6 +74,8 @@ export function AssignTemplateSheet({
       onClose();
     },
   });
+  // Atama onayı tek uçuşlu: art arda dokunuş şablonu iki kez yazmaz
+  const confirmAssign = useSingleFlight(() => (picked ? assign.mutateAsync(picked) : Promise.resolve()));
 
   return (
     <AppSheet visible={visible} onClose={onClose} title="Şablon ata" subtitle={known ? `${machineTypeLabel(machineType)} şablonları` : undefined} scrollable={false} testID="assign-template-sheet">
@@ -126,7 +129,7 @@ export function AssignTemplateSheet({
         irreversible
         loading={assign.isPending}
         error={assign.error ? errorMessage(assign.error) : null}
-        onConfirm={() => picked && assign.mutate(picked)}
+        onConfirm={confirmAssign}
         onCancel={() => {
           setPicked(null);
           assign.reset();

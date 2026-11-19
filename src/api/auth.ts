@@ -1,3 +1,4 @@
+import { tokenStorage } from "@/utils/tokenStorage";
 import { apiClient } from "./client";
 import type { AuthUser, LoginResponse, NotificationPreferences } from "@/types/auth";
 import { clientPlatform, nativeAppVersion } from "./appConfig";
@@ -50,10 +51,21 @@ export const authApi = {
   updateMe: (patch: ProfileUpdatePayload) => apiClient.patch<AuthUser>("/auth/me/", patch).then((r) => r.data),
 
   /** 200 {detail}; hata: {current_password:[…]} / {new_password:[…]}. Backend diğer oturumları düşürür. */
-  changePassword: (current_password: string, new_password: string) =>
-    apiClient
-      .post<DetailResponse>("/auth/change-password/", { current_password, new_password })
-      .then((r) => r.data),
+  /**
+   * Sunucu TÜM refresh token'ları kara listeye alır (bu cihazınki dahil) ve bu cihaza yeni bir çift
+   * döner; çift saklanınca bu cihazda oturum açık kalır. `sessionKept: false` → eski sunucu, çift yok.
+   */
+  changePassword: async (current_password: string, new_password: string) => {
+    const { data } = await apiClient.post<DetailResponse & { access?: string; refresh?: string }>(
+      "/auth/change-password/",
+      { current_password, new_password }
+    );
+    if (data.access && data.refresh) {
+      await tokenStorage.setTokens(data.access, data.refresh);
+      return { detail: data.detail, sessionKept: true };
+    }
+    return { detail: data.detail, sessionKept: false };
+  },
 
 
 
@@ -85,7 +97,8 @@ export const authApi = {
   // FCM push bildirimleri
   registerDevice: (fcm_token: string, platform: "ios" | "android", device_id: string) =>
     apiClient.post("/device/register/", { fcm_token, platform, device_id }),
-  unregisterDevice: (fcm_token: string) => apiClient.post("/device/unregister/", { fcm_token }),
+  // Çıkışta beklenir: kötü ağda çıkış düğmesi uzun süre takılmasın
+  unregisterDevice: (fcm_token: string) => apiClient.post("/device/unregister/", { fcm_token }, { timeout: 5000 }),
 
   getNotificationPreferences: (signal?: AbortSignal) =>
     apiClient.get<NotificationPreferences>("/me/notification-preferences/", { signal }).then((r) => r.data),

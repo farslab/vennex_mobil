@@ -27,6 +27,7 @@ import { useAuthStore } from "@/store/authStore";
 import { formatRelative } from "@/utils/date";
 import type { RootStackParamList } from "@/navigation/types";
 import type { NotificationItem, NotificationsPage } from "@/types/notifications";
+import type { AuthUser } from "@/types/auth";
 import { notificationIcon, notificationSender, notificationWebLink, resolveNotificationTarget, type NotificationTarget } from "./notificationTarget";
 import { API_BASE_URL } from "@/config/env";
 import { NotificationSheet } from "./NotificationSheet";
@@ -106,12 +107,14 @@ export default function NotificationsScreen() {
   // Dokununca: okunmamışsa okundu işaretle, tam metni alttan açılan sayfada göster.
   // İlgili ekran (POS cihazı, kart, rapor, cari) sayfadaki düğmeyle açılır.
   const [opened, setOpened] = useState<NotificationItem | null>(null);
+  // `useMutation` her render'da yeni nesne döner; yalnız kararlı `mutate`a bağlan ki satırlar memo'lu kalsın
+  const { mutate: markReadMutate } = markRead;
   const onPressItem = useCallback(
     (item: NotificationItem) => {
-      if (item.unread) markRead.mutate(item.id);
+      if (item.unread) markReadMutate(item.id);
       setOpened(item);
     },
-    [markRead]
+    [markReadMutate]
   );
   // Push'a dokunularak gelindiyse (Nexus → Mobil Push) o bildirim açık gelir ve okundu işaretlenir
   const route = useRoute<RouteProp<RootStackParamList, "Notifications">>();
@@ -133,7 +136,6 @@ export default function NotificationsScreen() {
     [openParam]
   );
   const pushId = openParam?.id;
-  const { mutate: markReadMutate } = markRead;
   useEffect(() => {
     if (pushId) markReadMutate(pushId);
   }, [pushId, markReadMutate]);
@@ -142,14 +144,22 @@ export default function NotificationsScreen() {
     setOpened(null);
     if (openParam) navigation.setParams({ open: undefined });
   }, [navigation, openParam]);
-  const openedTarget = shown ? resolveNotificationTarget(shown, user) : null;
-  const openedLink = shown ? notificationWebLink(shown, user, API_BASE_URL) : null;
+  const openedTarget = useMemo(() => (shown ? resolveNotificationTarget(shown, user) : null), [shown, user]);
+  const openedLink = useMemo(() => (shown ? notificationWebLink(shown, user, API_BASE_URL) : null), [shown, user]);
   const openTarget = useCallback(
     (target: NotificationTarget) => {
       closeSheet();
       go(target);
     },
     [go, closeSheet]
+  );
+
+  const pendingId = markRead.isPending ? markRead.variables : undefined;
+  const renderItem = useCallback(
+    ({ item }: { item: NotificationItem }) => (
+      <NotificationRow item={item} user={user} pending={pendingId === item.id} onPress={onPressItem} />
+    ),
+    [user, pendingId, onPressItem]
   );
 
   const header = (
@@ -209,14 +219,8 @@ export default function NotificationsScreen() {
       <FlatList
         data={list.isError && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <NotificationRow
-            item={item}
-            hasTarget={!!resolveNotificationTarget(item, user) || !!notificationWebLink(item, user, API_BASE_URL)}
-            pending={markRead.isPending && markRead.variables === item.id}
-            onPress={() => onPressItem(item)}
-          />
-        )}
+        renderItem={renderItem}
+        extraData={pendingId}
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={
@@ -238,23 +242,28 @@ export default function NotificationsScreen() {
   );
 }
 
-function NotificationRow({
+const NotificationRow = React.memo(function NotificationRow({
   item,
-  hasTarget,
+  user,
   pending,
   onPress,
 }: {
   item: NotificationItem;
-  hasTarget: boolean;
+  user: AuthUser | null | undefined;
   pending: boolean;
-  onPress: () => void;
+  onPress: (item: NotificationItem) => void;
 }) {
   const styles = useStyles();
+  // Hedef bir kez hesaplanır (önce uygulama içi ekran, yoksa web bağlantısı)
+  const hasTarget = useMemo(
+    () => !!resolveNotificationTarget(item, user) || !!notificationWebLink(item, user, API_BASE_URL),
+    [item, user]
+  );
   const title = item.description || item.verb || "Bildirim";
   const meta = [notificationSender(item), formatRelative(item.timestamp)].filter(Boolean).join(" · ");
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(item)}
       disabled={pending}
       accessibilityRole="button"
       accessibilityLabel={`${item.unread ? "Okunmamış. " : ""}${title}. ${meta}`}
@@ -281,7 +290,7 @@ function NotificationRow({
       </View>
     </Pressable>
   );
-}
+});
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({

@@ -1,6 +1,6 @@
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import { renderWithProviders } from "@/test/utils";
 import CardsScreen from "@/screens/cards/CardsScreen";
@@ -111,9 +111,44 @@ describe("Personel kartları sekmesi", () => {
     await renderWithProviders(<CardsScreen />);
     await fireEvent.press(await screen.findByText("Onay bekleyen (7)"));
     await fireEvent.press(await screen.findByTestId("card-reject-all"));
-    expect(screen.getByText("7 kart")).toBeOnTheScreen();
+    expect(screen.getByText("7 kart (tümü)")).toBeOnTheScreen();
+    expect(screen.getByText(/TÜM kart kayıtları silinir; arama veya grup filtresi uygulanmaz/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
     await waitFor(() => expect(mock.history.post.map((r) => r.url)).toEqual(["/cards/reject-all-pending/"]));
+  });
+
+  it("tümünü reddet: arama filtresi varken pasif ve açıklama gösterilir (backend filtreyi uygulamaz)", async () => {
+    mock.onGet("/cards/").reply(200, { ...cardPage([]), pending_count: 1, results: [cardJson(9, { is_active: false })] });
+    await renderWithProviders(<CardsScreen />);
+    await fireEvent.press(await screen.findByText("Onay bekleyen (1)"));
+    expect(await screen.findByTestId("card-reject-all")).toBeEnabled();
+    expect(screen.queryByTestId("card-reject-all-hint")).toBeNull();
+
+    await fireEvent.changeText(screen.getByTestId("card-search"), "ayşe");
+    expect(screen.getByTestId("card-reject-all")).toBeDisabled();
+    expect(screen.getByText("Filtre varken kullanılamaz; tüm bekleyen kartları reddeder.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("card-reject-all"));
+    expect(screen.queryByText("Tüm bekleyen kartları reddet")).toBeNull();
+    expect(mock.history.post).toHaveLength(0);
+
+    // Filtre kalkınca yeniden kullanılabilir
+    await fireEvent.changeText(screen.getByTestId("card-search"), "");
+    await waitFor(() => expect(screen.getByTestId("card-reject-all")).toBeEnabled());
+  });
+
+  it("seçim toplamı yenilemeden sonra güncel bakiyeyi kullanır (eski kopya değil)", async () => {
+    mock.onGet("/cards/").replyOnce(200, { ...cardPage([]), results: [cardJson(1, { balance: "10.00" }), cardJson(2, { balance: "5.00" })] });
+    mock.onGet("/cards/").reply(200, { ...cardPage([]), results: [cardJson(1, { balance: "70.00" }), cardJson(2, { balance: "5.00" })] });
+    const r = await renderWithProviders(<CardsScreen />);
+    await fireEvent(await screen.findByTestId("card-row-1"), "onLongPress");
+    await fireEvent.press(screen.getByTestId("card-row-2"));
+    expect(screen.getByText("Toplam bakiye ₺15,00")).toBeOnTheScreen();
+
+    // Yenileme (çekip bırakma / başka ekrandaki mutasyon sonrası invalidate)
+    await act(() => r.queryClient.invalidateQueries({ queryKey: ["cards"] }));
+    await waitFor(() => expect(cardGets(mock).length).toBeGreaterThanOrEqual(2));
+    expect(await screen.findByText("Toplam bakiye ₺75,00")).toBeOnTheScreen();
+    expect(screen.getByText("2 kart seçili")).toBeOnTheScreen();
   });
 
   it("toplu bakiye: özet doğru, tek istek, çift dokunmada ikinci istek yok", async () => {

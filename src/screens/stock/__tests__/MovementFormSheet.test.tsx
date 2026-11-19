@@ -54,6 +54,21 @@ describe("MovementFormSheet", () => {
     );
   });
 
+  it("SKU seçicide sunucu 50 sonuçta kestiğinde aramayı daraltma ipucu gösterir", async () => {
+    mock.onGet("/stock/skus/").reply(200, { results: skus.filter((s) => s.kind !== "composite"), truncated: true });
+    await renderSheet("receipt");
+    await fireEvent.press(screen.getByTestId("movement-sku"));
+    await screen.findByText("Su 500 ml");
+    expect(screen.getByText("Aramayla eşleşen ilk 50 ürün gösteriliyor. Daha fazlası için aramayı daraltın.")).toBeOnTheScreen();
+  });
+
+  it("SKU seçicide sonuç kesilmemişse ipucu gösterilmez", async () => {
+    await renderSheet("receipt");
+    await fireEvent.press(screen.getByTestId("movement-sku"));
+    await screen.findByText("Su 500 ml");
+    expect(screen.queryByText(/ilk 50 ürün/)).toBeNull();
+  });
+
   it("aynı kaynak/hedef lokasyonu reddeder ve istek atmaz", async () => {
     await renderSheet("transfer");
     await pickSku("Su 500 ml");
@@ -147,6 +162,8 @@ describe("MovementFormSheet", () => {
     expect(await screen.findByText("Lokasyonda mevcut: 2.500,5 g")).toBeOnTheScreen();
     await fireEvent.press(screen.getByText("Çıkar (−)"));
     await fireEvent.changeText(screen.getByTestId("movement-quantity"), "12,25");
+    // Sunucu açıklamayı hareketin notes alanına yazıyor → "yazmıyor" uyarısı gösterilmez
+    expect(screen.queryByText(/açıklamayı şu an hareket kaydına yazmıyor/)).toBeNull();
     await fireEvent.changeText(screen.getByTestId("movement-reason"), "Fire");
     await fireEvent.press(screen.getByTestId("movement-continue"));
 

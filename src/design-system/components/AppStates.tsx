@@ -31,18 +31,21 @@ export interface AppEmptyStateProps {
 export function AppEmptyState({ title, description, icon = "inbox", actionLabel, onAction, compact }: AppEmptyStateProps) {
   const styles = useStyles();
   return (
-    <View style={[styles.center, compact && styles.compact]} accessible accessibilityLabel={`${title}. ${description ?? ""}`}>
-      <View style={styles.iconWrap}>
-        <AppIcon name={icon} size={22} color="textTertiary" />
-      </View>
-      <AppText variant="cardTitle" align="center">
-        {title}
-      </AppText>
-      {description ? (
-        <AppText variant="callout" color="textSecondary" align="center" style={styles.description}>
-          {description}
+    <View style={[styles.center, compact && styles.compact]}>
+      {/* Yalnız metinler tek öğe olarak okunur; aksiyon düğmesi VoiceOver/TalkBack'te ayrıca erişilebilir kalır */}
+      <View style={styles.emptyText} accessible accessibilityLabel={description ? `${title}. ${description}` : title}>
+        <View style={styles.iconWrap}>
+          <AppIcon name={icon} size={22} color="textTertiary" />
+        </View>
+        <AppText variant="cardTitle" align="center">
+          {title}
         </AppText>
-      ) : null}
+        {description ? (
+          <AppText variant="callout" color="textSecondary" align="center" style={styles.description}>
+            {description}
+          </AppText>
+        ) : null}
+      </View>
       {actionLabel && onAction ? <AppButton title={actionLabel} onPress={onAction} variant="outline" size="sm" /> : null}
     </View>
   );
@@ -163,6 +166,7 @@ const useStyles = makeStyles((t) =>
   StyleSheet.create({
     center: { flex: 1, alignItems: "center", justifyContent: "center", padding: t.spacing.xxl, gap: t.spacing.sm },
     compact: { flex: 0, paddingVertical: t.spacing.xxl },
+    emptyText: { alignItems: "center", gap: t.spacing.sm },
     iconWrap: {
       width: 48,
       height: 48,

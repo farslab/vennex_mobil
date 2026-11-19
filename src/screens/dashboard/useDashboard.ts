@@ -35,7 +35,7 @@ export function buildDashboardParams(f: DashboardFilterState): DashboardParams {
 /**
  * Dashboard verisi: tek bundle isteği (`GET /overview/dashboard/`).
  * - Dönem/konum değişince yeni anahtar → önceki veri ekranda kalır (keepPreviousData), eski istek iptal edilir.
- * - Pull-to-refresh `nocache=1` ile, en fazla 15 sn'de bir.
+ * - Pull-to-refresh `nocache=1` ile en fazla 15 sn'de bir; arada normal istekle tazeler.
  * - Otomatik yenileme yalnız odaktayken 60 sn; odak geri gelince veri 30 sn'den eskiyse tazelenir.
  */
 export function useDashboard() {
@@ -78,17 +78,21 @@ export function useDashboard() {
     setFilters((f) => ({ ...f, locationIds }));
   }, []);
 
-  /** Pull-to-refresh: cooldown dışındaysa cache'i atlayarak (nocache=1) çeker. Hata fırlatır. */
+  /**
+   * Pull-to-refresh: cooldown dışındaysa cache'i atlayarak (nocache=1) çeker; cooldown içindeyse
+   * normal (sunucu önbellekli) istek atar — kullanıcı her çekişte geri bildirim görür, gösterge takılmaz.
+   * Hata fırlatır.
+   */
   const refresh = useCallback(async () => {
     if (refreshing) return;
     const now = Date.now();
-    if (now - lastNoCacheAt.current < DASHBOARD_NOCACHE_COOLDOWN_MS) return;
-    lastNoCacheAt.current = now;
+    const bypassCache = now - lastNoCacheAt.current >= DASHBOARD_NOCACHE_COOLDOWN_MS;
+    if (bypassCache) lastNoCacheAt.current = now;
     setRefreshing(true);
     try {
       await queryClient.fetchQuery({
         queryKey,
-        queryFn: ({ signal }) => overviewApi.dashboardData({ ...params, nocache: true }, signal),
+        queryFn: ({ signal }) => overviewApi.dashboardData(bypassCache ? { ...params, nocache: true } : params, signal),
         staleTime: 0,
       });
     } finally {

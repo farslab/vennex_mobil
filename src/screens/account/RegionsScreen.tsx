@@ -16,6 +16,7 @@ import {
   AppIconButton,
   AppInput,
   AppListSkeleton,
+  AppNotice,
   AppSelect,
   AppSheet,
   AppSwitchRow,
@@ -288,6 +289,9 @@ function RegionFormSheet({ form, onClose, onSaved }: { form: RegionForm | null; 
   );
 }
 
+/** Konum formunda alanın altında hata gösterilen anahtarlar */
+const LOCATION_FIELDS = ["region", "name", "address", "latitude", "longitude"] as const;
+
 function LocationFormSheet({
   form,
   regions,
@@ -358,6 +362,10 @@ function LocationFormSheet({
     save.mutate({ region: regionId!, name: name.trim(), address: address.trim(), latitude: la.value, longitude: lo.value, is_active: active });
   };
 
+  // Alan altında gösterilmeyen hatalar (detail'li 400, 5xx, ağ hatası, bilinmeyen alan) üstte bildirilir
+  const fieldErrorShown = LOCATION_FIELDS.some((k) => !!errors[k]);
+  const generalError = save.error && !fieldErrorShown ? errorMessage(save.error, "Konum kaydedilemedi.") : null;
+
   return (
     <AppSheet
       visible={!!form}
@@ -375,6 +383,7 @@ function LocationFormSheet({
         </>
       }
     >
+      {generalError ? <AppNotice tone="danger" message={generalError} /> : null}
       <AppSelect
         label="Bölge"
         required

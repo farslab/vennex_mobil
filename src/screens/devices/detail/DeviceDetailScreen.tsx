@@ -9,6 +9,7 @@ import { StyleSheet, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AppBadge,
+  AppConfirmSheet,
   AppErrorState,
   AppIconButton,
   AppSegmented,
@@ -42,6 +43,10 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
   const [tab, setTab] = useState<DeviceTabKey>("general");
   const [refreshing, setRefreshing] = useState(false);
   const [remoteOpen, setRemoteOpen] = useState(false);
+  // Ayarlar sekmesinde kaydedilmemiş değişiklik: sekme değişince SettingsTab kapanır ve form kaybolur →
+  // önce onay (useUnsavedChangesGuard yalnız ekrandan çıkışı korur)
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState<DeviceTabKey | null>(null);
 
   const title = detail?.pos_name || name || sn;
   useEffect(() => {
@@ -74,6 +79,15 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
   // Yetki değişip seçili sekme kalktıysa Genel'e dön
   const activeTab = tabs.some((t) => t.key === tab) ? tab : "general";
 
+  const changeTab = useCallback(
+    (next: DeviceTabKey) => {
+      if (next === activeTab) return;
+      if (activeTab === "settings" && settingsDirty) setPendingTab(next);
+      else setTab(next);
+    },
+    [activeTab, settingsDirty]
+  );
+
   /** Pull-to-refresh: bu cihaza ait tüm sorgular */
   const refreshAll = useCallback(async () => {
     setRefreshing(true);
@@ -84,6 +98,8 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
         queryClient.invalidateQueries({ queryKey: queryKeys.devices.products(sn) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.devices.cashHistory(sn) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.devices.revenueCounts(sn) }),
+        // İstatistikler sekmesi KPI'ları (tüm dönem/saat parametreleri)
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.devices.all, "stats", sn] }),
         queryClient.invalidateQueries({ queryKey: [...queryKeys.devices.all, "tx-summary", sn] }),
       ]);
     } finally {
@@ -135,15 +151,29 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
         </View>
       </View>
       <View style={styles.tabs}>
-        <AppSegmented<DeviceTabKey> variant="tabs" items={tabs} value={activeTab} onChange={setTab} testID="device-tabs" />
+        <AppSegmented<DeviceTabKey> variant="tabs" items={tabs} value={activeTab} onChange={changeTab} testID="device-tabs" />
       </View>
       <View style={styles.flex}>
         {activeTab === "general" ? <GeneralTab sn={sn} detail={detail} access={access} refreshing={refreshing} onRefresh={refreshAll} /> : null}
         {activeTab === "sales" ? <SalesTab sn={sn} /> : null}
         {activeTab === "stock" ? <StockTab sn={sn} detail={detail} access={access} /> : null}
         {activeTab === "stats" ? <StatsTab sn={sn} refreshing={refreshing} onRefresh={refreshAll} /> : null}
-        {activeTab === "settings" ? <SettingsTab sn={sn} detail={detail} access={access} /> : null}
+        {activeTab === "settings" ? <SettingsTab sn={sn} detail={detail} access={access} onDirtyChange={setSettingsDirty} /> : null}
       </View>
+      <AppConfirmSheet
+        visible={pendingTab != null}
+        title="Kaydedilmemiş değişiklikler"
+        message="Ayarlarda kaydedilmemiş değişiklikler var. Sekmeden çıkarsanız bu değişiklikler kaybolur."
+        confirmLabel="Değişiklikleri at"
+        cancelLabel="Kal"
+        destructive
+        onConfirm={() => {
+          if (pendingTab) setTab(pendingTab);
+          setSettingsDirty(false);
+          setPendingTab(null);
+        }}
+        onCancel={() => setPendingTab(null)}
+      />
       {canRemoteVend ? (
         <RemoteSaleSheet visible={remoteOpen} onClose={() => setRemoteOpen(false)} sn={detail.sn} deviceName={detail.pos_name} />
       ) : null}

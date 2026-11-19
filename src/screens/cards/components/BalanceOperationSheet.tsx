@@ -13,7 +13,9 @@ import {
   useFormDirty,
   useGuardedClose,
 } from "@/design-system";
+import { useQueryClient } from "@tanstack/react-query";
 import { cardsApi } from "@/api/cards";
+import type { ApiError } from "@/api/client";
 import { formatCurrency } from "@/utils/number";
 import type { BulkBalanceOperation, PersonnelCard } from "@/types/cards";
 import { fieldErrorsOf, generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
@@ -25,6 +27,20 @@ import {
   validateAmount,
 } from "./format";
 import { useOnOpen } from "../hooks/useOnOpen";
+import { cardKeys } from "../hooks/cardKeys";
+
+/**
+ * Sonucu belirsiz hata: istek sunucuya ulaşmış ve işlenmiş olabilir (zaman aşımı, bağlantı kopması,
+ * ağ geçidi zaman aşımı). Bu durumda aynı işlemi tekrar göndermek çift bakiye yüklemesine yol açar.
+ */
+export function isUncertainOutcome(error: unknown): boolean {
+  const e = error as ApiError | null | undefined;
+  if (!e) return false;
+  return e.isNetworkError === true || e.status === 502 || e.status === 504;
+}
+
+const UNCERTAIN_MESSAGE =
+  "İşlemin sonucu doğrulanamadı; sunucu işlemi uygulamış olabilir. Tekrar denemeden önce kartın bakiye geçmişini kontrol edin.";
 
 const OPERATIONS: { key: BulkBalanceOperation; label: string }[] = [
   { key: "add", label: "Ekle" },
@@ -50,6 +66,8 @@ export function BalanceOperationSheet({ visible, cards, onClose, onDone }: Balan
   const [amountText, setAmountText] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
   const [confirmAmount, setConfirmAmount] = useState<number | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const queryClient = useQueryClient();
   // Kaydedilmemiş değişiklik: kapatırken onay iste
   const dirty = useFormDirty(visible, { operation, amountText });
   const guardedClose = useGuardedClose(dirty, onClose);
@@ -59,6 +77,7 @@ export function BalanceOperationSheet({ visible, cards, onClose, onDone }: Balan
     setAmountText("");
     setAmountError(null);
     setConfirmAmount(null);
+    setUncertain(false);
   });
 
   const mutation = useLockedMutation({
@@ -76,6 +95,13 @@ export function BalanceOperationSheet({ visible, cards, onClose, onDone }: Balan
       onDone?.();
     },
     onError: (err) => {
+      if (isUncertainOutcome(err)) {
+        // Sonuç bilinmiyor: onayı kapat (yeniden gönderilmesin), kart verisini tazele, uyar
+        setConfirmAmount(null);
+        setUncertain(true);
+        queryClient.invalidateQueries({ queryKey: cardKeys.all });
+        return;
+      }
       const fe = fieldErrorsOf(err);
       if (fe.amount) {
         setAmountError(fe.amount);
@@ -160,6 +186,7 @@ export function BalanceOperationSheet({ visible, cards, onClose, onDone }: Balan
           </AppText>
         </View>
       ) : null}
+      {uncertain ? <AppNotice tone="warning" title="Sonuç doğrulanamadı" message={UNCERTAIN_MESSAGE} /> : null}
       {operation === "subtract" ? (
         <AppNotice tone="info" message="Bakiyesi tutardan düşük kartlar 0 ₺'ye çekilir; eksi bakiye oluşmaz." />
       ) : null}

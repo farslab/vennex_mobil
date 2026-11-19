@@ -51,5 +51,8 @@ export function bindQueryLifecycle() {
 
   const onAppStateChange = (status: AppStateStatus) => focusManager.setFocused(status === "active");
   const sub = AppState.addEventListener("change", onAppStateChange);
-  return () => sub.remove();
+  return () => {
+    sub.remove();
+    lifecycleBound = false;
+  };
 }

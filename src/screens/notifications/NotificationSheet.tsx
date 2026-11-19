@@ -3,7 +3,7 @@
  * İlgili ekran varsa (POS cihazı, kart, raporlar, cari) altta onu açan düğme;
  * yoksa ve bildirim bir web bağlantısı taşıyorsa, alan adı gösterilerek tarayıcıda açılır.
  */
-import React from "react";
+import React, { useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import { AppButton, AppIcon, AppSheet, AppText, makeStyles, toast } from "@/design-system";
 import { formatDateTime, formatRelative } from "@/utils/date";
@@ -18,9 +18,9 @@ const TARGET_LABEL: Record<NotificationTarget["name"], string> = {
 };
 
 export function NotificationSheet({
-  item,
-  target,
-  link,
+  item: itemProp,
+  target: targetProp,
+  link: linkProp,
   onClose,
   onOpenTarget,
 }: {
@@ -31,6 +31,17 @@ export function NotificationSheet({
   onOpenTarget: (target: NotificationTarget) => void;
 }) {
   const styles = useStyles();
+  // Kapanma animasyonu sürerken içerik boşalmasın: son gösterilen bildirim, yenisi gelene kadar tutulur
+  const [last, setLast] = useState<{ item: NotificationItem; target: NotificationTarget | null; link: NotificationWebLink | null } | null>(
+    itemProp ? { item: itemProp, target: targetProp, link: linkProp } : null
+  );
+  if (itemProp && (last?.item !== itemProp || last.target !== targetProp || last.link !== linkProp)) {
+    setLast({ item: itemProp, target: targetProp, link: linkProp });
+  }
+  const visible = !!itemProp;
+  const item = itemProp ?? last?.item ?? null;
+  const target = itemProp ? targetProp : (last?.target ?? null);
+  const link = itemProp ? linkProp : (last?.link ?? null);
   const title = item?.verb?.trim() || "Bildirim";
   const body = item?.description?.trim() || "";
   // Göreli zaman yalnız "3 sa önce" gibi gerçekten göreli ise eklenir; eski kayıtta tarih tekrarlanmaz
@@ -44,7 +55,7 @@ export function NotificationSheet({
 
   return (
     <AppSheet
-      visible={!!item}
+      visible={visible}
       onClose={onClose}
       title={title}
       scrollable

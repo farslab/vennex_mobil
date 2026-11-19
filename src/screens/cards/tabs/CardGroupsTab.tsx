@@ -185,7 +185,7 @@ function GroupDetailSheet({ groupId, onClose }: { groupId: number | null; onClos
       <AppConfirmSheet
         visible={deleting && g != null}
         title="Grubu sil"
-        message="Grup silinir; kartlar silinmez ancak bu gruptan çıkarılır. Bu gruba tanımlı bakiye yükleme kuralları da silinir."
+        message="Grup silinir; kartlar silinmez ancak bu gruptan çıkarılır. Bu gruba bağlı istihkak tanımları, istihkak yenileme kuralları ve bakiye yükleme kuralları da kalıcı olarak silinir."
         summary={g ? [{ label: "Grup", value: g.name }, { label: "Aktif kart", value: formatInteger(g.active_cards_count) }] : []}
         confirmLabel="Grubu sil"
         destructive

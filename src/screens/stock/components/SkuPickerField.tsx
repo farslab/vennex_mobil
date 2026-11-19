@@ -7,6 +7,7 @@ import {
   AppErrorState,
   AppIcon,
   AppListSkeleton,
+  AppNotice,
   AppSearchField,
   AppSheet,
   AppText,
@@ -40,7 +41,8 @@ export function SkuPickerField({ label, value, onChange, error, required, disabl
 
   const query = useQuery({
     queryKey: stockKeys.skuSearch({ q: debounced, stockable }),
-    queryFn: ({ signal }) => stockApi.skus.list({ q: debounced, stockable }, signal),
+    // `search`: sunucu en fazla 50 sonuç döner ve `truncated` bildirir (SkusTab ile aynı varyant/biçim)
+    queryFn: ({ signal }) => stockApi.skus.search({ q: debounced, stockable }, signal),
     enabled: open,
     staleTime: 60_000,
     placeholderData: (prev) => prev,
@@ -51,7 +53,8 @@ export function SkuPickerField({ label, value, onChange, error, required, disabl
     setOpen(false);
   };
 
-  const results = query.data ?? [];
+  const results = query.data?.items ?? [];
+  const truncated = query.data?.truncated === true;
   const selectedText = value ? `${value.name} · ${value.sku_code}` : null;
 
   return (
@@ -86,6 +89,9 @@ export function SkuPickerField({ label, value, onChange, error, required, disabl
 
       <AppSheet visible={open} onClose={() => setOpen(false)} title={label} subtitle="Ad, SKU kodu veya barkod ile arayın" scrollable={false}>
         <AppSearchField value={q} onChangeText={setQ} placeholder="Ürün ara" autoFocus testID="sku-picker-search" />
+        {truncated ? (
+          <AppNotice tone="info" message="Aramayla eşleşen ilk 50 ürün gösteriliyor. Daha fazlası için aramayı daraltın." />
+        ) : null}
         {query.isLoading && results.length === 0 ? (
           <AppListSkeleton rows={4} />
         ) : query.isError && results.length === 0 ? (

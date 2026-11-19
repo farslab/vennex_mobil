@@ -3,7 +3,7 @@
  * Veri: yalnız `GET /overview/dashboard/` bundle'ı (docs/API_CONTRACTS.md §2.4, §3.8).
  * Satış yetkisi yoksa (istemci `view_sales` veya backend `sales_visible=false`) hiçbir tutar gösterilmez.
  */
-import React, { useCallback, useLayoutEffect, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
@@ -23,13 +23,17 @@ import { overviewApi } from "@/api/overview";
 import { queryKeys } from "@/api/queryKeys";
 import { canViewSales } from "@/auth/permissions";
 import { useAuthStore } from "@/store/authStore";
-import { formatTime } from "@/utils/date";
 import type { RootStackParamList } from "@/navigation/types";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { KpiGrid } from "@/components/dashboard/KpiGrid";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { FailureReasonsCard, PaymentBreakdownCard, PersonelGroupsSheet } from "@/components/dashboard/BreakdownCards";
+import {
+  FailureReasonsCard,
+  hasPersonelRevenue,
+  PaymentBreakdownCard,
+  PersonelGroupsSheet,
+  usePersonelGroups,
+} from "@/components/dashboard/BreakdownCards";
 import { TechnicalErrorsSheet, TopDevicesCard } from "@/components/dashboard/DeviceRankCards";
 import { RecentTransactionsCard } from "@/components/dashboard/RecentTransactionsCard";
 import { TabHeader } from "@/navigation/TabHeader";
@@ -108,6 +112,12 @@ export default function DashboardScreen() {
   const sales = salesAllowed ? data?.sales ?? null : null;
   const failed = sales?.transactions.failed ?? 0;
 
+  // Web gibi: Personel Kart satırı yalnız grup kırılımı boş değilse bağlantıdır. Kırılım yalnız
+  // Personel Kart cirosu varken istenir; alt sayfa aynı önbelleği kullanır (açılınca anında gelir).
+  const panelParams = useMemo(() => buildDashboardParams(dash.filters), [dash.filters]);
+  const personelGroups = usePersonelGroups(panelParams, hasPersonelRevenue(sales?.paymentBreakdown));
+  const personelLinkable = (personelGroups.data?.groups.length ?? 0) > 0;
+
   return (
     <AppScreen refreshing={dash.refreshing} onRefresh={onRefresh} testID="dashboard-screen">
       <DashboardFilters
@@ -132,20 +142,14 @@ export default function DashboardScreen() {
         />
       ) : (
         <>
-          <View style={styles.statusLine}>
-            <AppText variant="caption" color="textSecondary" numberOfLines={1} style={styles.flex}>
-              {data.periodLabel || "Genel Bakış"}
-              {dash.dataUpdatedAt ? ` · Güncellendi ${formatTime(new Date(dash.dataUpdatedAt))}` : ""}
-            </AppText>
-            {dash.isFetching && !dash.refreshing ? (
-              <View style={styles.fetching} accessibilityLiveRegion="polite" accessibilityLabel="Güncelleniyor">
-                <ActivityIndicator size="small" color={colors.textTertiary} />
-                <AppText variant="caption" color="textTertiary">
-                  Güncelleniyor
-                </AppText>
-              </View>
-            ) : null}
-          </View>
+          {dash.isFetching && !dash.refreshing ? (
+            <View style={styles.fetching} accessibilityLiveRegion="polite" accessibilityLabel="Güncelleniyor">
+              <ActivityIndicator size="small" color={colors.textTertiary} />
+              <AppText variant="caption" color="textTertiary">
+                Güncelleniyor
+              </AppText>
+            </View>
+          ) : null}
 
           {dash.isError ? (
             <AppNotice
@@ -165,7 +169,6 @@ export default function DashboardScreen() {
             />
           ) : (
             <>
-              <RevenueChart mode={sales.timeseries.mode} points={sales.timeseries.points} periodLabel={data.periodLabel} />
               {failed > 0 ? (
                 <FailureReasonsCard
                   failures={sales.failures}
@@ -173,7 +176,10 @@ export default function DashboardScreen() {
                   onTechnicalPress={sales.errorBreakdown.length ? () => setSheet("technical") : undefined}
                 />
               ) : null}
-              <PaymentBreakdownCard items={sales.paymentBreakdown} onPersonelPress={() => setSheet("personel")} />
+              <PaymentBreakdownCard
+                items={sales.paymentBreakdown}
+                onPersonelPress={personelLinkable ? () => setSheet("personel") : undefined}
+              />
               <TopDevicesCard items={sales.topDevices} onOpenDevice={openDevice} />
               <TechnicalErrorsSheet
                 visible={sheet === "technical"}
@@ -184,7 +190,7 @@ export default function DashboardScreen() {
               <PersonelGroupsSheet
                 visible={sheet === "personel"}
                 onClose={() => setSheet(null)}
-                params={buildDashboardParams(dash.filters)}
+                params={panelParams}
               />
               <RecentTransactionsCard
                 items={sales.recentTransactions}
@@ -202,7 +208,6 @@ export default function DashboardScreen() {
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1 },
-    statusLine: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm, marginBottom: -t.spacing.md },
-    fetching: { flexDirection: "row", alignItems: "center", gap: t.spacing.xs },
+    fetching: { flexDirection: "row", alignItems: "center", gap: t.spacing.xs, alignSelf: "flex-end", marginBottom: -t.spacing.sm },
   })
 );

@@ -25,6 +25,7 @@ import {
 import { devicesApi } from "@/api/devices";
 import { errorMessage, type ApiError } from "@/api/client";
 import { SkuPickerSheet } from "@/components/devices/SkuPickerSheet";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { productDisplayName, slotLabel } from "@/components/devices/deviceHelpers";
 import { parseDecimal, toApiDecimal, toNumber } from "@/utils/number";
 import type { NormalProductPayload, PosProduct, ProductsMode, StockSlotPayload } from "@/types/devices";
@@ -160,11 +161,13 @@ export function SlotFormSheet({
     },
   });
 
-  const submit = () => {
+  // Kaydet/sil tek uçuşlu: art arda dokunuş ikinci slot/ürün oluşturmaz
+  const submit = useSingleFlight(() => {
     const { payload, errors: errs } = buildProductPayload(mode, form);
     setErrors(errs);
-    if (payload) save.mutate(payload);
-  };
+    return payload ? save.mutateAsync(payload) : Promise.resolve();
+  });
+  const confirmRemove = useSingleFlight(remove.mutateAsync);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
   const title = item ? `${mode === "stock" ? "Slot" : "Ürün"} ${slotLabel(item)}` : mode === "stock" ? "Yeni slot" : "Yeni ürün";
@@ -293,7 +296,7 @@ export function SlotFormSheet({
         irreversible
         loading={remove.isPending}
         error={remove.error ? errorMessage(remove.error) : null}
-        onConfirm={() => remove.mutate()}
+        onConfirm={confirmRemove}
         onCancel={() => {
           setConfirmDelete(false);
           remove.reset();

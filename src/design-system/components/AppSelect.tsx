@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { makeStyles } from "../theme";
 import { AppText } from "./AppText";
-import { AppIcon } from "./AppIcon";
+import { AppIcon, type IconName } from "./AppIcon";
 import { AppSheet } from "./AppSheet";
 import { AppSearchField } from "./AppSearchField";
 import { AppEmptyState } from "./AppStates";
@@ -28,6 +28,10 @@ interface BaseProps<V extends string | number> {
   sheetTitle?: string;
   loading?: boolean;
   testID?: string;
+  /** "bare": çerçevesiz, kompakt tetikleyici (kendi kabı içinde kullanılır, ör. filtre çubuğu) */
+  variant?: "field" | "bare";
+  /** Tetikleyicide soldaki simge */
+  icon?: IconName;
 }
 
 interface SingleProps<V extends string | number> extends BaseProps<V> {
@@ -104,14 +108,15 @@ export function AppSelect<V extends string | number>(props: AppSelectProps<V>) {
         accessibilityLabel={`${label ?? placeholder}: ${selectedLabel ?? "seçilmedi"}`}
         accessibilityState={{ disabled: !!disabled, expanded: open }}
         style={({ pressed }) => [
-          styles.field,
+          props.variant === "bare" ? styles.fieldBare : styles.field,
           error ? styles.fieldError : null,
           disabled ? styles.fieldDisabled : null,
           pressed ? styles.fieldPressed : null,
         ]}
       >
+        {props.icon ? <AppIcon name={props.icon} size={16} color="primary" /> : null}
         <AppText
-          variant="body"
+          variant={props.variant === "bare" ? "calloutStrong" : "body"}
           color={selectedLabel ? "text" : "textTertiary"}
           numberOfLines={1}
           style={styles.flex}
@@ -152,6 +157,9 @@ export function AppSelect<V extends string | number>(props: AppSelectProps<V>) {
           data={filtered}
           keyExtractor={(o) => String(o.value)}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          // Üst sınır ekran yüksekliğine göre; sayfa daralırsa (klavye, küçük ekran) liste küçülür,
+          // "Uygula" ve son satırlar görünür kalır
           style={[styles.list, { maxHeight: listMaxHeight }]}
           initialNumToRender={20}
           ListEmptyComponent={<AppEmptyState compact title="Sonuç yok" icon="search" />}
@@ -206,10 +214,18 @@ const useStyles = makeStyles((t) =>
       alignItems: "center",
       gap: t.spacing.sm,
     },
+    fieldBare: {
+      minHeight: 44,
+      paddingHorizontal: t.spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.spacing.sm,
+      borderRadius: 999,
+    },
     fieldError: { borderColor: t.colors.danger },
     fieldDisabled: { backgroundColor: t.colors.surfaceMuted, opacity: 0.7 },
     fieldPressed: { backgroundColor: t.colors.surfacePressed },
-    list: { maxHeight: 420 },
+    list: { maxHeight: 420, flexShrink: 1 },
     option: {
       minHeight: t.layout.minTouchTarget,
       flexDirection: "row",

@@ -14,8 +14,23 @@ describe("authApi — hesap uçları", () => {
 
   it("change-password gövdesi ve 200 {detail} yanıtı", async () => {
     mock.onPost("/auth/change-password/").reply(200, { detail: "Parola güncellendi." });
-    await expect(authApi.changePassword("eski-sifre1", "yeni-sifre1")).resolves.toEqual({ detail: "Parola güncellendi." });
+    await expect(authApi.changePassword("eski-sifre1", "yeni-sifre1")).resolves.toEqual({
+      detail: "Parola güncellendi.",
+      sessionKept: false,
+    });
     expect(JSON.parse(mock.history.post[0].data)).toEqual({ current_password: "eski-sifre1", new_password: "yeni-sifre1" });
+  });
+
+  it("change-password yeni token çiftini saklar → bu cihazda oturum açık kalır", async () => {
+    const { tokenStorage } = jest.requireActual("@/utils/tokenStorage") as typeof import("@/utils/tokenStorage");
+    const spy = jest.spyOn(tokenStorage, "setTokens").mockResolvedValue();
+    mock.onPost("/auth/change-password/").reply(200, { detail: "Parola güncellendi.", access: "a2", refresh: "r2" });
+    await expect(authApi.changePassword("eski-sifre1", "yeni-sifre1")).resolves.toEqual({
+      detail: "Parola güncellendi.",
+      sessionKept: true,
+    });
+    expect(spy).toHaveBeenCalledWith("a2", "r2");
+    spy.mockRestore();
   });
 
   it("change-password alan hatasını fieldErrors olarak taşır", async () => {

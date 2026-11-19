@@ -13,6 +13,7 @@ import { makeStyles } from "../theme";
 import { AppText } from "./AppText";
 import { AppIconButton } from "./AppIconButton";
 import { confirmDiscard } from "../hooks/useUnsavedChanges";
+import { AppToastHost, useToastHostStore } from "./AppToast";
 
 export interface AppSheetProps {
   visible: boolean;
@@ -102,6 +103,15 @@ export function AppSheet({
   );
   const modalVisible = visible || openChildren.size > 0;
 
+  // Açıkken toast bu sayfanın Modal'ında çizilir (kökteki konak Modal'ın altında kalır)
+  const registerToastHost = useToastHostStore((s) => s.register);
+  const unregisterToastHost = useToastHostStore((s) => s.unregister);
+  useEffect(() => {
+    if (!visible) return;
+    registerToastHost(id);
+    return () => unregisterToastHost(id);
+  }, [visible, id, registerToastHost, unregisterToastHost]);
+
   const close = () => {
     if (!dismissible) return;
     if (dirty) confirmDiscard(onClose);
@@ -168,6 +178,7 @@ export function AppSheet({
           ) : null}
         </View>
       </KeyboardAvoidingView>
+      <AppToastHost hostId={id} />
     </Modal>
   );
 }
@@ -181,6 +192,8 @@ const useStyles = makeStyles((t) =>
     sheet: {
       marginTop: "auto",
       maxHeight: "90%",
+      // Klavye açıkken (KeyboardAvoidingView alanı daralınca) sayfa da küçülsün; başlık ve alt düğmeler görünür kalır
+      flexShrink: 1,
       // iPad: ekranlarla aynı okunabilir genişlikte, ortalı (telefonda etkisiz)
       width: "100%",
       maxWidth: t.layout.maxContentWidth,
@@ -206,7 +219,8 @@ const useStyles = makeStyles((t) =>
       paddingVertical: t.spacing.xs,
       gap: t.spacing.sm,
     },
-    body: { flexGrow: 0 },
+    /** İçerik büyükse gövde küçülür (başlık/alt aksiyonlar sabit kalır) */
+    body: { flexGrow: 0, flexShrink: 1 },
     bodyContent: { paddingHorizontal: t.layout.screenPadding, paddingBottom: t.spacing.lg, gap: t.spacing.lg },
     footer: {
       flexDirection: "row",

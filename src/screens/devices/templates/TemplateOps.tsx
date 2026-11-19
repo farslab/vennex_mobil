@@ -7,6 +7,8 @@
  * Liste uçlarında `pos_odemetip` yok → cihaz seçici makine tipine göre süzemez (açıklama gösterilir).
  * Zaten eşli cihazlar tikli ve kilitli gösterilir (yeniden atama ürünleri baştan kurup stoğu sıfırlar →
  * yalnız YENİ seçilenler gönderilir). Liste ekranındaki özet eşli cihazları içermez → detaydan alınır.
+ * Atama, seçiciden sonra onay ister (web: "ilk eşlemede ... mevcut stok sıfırlanır"). Atama/gönderme/silme
+ * onayları tek uçuşludur: art arda dokunuş ikinci isteği göndermez.
  */
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -15,6 +17,7 @@ import { AppButton, AppConfirmSheet, AppNotice, AppSheet, AppText, makeStyles, t
 import { templatesApi } from "@/api/templates";
 import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
 import { DevicePickerSheet } from "@/components/devices/DevicePickerSheet";
 import { machineTypeLabel } from "@/components/devices/deviceHelpers";
 import { formatInteger } from "@/utils/number";
@@ -49,6 +52,7 @@ export function TemplateOps({
   const queryClient = useQueryClient();
   const [result, setResult] = useState<TemplateAssignResult | null>(null);
   const [sendSn, setSendSn] = useState<string | null>(null);
+  const [assignSns, setAssignSns] = useState<string[] | null>(null);
 
   const afterWrite = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.templates.all });
@@ -59,10 +63,10 @@ export function TemplateOps({
     mutationFn: (sns: string[]) => templatesApi.assignDevices((template as TemplateOpTarget).id, sns),
     onSuccess: (res) => {
       afterWrite();
+      setAssignSns(null);
       onClose();
       setResult(res);
     },
-    onError: (e) => toast.error(errorMessage(e)),
   });
 
   const send = useMutation({
@@ -85,6 +89,10 @@ export function TemplateOps({
     },
   });
 
+  const confirmAssign = useSingleFlight(() => (assignSns ? assign.mutateAsync(assignSns) : Promise.resolve()));
+  const confirmSend = useSingleFlight(() => (sendSn ? send.mutateAsync(sendSn) : Promise.resolve()));
+  const confirmRemove = useSingleFlight(remove.mutateAsync);
+
   const typeLabel = template ? machineTypeLabel(template.machine_type) : "";
 
   // Eşli cihazlar: editör hedefte verir; liste özetinde yok → atama açılınca detaydan çekilir
@@ -99,7 +107,7 @@ export function TemplateOps({
   return (
     <>
       <DevicePickerSheet
-        visible={op === "assign" && !!template}
+        visible={op === "assign" && !!template && assignSns == null}
         multiple
         title="POS cihazlarına ata"
         subtitle={template ? `${template.name} · ${typeLabel}` : undefined}
@@ -108,9 +116,31 @@ export function TemplateOps({
         markedLabel="Eşli"
         markedLocked
         confirmLabel="Ata"
-        loading={assign.isPending}
         onClose={onClose}
-        onConfirm={(sns) => assign.mutate(sns)}
+        onConfirm={(sns) => {
+          assign.reset();
+          setAssignSns(sns);
+        }}
+      />
+      <AppConfirmSheet
+        visible={op === "assign" && !!template && assignSns != null}
+        title="Şablonu POS cihazlarına ata"
+        message="İlk eşlemede POS cihazlarının ürün/slot tanımları şablondan baştan oluşturulur ve mevcut stok sıfırlanır. Sonraki şablon değişiklikleri otomatik yansır ve stok korunur."
+        summary={template && assignSns ? [
+          { label: "Şablon", value: template.name },
+          { label: "Kalem", value: template.item_count != null ? formatInteger(template.item_count) : "—" },
+          { label: "POS cihazı", value: formatInteger(assignSns.length) },
+        ] : undefined}
+        confirmLabel="Ata"
+        destructive
+        irreversible
+        loading={assign.isPending}
+        error={assign.error ? errorMessage(assign.error) : null}
+        onConfirm={confirmAssign}
+        onCancel={() => {
+          setAssignSns(null);
+          assign.reset();
+        }}
       />
 
       <DevicePickerSheet
@@ -136,7 +166,7 @@ export function TemplateOps({
         irreversible
         loading={send.isPending}
         error={send.error ? errorMessage(send.error) : null}
-        onConfirm={() => sendSn && send.mutate(sendSn)}
+        onConfirm={confirmSend}
         onCancel={() => {
           setSendSn(null);
           send.reset();
@@ -158,7 +188,7 @@ export function TemplateOps({
         irreversible
         loading={remove.isPending}
         error={remove.error ? errorMessage(remove.error) : null}
-        onConfirm={() => remove.mutate()}
+        onConfirm={confirmRemove}
         onCancel={() => {
           remove.reset();
           onClose();

@@ -12,7 +12,9 @@ import {
   AppSection,
   AppText,
   makeStyles,
+  toast,
 } from "@/design-system";
+import { errorMessage } from "@/api/client";
 import { useAuthStore, useSelectedCompany } from "@/store/authStore";
 import { canManageUsers, isOwner, moduleVisible } from "@/auth/permissions";
 import { useAppConfig } from "@/hooks/useAppConfig";
@@ -50,6 +52,9 @@ export default function ProfileScreen() {
     setLoggingOut(true);
     try {
       await logout();
+    } catch (e) {
+      // logout normalde hata yutar; beklenmeyen bir hata işlenmemiş promise reddine dönüşmesin
+      toast.error(errorMessage(e, "Çıkış yapılamadı. Lütfen tekrar deneyin."));
     } finally {
       setLoggingOut(false);
       setConfirmLogout(false);

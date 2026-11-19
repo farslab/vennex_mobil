@@ -1,10 +1,18 @@
 import React from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
-import { AppCard, AppEmptyState, AppIcon, AppSheet, AppText, makeStyles } from "@/design-system";
+import { AppEmptyState, AppIcon, AppSheet, AppText, makeStyles } from "@/design-system";
+import { DashSection } from "./DashSection";
 import { formatCurrency, formatInteger, formatPercent } from "@/utils/number";
 import type { ErrorBreakdownItem, TopDevice } from "@/types/overview";
 
 type OpenDevice = (sn: string, name?: string) => void;
+
+/** İlk üç sıra rozeti: altın / gümüş / bronz */
+const MEDALS = [
+  { bg: "#FDE68A", fg: "#92400E" },
+  { bg: "#E2E8F0", fg: "#334155" },
+  { bg: "#FED7AA", fg: "#9A3412" },
+] as const;
 
 function DeviceRow({
   rank,
@@ -16,6 +24,7 @@ function DeviceRow({
   last,
   testID,
   flush,
+  share,
 }: {
   rank: number;
   name: string;
@@ -27,8 +36,11 @@ function DeviceRow({
   testID?: string;
   /** Alttan açılan sayfa içinde: yatay iç boşluk sayfadan gelir */
   flush?: boolean;
+  /** 0..1 — listedeki en yüksek değere göre pay çubuğu (verilirse) */
+  share?: number;
 }) {
   const styles = useStyles();
+  const medal = rank <= 3 ? MEDALS[rank - 1] : null;
   return (
     <Pressable
       testID={testID}
@@ -38,21 +50,28 @@ function DeviceRow({
       accessibilityHint="Cihaz detayını açar"
       style={({ pressed }) => [styles.row, flush && styles.rowFlush, !last && styles.rowBorder, pressed && styles.pressed]}
     >
-      <View style={styles.rank}>
-        <AppText variant="numericSm" color="textSecondary">
+      <View style={[styles.rank, medal && { backgroundColor: medal.bg }]}>
+        <AppText variant="numericSm" weight="700" style={medal ? { color: medal.fg } : undefined} color={medal ? undefined : "textSecondary"}>
           {rank}
         </AppText>
       </View>
       <View style={styles.flex}>
-        <AppText variant="callout" numberOfLines={1}>
+        <AppText variant="calloutStrong" numberOfLines={1}>
           {name}
         </AppText>
         <AppText variant="mono" color="textTertiary" numberOfLines={1}>
           {sn}
         </AppText>
+        {share != null ? (
+          <View style={styles.shareTrack}>
+            <View style={[styles.shareFill, { width: `${Math.max(4, Math.round(share * 100))}%` }]} />
+          </View>
+        ) : null}
       </View>
       <View style={styles.right}>
-        <AppText variant="numeric">{value}</AppText>
+        <AppText variant="numeric" weight="700">
+          {value}
+        </AppText>
         <AppText variant="caption" color="textTertiary">
           {caption}
         </AppText>
@@ -65,8 +84,9 @@ function DeviceRow({
 /** En çok ciro yapan cihazlar — dokununca cihaz detayı */
 export function TopDevicesCard({ items, onOpenDevice }: { items: TopDevice[]; onOpenDevice: OpenDevice }) {
   const styles = useStyles();
+  const topRevenue = Math.max(0, ...items.map((d) => d.revenue));
   return (
-    <AppCard title="En çok satan POS cihazları" padded={false} testID="top-devices">
+    <DashSection title="En Çok Satan Cihazlar" padded={false} testID="top-devices">
       {items.length === 0 ? (
         <AppEmptyState compact icon="pos" title="Bu dönemde satış yok" />
       ) : (
@@ -82,17 +102,18 @@ export function TopDevicesCard({ items, onOpenDevice }: { items: TopDevice[]; on
               caption={`${formatInteger(d.tx_count)} işlem`}
               onPress={() => onOpenDevice(d.sn, d.pos_name ?? undefined)}
               last={i === items.length - 1}
+              share={topRevenue > 0 ? d.revenue / topRevenue : undefined}
             />
           ))}
         </View>
       )}
-    </AppCard>
+    </DashSection>
   );
 }
 
 /**
- * Teknik hata (iptalNo=3) veren POS cihazlarının tamamı — web Genel Bakış'taki gibi
- * "Başarısızlık nedenleri → Teknik hata" satırına dokununca alttan açılır (adet + pay).
+ * Teknik iptal (iptalNo=3) veren POS cihazlarının tamamı — web Genel Bakış "Teknik İptal — POS Dağılımı"
+ * gibi; "Başarısızlık nedenleri → Teknik iptal" satırına dokununca alttan açılır (adet + pay).
  * Cihaza dokununca sayfa kapanır, ardından cihaz detayı açılır.
  */
 export function TechnicalErrorsSheet({
@@ -112,8 +133,8 @@ export function TechnicalErrorsSheet({
     <AppSheet
       visible={visible}
       onClose={onClose}
-      title="Teknik hata veren POS cihazları"
-      subtitle={`${formatInteger(items.length)} POS cihazı · ${formatInteger(total)} teknik hata`}
+      title="Teknik İptal — POS Dağılımı"
+      subtitle={`${formatInteger(items.length)} POS cihazı · ${formatInteger(total)} teknik iptal`}
       scrollable={false}
       testID="technical-errors-sheet"
     >
@@ -122,7 +143,7 @@ export function TechnicalErrorsSheet({
         keyExtractor={(d, i) => `${d.sn}-${i}`}
         style={styles.sheetList}
         initialNumToRender={20}
-        ListEmptyComponent={<AppEmptyState compact icon="check-circle" title="Teknik hata yok" />}
+        ListEmptyComponent={<AppEmptyState compact icon="check-circle" title="Teknik iptal yok" />}
         renderItem={({ item: d, index: i }) => (
           <DeviceRow
             testID={`technical-error-${d.sn}`}
@@ -130,7 +151,7 @@ export function TechnicalErrorsSheet({
             name={d.pos_name || d.sn}
             sn={d.sn}
             value={formatInteger(d.count)}
-            caption={total > 0 ? `teknik hata · ${formatPercent((d.count / total) * 100)}` : "teknik hata"}
+            caption={total > 0 ? `teknik iptal · ${formatPercent((d.count / total) * 100)}` : "teknik iptal"}
             onPress={() => {
               onClose();
               // Alttan açılan sayfa kapanmadan yeni ekran itilirse iOS'ta görünmez kalabilir
@@ -164,13 +185,15 @@ const useStyles = makeStyles((t) =>
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.colors.border },
     pressed: { backgroundColor: t.colors.surfacePressed },
     rank: {
-      width: 24,
-      height: 24,
-      borderRadius: t.radius.xs,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
       backgroundColor: t.colors.surfaceMuted,
       alignItems: "center",
       justifyContent: "center",
     },
     right: { alignItems: "flex-end" },
+    shareTrack: { height: 4, borderRadius: 2, backgroundColor: t.colors.surfaceMuted, marginTop: 6, overflow: "hidden" },
+    shareFill: { height: 4, borderRadius: 2, backgroundColor: t.colors.chart[0] },
   })
 );

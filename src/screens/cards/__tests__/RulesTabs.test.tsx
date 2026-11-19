@@ -7,7 +7,7 @@ import { RecurringBalanceTab } from "@/screens/cards/tabs/RecurringBalanceTab";
 import { RecurringQuotaTab } from "@/screens/cards/tabs/RecurringQuotaTab";
 import { CardQuotasTab } from "@/screens/cards/tabs/CardQuotasTab";
 import { CardGroupsTab } from "@/screens/cards/tabs/CardGroupsTab";
-import { cardJson, FULL, loginAs, NO_BALANCE } from "./fixtures";
+import { FULL, loginAs, NO_BALANCE } from "./fixtures";
 
 const page = (results: unknown[], over: Record<string, unknown> = {}) => ({ count: results.length, page: 1, num_pages: 1, results, ...over });
 const groups = { results: [{ id: 2, name: "Vardiya A", active_cards_count: 2, pos_device_count: 1, created_at: null }] };
@@ -151,6 +151,27 @@ describe("İstihkak yenileme sekmesi", () => {
       description: null,
       dagitim: "ayri",
     });
+  });
+
+  it("düzenlemede ürün no salt okunur ve PATCH'e girmez (backend ayrıştırma/çakışma kontrolü yapmaz)", async () => {
+    mock.onGet("/recurring-quota/").reply(
+      200,
+      page([
+        { id: 6, name: "İçecek", group: 2, group_name: "Vardiya A", product_no: "1-5", period: "monthly", period_display: "Aylık", quantity: 3, target_type: "group", target_card: null, target_card_uid: null, is_active: true, start_date: "2027-01-05", last_run: null, next_run: null, run_count: 0, description: null, created_at: null },
+      ])
+    );
+    mock.onGet("/card-groups/").reply(200, groups);
+    mock.onPatch("/recurring-quota/6/").reply(200, {});
+    await renderWithProviders(<RecurringQuotaTab />);
+    await fireEvent.press(await screen.findByTestId("rq-row-6"));
+    const product = screen.getByTestId("rq-product");
+    expect(product.props.editable).toBe(false);
+    expect(product.props.value).toBe("1-5");
+    expect(screen.getByText("Ürün no düzenlenemez; gerekirse kuralı silip yeniden oluşturun.")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("rq-quantity"), "4");
+    await fireEvent.press(screen.getByTestId("rq-submit"));
+    await waitFor(() => expect(mock.history.patch).toHaveLength(1));
+    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ quantity: 4 });
   });
 });
 

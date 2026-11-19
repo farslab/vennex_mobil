@@ -1,5 +1,8 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Keyboard,
+  LayoutAnimation,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -8,7 +11,9 @@ import {
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
+  type KeyboardEvent,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { makeStyles, useTheme } from "../theme";
 import { AppText } from "./AppText";
 import { AppIcon, type IconName } from "./AppIcon";
@@ -36,6 +41,46 @@ export interface AppScreenProps {
 /** Sona bu kadar (pt) kala sonraki sayfa istenir */
 export const END_REACHED_THRESHOLD = 400;
 
+/**
+ * iOS: klavyenin bu görünümün altıyla çakışan yüksekliği (pencere koordinatında ölçülür; üstteki
+ * navigator başlığı / alttaki sekme çubuğu hesaba katılır). Android'de pencere zaten yeniden
+ * boyutlanır (adjustResize) → 0.
+ */
+function useIosKeyboardOverlap(enabled: boolean, ref: React.RefObject<View | null>): number {
+  const [overlap, setOverlap] = useState(0);
+  useEffect(() => {
+    if (!enabled || Platform.OS !== "ios") return;
+    const animate = (e: KeyboardEvent) => {
+      if (e.duration) {
+        LayoutAnimation.configureNext({
+          duration: e.duration,
+          update: { duration: e.duration, type: LayoutAnimation.Types.keyboard },
+        });
+      }
+    };
+    const onChange = (e: KeyboardEvent) => {
+      const node = ref.current;
+      if (!node?.measureInWindow) return;
+      node.measureInWindow((_x, y, _w, h) => {
+        const next = Math.max(0, Math.round(y + h - e.endCoordinates.screenY));
+        setOverlap((cur) => {
+          if (cur !== next) animate(e);
+          return next;
+        });
+      });
+    };
+    const onHide = (e: KeyboardEvent) => {
+      setOverlap((cur) => {
+        if (cur !== 0) animate(e);
+        return 0;
+      });
+    };
+    const subs = [Keyboard.addListener("keyboardWillChangeFrame", onChange), Keyboard.addListener("keyboardWillHide", onHide)];
+    return () => subs.forEach((s) => s.remove());
+  }, [enabled, ref]);
+  return enabled ? overlap : 0;
+}
+
 /** Ekran iskeleti — header'ı navigator verir; bu bileşen zemin, padding ve pull-to-refresh sağlar */
 export function AppScreen({
   children,
@@ -48,11 +93,15 @@ export function AppScreen({
   onEndReached,
   testID,
 }: AppScreenProps) {
-  const { colors } = useTheme();
+  const { colors, layout } = useTheme();
   const styles = useStyles();
+  const insets = useSafeAreaInsets();
   const layoutHeight = useRef(0);
+  const rootRef = useRef<View>(null);
+  // Alt aksiyon çubuğu klavyenin üstünde kalsın (iOS); klavye kapalıyken ana ekran göstergesinin üstünde
+  const keyboardOverlap = useIosKeyboardOverlap(!!footer, rootRef);
   return (
-    <View style={styles.root} testID={testID}>
+    <View ref={rootRef} style={[styles.root, keyboardOverlap > 0 && { paddingBottom: keyboardOverlap }]} testID={testID}>
       {scroll ? (
         <ScrollView
           testID={testID ? `${testID}-scroll` : undefined}
@@ -87,7 +136,14 @@ export function AppScreen({
       ) : (
         <View style={[styles.flex, contentStyle]}>{children}</View>
       )}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {footer ? (
+        <View
+          style={[styles.footer, { paddingBottom: keyboardOverlap > 0 ? layout.screenPadding : Math.max(insets.bottom, layout.screenPadding) }]}
+          testID={testID ? `${testID}-footer` : undefined}
+        >
+          {footer}
+        </View>
+      ) : null}
     </View>
   );
 }

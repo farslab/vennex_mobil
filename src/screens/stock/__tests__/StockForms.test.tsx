@@ -322,7 +322,8 @@ describe("SkuFormSheet", () => {
       await renderSheet(water);
       await fireEvent.press(screen.getByTestId("sku-delete"));
 
-      expect(screen.getByText("Ürüne ait tüm lokasyon bakiyeleri ve hareket geçmişi de silinir. Reçete veya rotada kullanılan ürün silinemeyebilir.")).toBeOnTheScreen();
+      expect(screen.getByText("Stok hareket geçmişi olan ürün silinemez. Reçete veya rotada kullanılan ürün de silinemeyebilir.")).toBeOnTheScreen();
+      expect(screen.queryByText(/hareket geçmişi de silinir/)).toBeNull();
       expect(screen.getByText("Bu işlem geri alınamaz.")).toBeOnTheScreen();
       expect(screen.getAllByText("Su 500 ml").length).toBeGreaterThan(0);
       expect(mock.history.delete).toHaveLength(0);
@@ -331,6 +332,16 @@ describe("SkuFormSheet", () => {
       expect(await screen.findByText("Ürün bir reçetede kullanılıyor.")).toBeOnTheScreen();
       expect(screen.getByText("İşlem başarısız")).toBeOnTheScreen();
       expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("hareket geçmişi olan ürünü sunucu reddederse ret mesajını gösterir", async () => {
+      mock.onDelete("/stock/skus/1/").reply(400, { detail: "Bu ürünün stok hareket geçmişi var; silinemez. Pasif yapabilirsiniz." });
+      await renderSheet(water);
+      await fireEvent.press(screen.getByTestId("sku-delete"));
+      await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+      expect(await screen.findByText("Bu ürünün stok hareket geçmişi var; silinemez. Pasif yapabilirsiniz.")).toBeOnTheScreen();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(useToastStore.getState().current).toBeNull();
     });
 
     it("silmede çift basış tek DELETE atar ve başarıda kapanır", async () => {
@@ -490,6 +501,21 @@ describe("LocationFormSheet", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(mock.history.delete.map((r) => r.url)).toEqual(["/stock/locations/3/", "/stock/locations/3/"]);
     expect(useToastStore.getState().current?.message).toBe("Lokasyon silindi.");
+  });
+
+  it("silme uyarısı bakiyeli/hareketli lokasyonun silinemeyeceğini söyler; sunucu reddi (409) gösterilir", async () => {
+    mock.onDelete("/stock/locations/3/").reply(409, { detail: "Bu lokasyonda stok bakiyesi var; silinemez. Pasif yapabilirsiniz." });
+    await renderSheet(vehicle);
+    await fireEvent.press(screen.getByTestId("location-delete"));
+    expect(
+      screen.getByText("Stok bakiyesi veya hareket geçmişi olan lokasyon silinemez; bunun yerine pasif yapabilirsiniz. Rotada kullanılan lokasyon da silinemeyebilir.")
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/bakiyeleri silinir/)).toBeNull();
+
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    expect(await screen.findByText("Bu lokasyonda stok bakiyesi var; silinemez. Pasif yapabilirsiniz.")).toBeOnTheScreen();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useToastStore.getState().current).toBeNull();
   });
 
   it("değişiklik yoksa Vazgeç doğrudan kapatır; varsa onay ister", async () => {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { AppButton, AppNotice, AppText } from "@/design-system";
 import { useAuthStore } from "@/store/authStore";
+import { errorMessage as apiErrorMessage } from "@/api/client";
 import { OtpInput } from "@/components/OtpInput";
 import { AuthLayout } from "./AuthLayout";
 
@@ -11,12 +12,18 @@ export default function TwoFactorScreen() {
   const errorMessage = useAuthStore((s) => s.errorMessage);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const shownError = errorMessage ?? localError;
 
   const submit = async (code = otp) => {
     if (code.length !== 6 || loading) return;
     setLoading(true);
+    setLocalError(null);
     try {
       await verify2FA(code);
+    } catch (e) {
+      // Store hataları normalde `errorMessage` alanına yazar; beklenmeyen hata da kullanıcıya gösterilsin
+      setLocalError(apiErrorMessage(e, "Doğrulama yapılamadı. Lütfen tekrar deneyin."));
     } finally {
       setLoading(false);
       setOtp("");
@@ -29,8 +36,8 @@ export default function TwoFactorScreen() {
       subtitle="Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin."
       footer={<AppButton title="Farklı hesapla giriş yap" variant="ghost" onPress={cancel2FA} />}
     >
-      {errorMessage ? <AppNotice tone="danger" message={errorMessage} /> : null}
-      <OtpInput value={otp} onChange={setOtp} onComplete={submit} error={!!errorMessage} autoFocus testID="otp-input" />
+      {shownError ? <AppNotice tone="danger" message={shownError} /> : null}
+      <OtpInput value={otp} onChange={setOtp} onComplete={submit} error={!!shownError} autoFocus testID="otp-input" />
       {attemptsLeft != null ? (
         <AppText variant="caption" color={attemptsLeft <= 2 ? "danger" : "textTertiary"} align="center">
           Kalan deneme hakkı: {attemptsLeft}

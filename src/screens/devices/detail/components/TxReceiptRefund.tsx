@@ -5,7 +5,7 @@
  *  - Sonuç: `refund.poll` true iken 3 sn'de bir (kart bekleniyorsa 2 sn) yeniden sorgulanır, en fazla 90 kez.
  * Yalnız vennexRN cihazlarda (`receipts_refund_enabled`) gösterilir. Fiş paylaşımı: işletim sisteminin paylaş menüsü.
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Share, StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +23,8 @@ import {
 import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
+import { useSingleFlight } from "@/hooks/useSingleFlight";
+import { formatCurrency } from "@/utils/number";
 import type { PosTransaction, TxReceipt, TxRefundRequest } from "@/types/devices";
 
 export const MAX_POLLS = 90;
@@ -60,11 +62,21 @@ export function TxReceiptRefund({ sn, tx }: { sn: string; tx: PosTransaction }) 
     },
   });
 
-  // İade bitince listedeki satır (durum / iptal nedeni) tazelensin
-  const finalStatus = query.data?.refund && !query.data.refund.poll ? query.data.refund.status : null;
+  // İade bu görünümde sonuçlanınca (ok / failed / timeout / rejected — `poll` false) listedeki satır
+  // (durum, iptal nedeni, refund_label) tazelensin. Zaten sonuçlanmış bir iade açıldığında liste
+  // yeniden istenmez: yalnız "sürüyor → sonuçlandı" geçişinde.
+  const loaded = query.data !== undefined;
+  const refundId = query.data?.refund?.id ?? null;
+  const refundSettled = query.data?.refund ? !query.data.refund.poll : null;
+  const prevRefund = useRef<{ id: string | null; settled: boolean | null } | null>(null);
   useEffect(() => {
-    if (finalStatus === "ok") queryClient.invalidateQueries({ queryKey: ["devices", "transactions", sn] });
-  }, [finalStatus, queryClient, sn]);
+    if (!loaded) return;
+    const prev = prevRefund.current;
+    prevRefund.current = { id: refundId, settled: refundSettled };
+    if (!prev || refundSettled !== true) return;
+    const wasOpen = prev.id !== refundId || prev.settled === false;
+    if (wasOpen) queryClient.invalidateQueries({ queryKey: ["devices", "transactions", sn] });
+  }, [loaded, refundId, refundSettled, queryClient, sn]);
 
   const refund = useMutation({
     mutationFn: () => devicesApi.txRefund(sn, tx.id),
@@ -78,6 +90,8 @@ export function TxReceiptRefund({ sn, tx }: { sn: string; tx: PosTransaction }) 
       queryClient.invalidateQueries({ queryKey: key });
     },
   });
+  // Çift dokunuş iki iade isteği göndermesin (yeniden çizimden önce gelen ikinci dokunuş yutulur)
+  const confirmRefund = useSingleFlight(refund.mutateAsync);
 
   if (query.isLoading) {
     return (
@@ -171,7 +185,7 @@ export function TxReceiptRefund({ sn, tx }: { sn: string; tx: PosTransaction }) 
         title="İade et"
         message={REFUND_HELP}
         summary={[
-          { label: "İade tutarı (tam tutar)", value: `₺${state.tx.amount}` },
+          { label: "İade tutarı (tam tutar)", value: formatCurrency(state.tx.amount) },
           { label: "İşlem", value: state.tx.datetime },
         ]}
         confirmLabel="İade et"
@@ -179,7 +193,7 @@ export function TxReceiptRefund({ sn, tx }: { sn: string; tx: PosTransaction }) 
         irreversible
         loading={refund.isPending}
         error={refund.isError ? errorMessage(refund.error, "İade başlatılamadı.") : null}
-        onConfirm={() => refund.mutate()}
+        onConfirm={confirmRefund}
         onCancel={() => setConfirmOpen(false)}
       />
     </View>

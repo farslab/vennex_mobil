@@ -50,7 +50,13 @@ export function BulkGroupsSheet({
 
   const mutation = useLockedMutation({
     mutationFn: () => cardsApi.bulkGroups(cardIds, groupIds, operation),
-    successMessage: (res) => `${res.count} kartın grupları güncellendi.`,
+    successMessage: (res) => {
+      // Backend yalnız yetki kapsamındaki kartları günceller; aradaki fark atlanan kartlardır
+      const skipped = cardIds.length - res.count;
+      return skipped > 0
+        ? `${res.count} kartın grupları güncellendi; ${skipped} kart yetki kapsamınız dışında olduğu için atlandı.`
+        : `${res.count} kartın grupları güncellendi.`;
+    },
     onSuccess: () => {
       setConfirming(false);
       onClose();
@@ -66,11 +72,14 @@ export function BulkGroupsSheet({
       onClose={onClose}
       title="Toplu grup ataması"
       subtitle={`${cardIds.length} kart seçili`}
+      // İstek sürerken kapatılamaz (sonuç/hata kullanıcıya ulaşmadan sayfa kaybolmasın)
+      dismissible={!mutation.isPending}
       footer={
         <>
-          <AppButton title="Vazgeç" variant="outline" onPress={onClose} style={styles.flex} />
+          <AppButton title="Vazgeç" variant="outline" onPress={onClose} disabled={mutation.isPending} style={styles.flex} />
           <AppButton
             title="Devam"
+            disabled={mutation.isPending}
             testID="bulk-groups-continue"
             style={styles.flex}
             onPress={() => {

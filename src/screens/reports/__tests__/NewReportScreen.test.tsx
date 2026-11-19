@@ -1,6 +1,6 @@
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import NewReportScreen from "@/screens/reports/NewReportScreen";
 import { useAuthStore } from "@/store/authStore";
@@ -19,6 +19,18 @@ jest.mock("@react-navigation/native", () => ({
   useIsFocused: () => true,
 }));
 jest.mock("expo-file-system", () => ({ Paths: {}, Directory: jest.fn(), File: { downloadFileAsync: jest.fn() } }));
+
+/** Host öğeden yukarı doğru en yakın `onPress` prop'unu bulur (fireEvent her çağrıda ayrı act açar) */
+function pressHandlerOf(instance: unknown): () => void {
+  type Fiber = { memoizedProps?: { onPress?: unknown }; return: Fiber | null };
+  let fiber = (instance as { unstable_fiber?: Fiber }).unstable_fiber ?? null;
+  while (fiber) {
+    const handler = fiber.memoizedProps?.onPress;
+    if (typeof handler === "function") return handler as () => void;
+    fiber = fiber.return;
+  }
+  throw new Error("onPress bulunamadı");
+}
 
 const filterOptions = {
   report_types: [
@@ -89,6 +101,39 @@ describe("NewReportScreen", () => {
 
     resolve([202, { detail: "ok", job_id: 77, status: "pending", estimated_rows: 1200 }]);
     await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
+  });
+
+  it("yeniden çizimden önce gelen çift dokunuşta tek POST atar", async () => {
+    let resolve: (v: [number, unknown]) => void = () => {};
+    mock.onPost("/reports/").reply(() => new Promise((r) => (resolve = r)));
+    await renderWithProviders(<NewReportScreen />);
+    await screen.findByText("Özet");
+
+    // Aynı render'ın onPress'i iki kez senkron çağrılır (arada yeniden çizim yok → render'daki isPending false)
+    const onPress = pressHandlerOf(screen.getByTestId("submit-report"));
+    await act(async () => {
+      onPress();
+      onPress();
+    });
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
+
+    resolve([202, { detail: "ok", job_id: 78, status: "pending", estimated_rows: 1 }]);
+    await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
+    expect(mock.history.post).toHaveLength(1);
+  });
+
+  it("hata sonrası kilit açılır, tekrar gönderilebilir", async () => {
+    mock.onPost("/reports/").replyOnce(500, {});
+    mock.onPost("/reports/").reply(202, { detail: "ok", job_id: 79, status: "pending", estimated_rows: 1 });
+    await renderWithProviders(<NewReportScreen />);
+    await screen.findByText("Özet");
+
+    await fireEvent.press(screen.getByTestId("submit-report"));
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
+    await waitFor(() => expect(screen.getByTestId("submit-report")).toBeEnabled());
+    await fireEvent.press(screen.getByTestId("submit-report"));
+    await waitFor(() => expect(mock.history.post).toHaveLength(2));
+    await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
   });
 
   it("geçersiz aralıkta istek atmaz", async () => {

@@ -3,12 +3,12 @@
  */
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import { normalizeCard } from "@/api/cards";
 import { useToastStore } from "@/design-system";
 import { renderWithProviders } from "@/test/utils";
-import type { CardQuotaCreatePayload, PersonnelCard } from "@/types/cards";
+import type { PersonnelCard } from "@/types/cards";
 import { ApproveCardSheet } from "@/screens/cards/components/ApproveCardSheet";
 import { BulkGroupsSheet } from "@/screens/cards/components/BulkGroupsSheet";
 import { GroupFilterSheet } from "@/screens/cards/components/GroupFilterSheet";
@@ -162,6 +162,38 @@ describe("BulkGroupsSheet", () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(mock.history.post).toHaveLength(1);
     expect(JSON.parse(mock.history.post[0].data)).toEqual({ card_ids: [4, 5], group_ids: [2], operation: "remove_groups" });
+  });
+
+  it("kapsam dışında kalan (atlanan) kartlar bildirimde belirtilir", async () => {
+    mock.onGet("/card-groups/").reply(200, GROUPS);
+    mock.onPost("/cards/bulk/groups/").reply(200, { detail: "2 kart güncellendi.", count: 2 });
+    await open([1, 2, 3]);
+    await pickGroups(["Ofis"]);
+    await fireEvent.press(screen.getByTestId("bulk-groups-continue"));
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(toastMessage()).toBe("2 kartın grupları güncellendi; 1 kart yetki kapsamınız dışında olduğu için atlandı.");
+  });
+
+  it("istek sürerken sayfa kapatılamaz (Vazgeç ve Kapat pasif)", async () => {
+    mock.onGet("/card-groups/").reply(200, GROUPS);
+    // Yanıt test kontrolünde: yük altında bile istek sürerken doğrulanır
+    let release: () => void = () => undefined;
+    mock.onPost("/cards/bulk/groups/").reply(
+      () => new Promise<[number, unknown]>((resolve) => (release = () => resolve([200, { detail: "ok", count: 1 }])))
+    );
+    await open([1]);
+    await pickGroups(["Ofis"]);
+    await fireEvent.press(screen.getByTestId("bulk-groups-continue"));
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
+    // react-query durum bildirimi bir sonraki tick'te render olur
+    await waitFor(() => {
+      for (const close of screen.getAllByLabelText("Kapat")) expect(close).toBeDisabled();
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => release());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
   });
 
   it("backend hatası onay ekranında gösterilir, sayfa kapanmaz", async () => {

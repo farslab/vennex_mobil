@@ -33,7 +33,11 @@ export function AppCard({
     title || headerRight ? (
       <View style={[styles.header, !padded && styles.headerUnpadded]}>
         <View style={styles.headerText}>
-          {title ? <AppText variant="cardTitle">{title}</AppText> : null}
+          {title ? (
+            <AppText variant="cardTitle" accessibilityRole="header">
+              {title}
+            </AppText>
+          ) : null}
           {subtitle ? (
             <AppText variant="caption" color="textTertiary">
               {subtitle}

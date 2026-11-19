@@ -89,8 +89,54 @@ describe("ProductTemplatesScreen", () => {
     await fireEvent.press(screen.getByTestId("device-pick-PAV1")); // kilitli: değişmez
     await fireEvent.press(screen.getByTestId("device-pick-PAV2"));
     await fireEvent.press(screen.getByText("Ata (1)"));
+    // web gibi: stok sıfırlanır uyarısı + cihaz sayısı, onay olmadan istek yok
+    expect(await screen.findByText("Şablonu POS cihazlarına ata")).toBeOnTheScreen();
+    expect(screen.getByText(/mevcut stok sıfırlanır/)).toBeOnTheScreen();
+    expect(screen.getByText("POS cihazı")).toBeOnTheScreen();
+    expect(screen.getByText("1")).toBeOnTheScreen(); // yalnız yeni seçilen cihaz sayılır
+    expect(mock.history.post).toHaveLength(0);
+
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
     await waitFor(() => expect(mock.history.post).toHaveLength(1));
     expect(JSON.parse(mock.history.post[0].data)).toEqual({ device_sns: ["PAV2"] });
+    expect(await screen.findByText("1 POS cihazına eşlendi")).toBeOnTheScreen();
+  });
+
+  it("atama onayında vazgeç istek atmaz; art arda iki onay dokunuşu tek istek gönderir", async () => {
+    const dev = (sn: string, name: string) => ({ sn, pos_name: name, stat: true, online: true, company_id: 10, location_name: "Kat 1" });
+    mock.onGet("/product-templates/").reply(200, { results: templates });
+    mock.onGet("/product-templates/1/").reply(200, {
+      id: 1, name: "Ofis Snack", description: null, machine_type: 0, items: [], assigned_devices: [], created_at: null, updated_at: null,
+    });
+    mock.onGet("/pos-devices/").reply(200, { count: 2, page: 1, num_pages: 1, page_size: 25, results: [dev("PAV1", "Lobi"), dev("PAV2", "Kafe")] });
+    let release: (r: [number, unknown]) => void = () => {};
+    mock.onPost("/product-templates/1/assign/").reply(() => new Promise((resolve) => (release = resolve)));
+    await renderWithProviders(<ProductTemplatesScreen />);
+
+    await fireEvent.press(await screen.findByTestId("template-actions-1"));
+    await fireEvent.press(await screen.findByText("POS cihazlarına ata"));
+    await fireEvent.press(await screen.findByTestId("device-pick-PAV1"));
+    await fireEvent.press(screen.getByTestId("device-pick-PAV2"));
+    await fireEvent.press(screen.getByText("Ata (2)"));
+    expect(await screen.findByText("Şablonu POS cihazlarına ata")).toBeOnTheScreen();
+    expect(screen.getByText("2")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText("Vazgeç"));
+    expect(mock.history.post).toHaveLength(0);
+
+    // vazgeç seçiciye döner (seçim baştan)
+    await fireEvent.press(await screen.findByTestId("device-pick-PAV2"));
+    await fireEvent.press(screen.getByText("Ata (1)"));
+    const confirm = await screen.findByTestId("confirm-sheet-confirm");
+    jest.useFakeTimers();
+    try {
+      await fireEvent.press(confirm);
+      await fireEvent.press(confirm);
+      release([200, { detail: "", assigned_count: 1, type_mismatch: [] }]);
+      await waitFor(() => expect(screen.queryByTestId("confirm-sheet-confirm")).toBeNull());
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(mock.history.post).toHaveLength(1);
   });
 
   it("yetki yoksa oluşturma ve işlem menüsü gizlidir", async () => {

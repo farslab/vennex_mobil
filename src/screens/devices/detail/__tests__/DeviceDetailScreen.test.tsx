@@ -220,6 +220,61 @@ describe("DeviceDetailScreen", () => {
     expect(screen.getByText("machine_type_id atlandı: select_machine_type izni yok.")).toBeOnTheScreen();
   });
 
+  it("Ayarlar: kaydedilmemiş değişiklik varken sekme değişimi onay ister; 'Kal' formu korur, 'Değişiklikleri at' geçer", async () => {
+    setUser(["owner", "view_sales", "manage_device_settings"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
+    mock.onGet("/overview/locations/").reply(200, { results: [] });
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    const tabBtn = (label: string) => within(screen.getByTestId("device-tabs")).getByText(label);
+    // temiz formda sekme değişimi onaysız
+    await screen.findByTestId("device-tabs");
+    await fireEvent.press(tabBtn("Ayarlar"));
+    await fireEvent.press(tabBtn("Stok"));
+    expect(screen.queryByText("Kaydedilmemiş değişiklikler")).toBeNull();
+    await fireEvent.press(tabBtn("Ayarlar"));
+
+    await fireEvent.changeText(await screen.findByTestId("settings-interval"), "15");
+    await fireEvent.press(tabBtn("Genel"));
+    expect(await screen.findByText("Kaydedilmemiş değişiklikler")).toBeOnTheScreen();
+    expect(screen.getByTestId("tab-settings")).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByText("Kal"));
+    await waitFor(() => expect(screen.queryByText("Kaydedilmemiş değişiklikler")).toBeNull());
+    expect(screen.getByTestId("settings-interval").props.value).toBe("15");
+
+    await fireEvent.press(tabBtn("Genel"));
+    await fireEvent.press(await screen.findByText("Değişiklikleri at"));
+    await waitFor(() => expect(screen.queryByTestId("tab-settings")).toBeNull());
+    expect(await screen.findByTestId("cash-section")).toBeOnTheScreen();
+    expect(mock.history.patch).toHaveLength(0);
+  });
+
+  it("İstatistikler: aşağı çekip yenileme KPI (stats/) sorgusunu da yeniler", async () => {
+    setUser(["owner", "view_sales"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
+    mock.onGet(`/pos-devices/${SN}/stats/`).reply(200, {
+      summary: { revenue: 30, total: 3, success: 2, failed: 1 },
+      payment_types: [],
+      failure_reasons: [],
+      product_sales: [],
+    });
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await fireEvent.press(await screen.findByText("İstatistikler"));
+    expect(await screen.findByLabelText("Ciro: ₺30,00")).toBeOnTheScreen();
+    const statsGets = () => mock.history.get.filter((r) => r.url === `/pos-devices/${SN}/stats/`);
+    expect(statsGets()).toHaveLength(1);
+
+    const refreshControl = screen.getByTestId("tab-stats").props.refreshControl;
+    await act(async () => {
+      await refreshControl.props.onRefresh();
+    });
+    await waitFor(() => expect(statsGets()).toHaveLength(2));
+  });
+
   it("cihaz ayarı yetkisi yoksa Ayarlar sekmesi hiç yok (web `pos_device_detail.html:53`)", async () => {
     setUser(["owner", "view_sales"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody({ permissions: { manage_device_settings: false, manage_stock: false } }));
@@ -280,6 +335,67 @@ describe("DeviceDetailScreen", () => {
     expect(JSON.parse(mock.history.post[0].data)).toEqual({});
     // şablon işlemleri manage_device_settings ister
     expect(screen.queryByTestId("assign-template-button")).toBeNull();
+  });
+
+  /** İstek sürerken onaya art arda iki dokunuş (React Query bildirim tiki araya girmeden) → tek istek */
+  const doubleConfirm = async (release: () => void) => {
+    const confirm = await screen.findByTestId("confirm-sheet-confirm");
+    jest.useFakeTimers();
+    try {
+      await fireEvent.press(confirm);
+      await fireEvent.press(confirm);
+      release();
+      await waitFor(() => expect(screen.queryByTestId("confirm-sheet-confirm")).toBeNull());
+    } finally {
+      jest.useRealTimers();
+    }
+  };
+  const held = () => {
+    let release: (r: [number, unknown]) => void = () => {};
+    const promise = new Promise<[number, unknown]>((resolve) => (release = resolve));
+    return { reply: () => promise, release: (r: [number, unknown]) => release(r) };
+  };
+
+  it("çift dokunuş: tümünü doldur onayı tek POST gönderir", async () => {
+    setUser(["tech", "manage_stock"], "tech");
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody({ sales_visible: false, permissions: { manage_device_settings: false, manage_stock: true } }));
+    mock.onGet("/stock/locations/").reply(200, { results: [] });
+    const h = held();
+    mock.onPost(`/pos-devices/${SN}/fill-all-stock/`).reply(h.reply);
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await fireEvent.press(await screen.findByText("Stok"));
+    await fireEvent.press(await screen.findByTestId("fill-all-button"));
+    await doubleConfirm(() => h.release([200, { detail: "1 slot dolduruldu.", filled_count: 1 }]));
+    expect(mock.history.post).toHaveLength(1);
+  });
+
+  it("çift dokunuş: cihaz komutu onayı tek PATCH gönderir", async () => {
+    setUser(["owner", "manage_device_settings", "send_device_commands"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet("/overview/locations/").reply(200, { results: [] });
+    const h = held();
+    mock.onPatch(`/pos-devices/${SN}/`).reply(h.reply);
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await fireEvent.press(await screen.findByText("Ayarlar"));
+    await fireEvent.press(await screen.findByTestId("command-eod_trig"));
+    await doubleConfirm(() => h.release([200, detailBody()]));
+    expect(mock.history.patch).toHaveLength(1);
+  });
+
+  it("çift dokunuş: şablondan eşlemeyi kaldır onayı tek istek gönderir", async () => {
+    setUser(["owner", "manage_stock", "manage_device_settings"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet("/stock/locations/").reply(200, { results: [] });
+    mock.onGet(`/pos-devices/${SN}/products/`).reply(200, { ...productsBody, template: { id: 3, name: "Kahve Şablonu" } });
+    const h = held();
+    mock.onDelete(`/pos-devices/${SN}/assign-template/`).reply(h.reply);
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await fireEvent.press(await screen.findByText("Stok"));
+    await fireEvent.press(await screen.findByTestId("unassign-template-button"));
+    await doubleConfirm(() => h.release([200, { detail: "Şablon eşlemesi kaldırıldı." }]));
+    expect(mock.history.delete).toHaveLength(1);
   });
 
   const lastHeaderRight = () => {

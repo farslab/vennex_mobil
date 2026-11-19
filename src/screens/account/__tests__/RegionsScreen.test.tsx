@@ -123,6 +123,47 @@ describe("RegionsScreen", () => {
     });
   });
 
+  describe("konum formu genel hataları", () => {
+    const openNewLocation = async () => {
+      mock.onGet("/regions/").reply(200, { results: regions });
+      await renderWithProviders(<RegionsScreen />);
+      await fireEvent.press(await screen.findByLabelText("İstanbul Avrupa, 2 konum, 5 POS cihazı"));
+      await fireEvent.press(await screen.findByText("Konum ekle"));
+      await fireEvent.changeText(await screen.findByTestId("location-name"), "Yeni Ofis");
+    };
+
+    it("alan dışı 400 detail mesajını formda gösterir, form açık kalır", async () => {
+      mock.onPost("/locations/").reply(400, { detail: "Bu bölgede aynı adlı konum zaten var." });
+      await openNewLocation();
+      await fireEvent.press(screen.getByTestId("location-save"));
+      expect(await screen.findByText("Bu bölgede aynı adlı konum zaten var.")).toBeOnTheScreen();
+      expect(screen.getByTestId("location-name")).toBeOnTheScreen();
+    });
+
+    it("5xx ve ağ hatasında genel hata bildirimi gösterir", async () => {
+      mock.onPost("/locations/").replyOnce(500, {});
+      mock.onPost("/locations/").networkErrorOnce();
+      await openNewLocation();
+
+      await fireEvent.press(screen.getByTestId("location-save"));
+      expect(await screen.findByText("Sunucuda bir hata oluştu. Lütfen daha sonra tekrar deneyin.")).toBeOnTheScreen();
+
+      await fireEvent.press(screen.getByTestId("location-save"));
+      expect(await screen.findByText("Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.")).toBeOnTheScreen();
+      expect(screen.queryByText("Sunucuda bir hata oluştu. Lütfen daha sonra tekrar deneyin.")).toBeNull();
+      expect(mock.history.post).toHaveLength(2);
+    });
+
+    it("alan hatası varken genel bildirimi tekrarlamaz", async () => {
+      mock.onPost("/locations/").reply(400, { name: ["Bu ad kullanılıyor."] });
+      await openNewLocation();
+      await fireEvent.press(screen.getByTestId("location-save"));
+      expect(await screen.findByText("Bu ad kullanılıyor.")).toBeOnTheScreen();
+      // yalnız alanın altında; üst bildirimde tekrar edilmez
+      expect(screen.getAllByText("Bu ad kullanılıyor.")).toHaveLength(1);
+    });
+  });
+
   it("geçersiz ya da tek başına koordinatı reddeder", async () => {
     mock.onGet("/regions/").reply(200, { results: regions });
     await renderWithProviders(<RegionsScreen />);

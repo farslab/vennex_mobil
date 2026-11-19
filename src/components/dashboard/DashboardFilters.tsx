@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { AppSelect, makeStyles } from "@/design-system";
+import { AppSelect, makeStyles, useTheme } from "@/design-system";
 import type { ApiPeriod } from "@/types/common";
 import type { OverviewLocation } from "@/types/overview";
 import { PERIOD_OPTIONS, formatRangeLabel, type CustomRange } from "@/screens/dashboard/dashboardPeriod";
@@ -46,8 +46,23 @@ export function DashboardFilters({
     [period, customRange]
   );
 
+  const { isDark } = useTheme();
   return (
-    <View style={styles.row} testID="dashboard-filters">
+    <View style={[styles.row, isDark ? styles.rowDark : styles.rowLight]} testID="dashboard-filters">
+      {/* Sıra: konum solda, dönem sağda */}
+      {locations.length > 0 ? (
+        <View style={styles.cell}>
+          <LocationMultiSelect
+            locations={locations}
+            value={locationIds}
+            onChange={onLocationsChange}
+            testID="location-select"
+            bare
+          />
+        </View>
+      ) : null}
+      {locations.length > 0 ? <View style={styles.divider} /> : null}
+
       <View style={styles.cell}>
         <AppSelect<ApiPeriod>
           sheetTitle="Dönem"
@@ -62,19 +77,10 @@ export function DashboardFilters({
             }
           }}
           testID="period-select"
+          variant="bare"
+          icon="calendar"
         />
       </View>
-
-      {locations.length > 0 ? (
-        <View style={styles.cell}>
-          <LocationMultiSelect
-            locations={locations}
-            value={locationIds}
-            onChange={onLocationsChange}
-            testID="location-select"
-          />
-        </View>
-      ) : null}
 
       <CustomRangeSheet
         key={rangeOpen ? "open" : "closed"}
@@ -92,7 +98,23 @@ export function DashboardFilters({
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
-    row: { flexDirection: "row", gap: t.spacing.sm },
+    // Tek parça filtre çubuğu: konum | dönem
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.colors.surface,
+      borderRadius: 999,
+      paddingHorizontal: 4,
+    },
+    rowLight: {
+      shadowColor: "#0F172A",
+      shadowOpacity: 0.07,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 2,
+    },
+    rowDark: { borderWidth: StyleSheet.hairlineWidth, borderColor: t.colors.border },
     cell: { flex: 1, minWidth: 0 },
+    divider: { width: StyleSheet.hairlineWidth, height: 24, backgroundColor: t.colors.borderStrong },
   })
 );

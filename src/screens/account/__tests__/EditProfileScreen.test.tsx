@@ -1,6 +1,6 @@
 import React from "react";
 import MockAdapter from "axios-mock-adapter";
-import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { apiClient } from "@/api/client";
 import { useAuthStore } from "@/store/authStore";
 import EditProfileScreen from "@/screens/account/EditProfileScreen";
@@ -52,6 +52,36 @@ describe("EditProfileScreen", () => {
     await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
     expect(JSON.parse(mock.history.patch[0].data)).toEqual({ first_name: "Yeni", phone: "05321234567" });
     expect(useAuthStore.getState().user?.first_name).toBe("Yeni");
+  });
+
+  it("düzenleme sürerken arka plan /me yenilemesi tabanı değiştirmez; düzenlenmeyen alan geri alınmaz", async () => {
+    mock.onPatch("/auth/me/").reply(200, makeUser({ first_name: "Yeni", email: "yeni@example.com" }));
+    await renderWithProviders(<EditProfileScreen />, { queryClient: makeClient() });
+    await fireEvent.changeText(screen.getByTestId("input-first-name"), "Yeni");
+
+    // Başka cihazda e-posta değişti → /me yenilemesi store'daki kullanıcıyı günceller
+    await act(async () => {
+      useAuthStore.getState().setUser(makeUser({ first_name: "Test", last_name: "Kullanıcı", email: "yeni@example.com", phone: "" }));
+    });
+    // Kullanıcının düzenlemesi korunur
+    expect(screen.getByTestId("input-first-name").props.value).toBe("Yeni");
+
+    await fireEvent.press(screen.getByTestId("profile-save"));
+    await waitFor(() => expect(mock.history.patch).toHaveLength(1));
+    // Yalnız düzenlenen alan gider; eski e-posta ile sunucudaki yeni değer ezilmez
+    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ first_name: "Yeni" });
+  });
+
+  it("form el değmemişken arka plan yenilemesi değerleri yeni kullanıcıya senkronlar", async () => {
+    await renderWithProviders(<EditProfileScreen />, { queryClient: makeClient() });
+    expect(screen.getByTestId("input-email").props.value).toBe("test@example.com");
+
+    await act(async () => {
+      useAuthStore.getState().setUser(makeUser({ first_name: "Test", last_name: "Kullanıcı", email: "yeni@example.com", phone: "05321234567" }));
+    });
+    expect(screen.getByTestId("input-email").props.value).toBe("yeni@example.com");
+    expect(screen.getByTestId("input-phone").props.value).toBe("05321234567");
+    expect(screen.getByTestId("profile-save")).toBeDisabled();
   });
 
   it("istemci doğrulaması geçersiz e-postayı engeller", async () => {

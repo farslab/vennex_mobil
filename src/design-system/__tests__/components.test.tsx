@@ -1,6 +1,16 @@
 import React, { useState } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { AccessibilityInfo, StyleSheet } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
+  AppCard,
+  AppChip,
+  AppScreen,
+  AppSearchField,
+  AppSection,
+  toUpperTr,
+  useToastHostStore,
+  useToastStore,
   AppBadge,
   AppButton,
   AppCheckbox,
@@ -359,5 +369,103 @@ describe("kontrast (WCAG AA)", () => {
     expect(contrast(c.danger, c.dangerSubtle)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(c.primary, c.primarySubtle)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(c.onPrimary, c.primary)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("inceleme düzeltmeleri", () => {
+  afterEach(async () => {
+    await act(async () => {
+      useToastStore.setState({ current: null });
+    });
+  });
+
+  it("overline Türkçe kurallarla büyük harf yapar, ekran okuyucuya özgün metni verir", async () => {
+    expect(toUpperTr("Şirket bilgileri")).toBe("ŞİRKET BİLGİLERİ");
+    expect(toUpperTr("Adım ılık")).toBe("ADIM ILIK");
+    await render(<AppText variant="overline">Şirket</AppText>);
+    expect(screen.getByText("ŞİRKET")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Şirket")).toBeOnTheScreen();
+    expect(getTheme("light").typography.overline).not.toHaveProperty("textTransform");
+  });
+
+  it("AppSection başlığı da Türkçe büyük harfle çizilir", async () => {
+    await render(
+      <AppSection title="İletişim">
+        <AppText>x</AppText>
+      </AppSection>
+    );
+    expect(screen.getByText("İLETİŞİM")).toBeOnTheScreen();
+  });
+
+  it("boş durumda aksiyon düğmesi erişilebilir kalır (kapsayıcı tek öğe değil)", async () => {
+    await render(<AppEmptyState title="Cihaz yok" description="Filtreyi temizleyin" actionLabel="Temizle" onAction={jest.fn()} />);
+    expect(screen.getByLabelText("Cihaz yok. Filtreyi temizleyin")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Temizle" })).toBeOnTheScreen();
+  });
+
+  it("kart başlığı header rolündedir", async () => {
+    await render(
+      <AppCard title="Ödeme Türüne Göre">
+        <AppText>x</AppText>
+      </AppCard>
+    );
+    expect(screen.getByRole("header", { name: "Ödeme Türüne Göre" })).toBeOnTheScreen();
+  });
+
+  it("AppScreen alt çubuğu ana ekran göstergesinin üstünde kalır (alt güvenli alan)", async () => {
+    await render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, bottom: 34, left: 0, right: 0 } }}>
+        <AppScreen testID="s" footer={<AppButton title="Kaydet" onPress={jest.fn()} />}>
+          <AppText>içerik</AppText>
+        </AppScreen>
+      </SafeAreaProvider>
+    );
+    expect(StyleSheet.flatten(screen.getByTestId("s-footer").props.style).paddingBottom).toBe(34);
+  });
+
+  it("toast iOS'ta duyurulur", () => {
+    const spy = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    toast.success("Kaydedildi");
+    expect(spy).toHaveBeenCalledWith("Kaydedildi");
+    spy.mockRestore();
+  });
+
+  it("açık alttan sayfa varken toast sayfanın Modal'ında, kapanınca kökte çizilir", async () => {
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <AppSheet visible={open} onClose={() => setOpen(false)} title="Form" testID="sheet">
+            <AppButton title="Kapat-test" onPress={() => setOpen(false)} />
+          </AppSheet>
+          <AppToastHost />
+        </>
+      );
+    }
+    await render(<Harness />);
+    await act(async () => {
+      toast.error("Kaydedilemedi");
+    });
+    // Yalnız bir konak çizer (çift toast yok)
+    expect(screen.getAllByText("Kaydedilemedi")).toHaveLength(1);
+    expect(useToastHostStore.getState().hosts).toHaveLength(1);
+
+    await fireEvent.press(screen.getByText("Kapat-test"));
+    expect(useToastHostStore.getState().hosts).toHaveLength(0);
+    expect(screen.getAllByText("Kaydedilemedi")).toHaveLength(1);
+  });
+
+  it("çip, sekme hapı ve arama temizleme 44pt dokunma alanına hitSlop ile ulaşır", async () => {
+    await render(
+      <>
+        <AppChip label="Aktif" onPress={jest.fn()} />
+        <AppSegmented items={[{ key: "a", label: "A" }]} value="a" onChange={jest.fn()} />
+        <AppSearchField value="x" onChangeText={jest.fn()} />
+      </>
+    );
+    const chip = screen.getByRole("button", { name: "Aktif" });
+    expect(chip.props.hitSlop).toMatchObject({ top: 5, bottom: 5 });
+    expect(screen.getByRole("tab").props.hitSlop).toMatchObject({ top: 5, bottom: 5 });
+    expect(screen.getByTestId("search-clear").props.hitSlop).toBe(14);
   });
 });

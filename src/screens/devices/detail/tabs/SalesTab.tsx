@@ -3,7 +3,7 @@
  * start_date/end_date (YYYY-MM-DD; saat filtresi YOK), tx_status, pt_type, cancel_reason, card_last4.
  * 50'lik sabit sayfa, sonsuz kaydırma. Özet yanıttaki `summary`'den (tarih aralığına göre).
  */
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -31,16 +31,13 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { MetricCell } from "@/components/devices/DeviceUi";
 import {
   CANCEL_REASON_LABELS,
-  DATE_PRESETS,
   PT_TYPE_OPTIONS,
   entryModeBadge,
-  presetRange,
   ptBadge,
   txStatusLabel,
-  type DatePreset,
 } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger } from "@/utils/number";
-import { businessToday, formatDate, formatDateTimeSeconds, parseUserDate, toApiDate } from "@/utils/date";
+import { formatDate, formatDateTimeSeconds, parseUserDate, toApiDate } from "@/utils/date";
 import type {
   CancelReasonFilter,
   PosTransaction,
@@ -49,13 +46,16 @@ import type {
   TxStatusFilter,
 } from "@/types/devices";
 import { TransactionDetailSheet } from "../components/TransactionDetailSheet";
+import { STATS_PRESET_OPTIONS, statsPresetRange, type StatsPreset } from "../components/StatsPeriodFilter";
+import { useBusinessDay } from "../useBusinessDay";
 import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 type StatusKey = "all" | TxStatusFilter;
 
 export interface SalesFilterState {
-  preset: DatePreset;
+  /** Web ve İstatistikler sekmesiyle aynı hızlı seçimler: Bugün · Dün · Bu Hafta · Bu Ay · Geçen Ay · Özel */
+  preset: StatsPreset;
   customStart: Date | null;
   customEnd: Date | null;
   status: StatusKey;
@@ -74,16 +74,19 @@ const INITIAL: SalesFilterState = {
   cardLast4: "",
 };
 
-/** UI filtresi → backend sorgu parametreleri (tarih her zaman açıkça gönderilir) */
-export function toTransactionFilters(f: SalesFilterState, cardLast4: string, now: Date = businessToday()): TransactionFilters {
+/**
+ * UI filtresi → backend sorgu parametreleri (tarih her zaman açıkça gönderilir).
+ * Hızlı seçim aralığı `now` anından (TR iş günü) her çağrıda yeniden hesaplanır.
+ */
+export function toTransactionFilters(f: SalesFilterState, cardLast4: string, now: Date = new Date()): TransactionFilters {
   const range =
     f.preset === "custom" && f.customStart && f.customEnd
-      ? { start: f.customStart, end: f.customEnd }
-      : presetRange(f.preset === "custom" ? "today" : f.preset, now);
+      ? { start: toApiDate(f.customStart), end: toApiDate(f.customEnd) }
+      : statsPresetRange(f.preset === "custom" ? "today" : f.preset, now);
   const last4 = cardLast4.trim();
   return {
-    start_date: toApiDate(range.start),
-    end_date: toApiDate(range.end),
+    start_date: range.start,
+    end_date: range.end,
     tx_status: f.status === "all" ? undefined : f.status,
     pt_type: f.ptType ?? undefined,
     cancel_reason: f.status === "fail" && f.cancelReason ? f.cancelReason : undefined,
@@ -100,7 +103,10 @@ export function SalesTab({ sn }: { sn: string }) {
   const [selected, setSelected] = useState<PosTransaction | null>(null);
   const debouncedLast4 = useDebouncedValue(filters.cardLast4, 350);
 
-  const params = useMemo(() => toTransactionFilters(filters, debouncedLast4), [filters, debouncedLast4]);
+  // Her çizimde hesaplanır (ucuz; sorgu anahtarı derin karşılaştırılır): gece yarısından sonra veya
+  // uygulama ön plana dönünce "Bugün" yeni güne geçer
+  useBusinessDay();
+  const params = toTransactionFilters(filters, debouncedLast4);
 
   const list = usePagedList<PosTransaction, TransactionsResponse>({
     queryKey: queryKeys.devices.transactions(sn, { ...params }),
@@ -122,7 +128,7 @@ export function SalesTab({ sn }: { sn: string }) {
   const header = (
     <View style={styles.header}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {DATE_PRESETS.map((p) => (
+        {STATS_PRESET_OPTIONS.map((p) => (
           <AppChip
             key={p.key}
             label={p.key === "custom" && filters.preset === "custom" ? rangeLabel : p.label}
