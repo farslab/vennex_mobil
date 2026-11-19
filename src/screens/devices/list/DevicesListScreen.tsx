@@ -334,11 +334,10 @@ const useStyles = makeStyles((t) =>
     listContent: { paddingTop: t.spacing.md },
     root: { flex: 1, backgroundColor: t.colors.background },
     flex: { flex: 1 },
+    // Arama ve sayaçlar sayfa zemininde (kartlarla bütün görünüm)
     toolbar: {
-      backgroundColor: t.colors.surface,
+      backgroundColor: t.colors.background,
       paddingTop: t.spacing.sm,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: t.colors.border,
     },
     searchRow: {
       flexDirection: "row",
@@ -351,17 +350,27 @@ const useStyles = makeStyles((t) =>
     summary: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between",
       paddingLeft: t.layout.screenPadding,
       paddingRight: t.spacing.sm,
-      minHeight: 44,
+      minHeight: 48,
     },
-    // Tek satıra sığsın: dar iç boşluk (seçili rozet zemini yine görünür)
-    counts: { flex: 1, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginLeft: -4 },
-    countChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 6, paddingVertical: 3, borderRadius: t.radius.xs },
-    countChipOn: { backgroundColor: t.colors.surfaceMuted },
+    // Sayaçlar tek yuvarlak seçicide: toplam · ● çevrimiçi · ● çevrimdışı (seçili mavi)
+    counts: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      padding: 3,
+      borderRadius: 999,
+      backgroundColor: t.colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: t.colors.border,
+    },
+    countChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
+    countChipOn: { backgroundColor: t.colors.primarySubtle },
     countPressed: { opacity: 0.6 },
-    countTextOn: { fontWeight: "700" },
-    countDot: { width: 10, height: 10, borderRadius: 5 },
+    countTextOn: { fontWeight: "700", color: t.colors.primary },
+    countDot: { width: 9, height: 9, borderRadius: 5 },
     sortLabel: { paddingHorizontal: t.layout.screenPadding, paddingBottom: t.spacing.sm },
     footer: { paddingVertical: t.spacing.lg },
   })

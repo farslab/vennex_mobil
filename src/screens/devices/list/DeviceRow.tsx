@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { AppBadge, AppText, makeStyles, useTheme } from "@/design-system";
+import { AppBadge, AppIcon, AppText, makeStyles, useTheme } from "@/design-system";
 import { ConnectivityBadge, FillBar } from "@/components/devices/DeviceUi";
 import { deviceTitle, fillInfo, lastSaleBadge, machineAlert } from "@/components/devices/deviceHelpers";
 import { webBadgeColors } from "@/components/devices/webBadgeColors";
@@ -28,7 +28,7 @@ const PERIODS = [
  */
 export const DeviceRow = memo(function DeviceRow({ device, onPress, showRevenue }: DeviceRowProps) {
   const styles = useStyles();
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
   const fill = fillInfo(device.fill_rate);
   const title = deviceTitle(device);
   const lastSale = lastSaleBadge(device.last_transaction);
@@ -53,51 +53,66 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, showRevenue 
       accessibilityRole="button"
       accessibilityLabel={a11y}
       accessibilityHint="Cihaz detayını açar"
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, isDark ? styles.cardDark : styles.cardLight, pressed && styles.pressed]}
     >
-      <View style={styles.line}>
-        <AppText variant="bodyStrong" numberOfLines={1} style={styles.flex}>
-          {title}
-        </AppText>
-        {!device.stat ? <AppBadge size="sm" tone="neutral" label="Pasif" /> : null}
-        <ConnectivityBadge online={device.online} macstat={device.act_macstat} testID={`device-conn-${device.sn}`} />
+      {/* Başlık: durum simgesi (yeşil çevrimiçi / kırmızı çevrimdışı) · ad · seri no ve konum · rozetler */}
+      <View style={styles.head}>
+        <View style={[styles.avatar, { backgroundColor: device.online ? colors.successSubtle : colors.dangerSubtle }]}>
+          <AppIcon name="pos" size={20} color={device.online ? "success" : "danger"} />
+        </View>
+        <View style={styles.flex}>
+          <AppText variant="bodyStrong" numberOfLines={1}>
+            {title}
+          </AppText>
+          <AppText variant="caption" color="textTertiary" numberOfLines={1}>
+            {device.sn}
+            {device.location_name ? ` · ${device.location_name}` : ""}
+          </AppText>
+        </View>
+        <View style={styles.badges}>
+          {!device.stat ? <AppBadge size="sm" tone="neutral" label="Pasif" /> : null}
+          <ConnectivityBadge online={device.online} macstat={device.act_macstat} testID={`device-conn-${device.sn}`} />
+        </View>
       </View>
-
-      <AppText variant="mono" color="textTertiary" numberOfLines={1}>
-        {device.sn}
-        {device.location_name ? ` · ${device.location_name}` : ""}
-      </AppText>
 
       {/* Doluluk yoksa (ürün/stok girilmemiş) gösterilmez */}
       {fill.pct != null ? (
-        <View style={styles.fillRow} testID={`device-fill-${device.sn}`}>
-          <View style={styles.flex}>
-            <FillBar pct={fill.pct} tone={fill.tone} height={6} />
+        <View style={styles.fill} testID={`device-fill-${device.sn}`}>
+          <View style={styles.fillHead}>
+            <AppText variant="caption" color="textSecondary" weight="600">
+              Doluluk
+            </AppText>
+            <AppText variant="caption" color="textSecondary" weight="700">
+              {fill.label}
+              {fill.detail ? ` · ${fill.detail}` : ""}
+            </AppText>
           </View>
-          <AppText variant="numericSm" color="textSecondary">
-            {fill.label}
-            {fill.detail ? ` · ${fill.detail}` : ""}
-          </AppText>
+          <FillBar pct={fill.pct} tone={fill.tone} height={6} />
         </View>
       ) : null}
 
       {showRevenue ? (
         <View style={styles.periods} testID={`device-revenue-${device.sn}`}>
-          {PERIODS.map((p, i) => {
+          {PERIODS.map((p) => {
             const count = device[p.count];
+            const today = p.key === "today";
             return (
               <View
                 key={p.key}
-                style={[styles.period, i % 2 === 1 && styles.periodRight, i >= 2 && styles.periodBottom]}
+                style={[styles.period, today && { backgroundColor: colors.primarySubtle }]}
                 testID={`device-period-${p.key}-${device.sn}`}
               >
-                <AppText variant="caption" color="textTertiary" numberOfLines={1}>
+                <AppText variant="caption" color={today ? "primary" : "textSecondary"} weight="600" numberOfLines={1}>
                   {p.label}
-                  {count != null ? ` · ${formatInteger(count)} işlem` : ""}
                 </AppText>
                 <AppText variant="numeric" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.amount}>
                   {formatCurrency(device[p.revenue])}
                 </AppText>
+                {count != null ? (
+                  <AppText variant="caption" color="textTertiary" numberOfLines={1}>
+                    {formatInteger(count)} işlem
+                  </AppText>
+                ) : null}
               </View>
             );
           })}
@@ -109,6 +124,8 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, showRevenue 
         <View testID={`device-last-sale-${device.sn}`}>
           <AppBadge size="sm" icon="clock" label={lastSale.label} colors={webBadgeColors(lastSale.color, isDark)} />
         </View>
+        <View style={styles.flex} />
+        <AppIcon name="chevron-right" size={18} color="textTertiary" />
       </View>
     </Pressable>
   );
@@ -116,36 +133,43 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, showRevenue 
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
-    // Ayrık kart: kenarlardan boşluk, yuvarlak köşe, çerçeve ve hafif gölge
+    // Genel bakışla aynı yüzey: çerçevesiz, yumuşak gölge (koyu temada ince kenarlık)
     card: {
       marginHorizontal: t.layout.screenPadding,
       marginBottom: t.spacing.md,
-      paddingHorizontal: t.spacing.md,
-      paddingVertical: t.spacing.md,
-      gap: 6,
+      padding: t.spacing.md,
+      gap: t.spacing.md,
       backgroundColor: t.colors.surface,
-      borderRadius: t.radius.md,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: t.colors.border,
-      ...t.elevation(1),
+      borderRadius: 18,
     },
-    pressed: { backgroundColor: t.colors.surfacePressed },
-    line: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
+    cardLight: {
+      shadowColor: "#0F172A",
+      shadowOpacity: 0.07,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+    cardDark: { borderWidth: StyleSheet.hairlineWidth, borderColor: t.colors.border },
+    pressed: { opacity: 0.85 },
     flex: { flex: 1, minWidth: 0 },
-    footer: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm, marginTop: 2 },
-    fillRow: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
-    // 2×2: yüksek cirolar (₺1.250.000,00) da sığsın
-    periods: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      marginTop: 2,
-      borderRadius: t.radius.sm,
+    head: { flexDirection: "row", alignItems: "center", gap: t.spacing.md },
+    avatar: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    badges: { flexDirection: "row", alignItems: "center", gap: 6 },
+    fill: { gap: 6 },
+    fillHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    // 2×2 ayrı kutular; yüksek cirolar (₺1.250.000,00) da sığsın
+    periods: { flexDirection: "row", flexWrap: "wrap", gap: t.spacing.sm },
+    period: {
+      flexBasis: "47%",
+      flexGrow: 1,
+      gap: 1,
+      paddingHorizontal: t.spacing.md,
+      paddingVertical: t.spacing.sm,
+      borderRadius: 12,
       backgroundColor: t.colors.surfaceMuted,
-      overflow: "hidden",
+      minWidth: 0,
     },
-    period: { width: "50%", gap: 1, paddingHorizontal: t.spacing.md, paddingVertical: t.spacing.sm, minWidth: 0 },
-    periodRight: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: t.colors.border },
-    periodBottom: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.colors.border },
-    amount: { fontWeight: "700" },
+    amount: { fontWeight: "700", fontSize: 17 },
+    footer: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
   })
 );
