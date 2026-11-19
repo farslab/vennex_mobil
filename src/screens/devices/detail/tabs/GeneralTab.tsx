@@ -16,7 +16,7 @@ import { FillBar, KeyValueRow, MetricCell } from "@/components/devices/DeviceUi"
 import {
   PAYMENT_METHOD_LABELS,
   connectivityInfo,
-  fillInfo,
+  deviceFillInfo,
   machineStatusInfo,
   machineTypeLabel,
   priceManagementLabel,
@@ -48,7 +48,7 @@ export function GeneralTab({
 
   const conn = connectivityInfo(detail.is_online);
   const macStatus = machineStatusInfo(detail.act_macstat);
-  const fill = fillInfo(products.data?.fill);
+  const fill = deviceFillInfo(products.data?.fill);
   const methods = detail.payment_methods ?? {};
   const enabledMethods = PAYMENT_METHOD_LABELS.filter((m) => methods[m.key] === true);
   const knownMethods = PAYMENT_METHOD_LABELS.filter((m) => typeof methods[m.key] === "boolean");
@@ -120,7 +120,7 @@ export function GeneralTab({
           <AppSkeleton height={36} />
         ) : products.isError ? (
           <AppNotice tone="warning" message={`Ürün bilgisi alınamadı: ${errorMessage(products.error)}`} />
-        ) : !products.data?.fill || products.data.items.length === 0 ? (
+        ) : !products.data?.fill || (products.data.items.length === 0 && fill.source !== "containers") ? (
           <AppText variant="callout" color="textSecondary">
             Bu cihazda tanımlı ürün/slot yok.
           </AppText>
@@ -130,7 +130,11 @@ export function GeneralTab({
               <AppText variant="metricMd" testID="general-fill-pct">
                 {fill.label}
               </AppText>
-              {fill.detail ? (
+              {fill.source === "containers" ? (
+                <AppText variant="caption" color="textSecondary" testID="general-fill-source">
+                  Bileşen hazneleri
+                </AppText>
+              ) : fill.detail ? (
                 <AppText variant="numericSm" color="textSecondary">
                   {fill.detail} adet
                 </AppText>

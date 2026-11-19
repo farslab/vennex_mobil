@@ -170,6 +170,23 @@ describe("GeneralTab", () => {
     expect(screen.getByLabelText("Güncelleme periyodu: 15 dk")).toBeOnTheScreen();
   });
 
+  it("kahve otomatı: slot kapasitesi yoksa doluluk bileşen haznelerinden gelir (web 'Bileşenler' ve liste ile aynı)", async () => {
+    mock.onGet(`${base}/summary/`).reply(200, {});
+    mock.onGet(`${base}/products/`).reply(200, {
+      mode: "stock",
+      items: [{ id: 1, urun_no: 0, is_wildcard: false, stock_sku: 5, stock_sku_name: "Cappuccino", stock_sku_code: "CAP", price: "25.00", quantity: 0, max_quantity: 0 }],
+      fill: { qty: 0, max: 0, pct: null, containers_pct: 96.44 },
+      recipe_slot_ids: [1],
+    });
+
+    await renderWithProviders(<GeneralTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
+
+    expect(await screen.findByText("Stok modu")).toBeOnTheScreen();
+    expect(screen.getByTestId("general-fill-pct")).toHaveTextContent("%96");
+    expect(screen.getByTestId("general-fill-source")).toHaveTextContent("Bileşen hazneleri");
+    expect(screen.queryByText(/adet/)).toBeNull();
+  });
+
   it("bağlantı bilinmiyorsa ve tüm ödeme yöntemleri kapalıysa açıkça belirtir; bilinmeyen makine durumu '—'", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {});
     mock.onGet(`${base}/products/`).reply(200, productsBody);

@@ -1,4 +1,5 @@
 import {
+  deviceFillInfo,
   fillInfo,
   isKnownMachineType,
   machineTypeLabel,
@@ -93,5 +94,18 @@ describe("tarih ön ayarları", () => {
     expect(toApiDate(presetRange("yesterday", now).end)).toBe("2026-11-17");
     expect(toApiDate(presetRange("last7", now).start)).toBe("2026-11-12");
     expect(toApiDate(presetRange("this_month", now).start)).toBe("2026-11-01");
+  });
+});
+
+describe("deviceFillInfo", () => {
+  it("slot kapasitesi varsa slot doluluğu, kaynak slots", () => {
+    expect(deviceFillInfo({ qty: 11, max: 18, pct: 61, containers_pct: 90 })).toMatchObject({ pct: 61, label: "%61", source: "slots" });
+  });
+  it("slot kapasitesi yoksa bileşen haznesi doluluğu, adet ayrıntısı yok", () => {
+    expect(deviceFillInfo({ qty: 0, max: 0, pct: null, containers_pct: 96.44 })).toMatchObject({ pct: 96, label: "%96", detail: null, source: "containers" });
+  });
+  it("ikisi de yoksa '—'", () => {
+    expect(deviceFillInfo({ qty: 0, max: 0, pct: null, containers_pct: null })).toMatchObject({ pct: null, label: "—", source: null });
+    expect(deviceFillInfo(null)).toMatchObject({ label: "—", source: null });
   });
 });

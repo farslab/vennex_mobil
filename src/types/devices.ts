@@ -18,6 +18,13 @@ export interface FillRate {
   pct: number | null;
   qty: number;
   max: number;
+  /**
+   * Kahve otomatı: bileşen (hazne) doluluğu, web "Bileşenler" göstergesi.
+   * Yalnız `/products/` (stok modu) yanıtında; slot kapasitesi yoksa doluluk budur.
+   */
+  containers_pct?: number | null;
+  /** Liste: yüzde bileşenlerden geldiyse "containers" */
+  source?: "containers";
 }
 
 /** `act_macstat` (BE-api: 0 START, 1 ENABLE, 2 IDLE, 3 VEND, 4 DISABLED, 5 INACTIVE) */
@@ -279,6 +286,11 @@ export interface PosProductsResponse {
   mode: ProductsMode;
   items: PosProduct[];
   fill: FillRate | null;
+  /**
+   * Cihazın eşli olduğu ürün şablonu (web rozeti). `null` = eşli değil;
+   * `undefined` = sunucu bu bilgiyi göndermiyor (eski backend).
+   */
+  template?: { id: number; name: string } | null;
 }
 
 /** Stok modu slot yazımı (StockSlotWriteSerializer). PATCH'te de TÜM alanlar gönderilmeli (backend eksikleri sıfırlar). */

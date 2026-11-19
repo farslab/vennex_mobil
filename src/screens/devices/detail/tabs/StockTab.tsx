@@ -27,7 +27,7 @@ import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
 import { FillBar } from "@/components/devices/DeviceUi";
-import { fillInfo, productDisplayName, slotFill, slotLabel } from "@/components/devices/deviceHelpers";
+import { deviceFillInfo, productDisplayName, slotFill, slotLabel } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger } from "@/utils/number";
 import type { BulkQuantityUpdate, PosDeviceDetail, PosProduct } from "@/types/devices";
 import { useDeviceProducts, useInvalidateDevices, type DeviceAccess } from "../useDeviceQueries";
@@ -127,7 +127,9 @@ export function StockTab({
   });
 
   const estimate = useMemo(() => fillAllEstimate(data?.items ?? []), [data?.items]);
-  const fill = fillInfo(data?.fill);
+  const fill = deviceFillInfo(data?.fill);
+  const templateKnown = data?.template !== undefined;
+  const mappedTemplate = data?.template ?? null;
 
   const openNew = () => {
     setEditing(null);
@@ -148,7 +150,11 @@ export function StockTab({
           </View>
           <View style={styles.headRight}>
             <AppBadge tone="neutral" label={isStock ? "Stok modu" : "Normal mod"} />
-            {fill.detail ? (
+            {fill.source === "containers" ? (
+              <AppText variant="caption" color="textSecondary" testID="stock-fill-source">
+                Bileşen hazneleri
+              </AppText>
+            ) : fill.detail ? (
               <AppText variant="numericSm" color="textSecondary">
                 {fill.detail} adet
               </AppText>
@@ -217,22 +223,36 @@ export function StockTab({
 
       {canTemplates ? (
         <AppCard title="Şablon">
-          <View style={styles.actions}>
-            <AppButton title="Şablon ata" icon="layers" variant="outline" size="sm" onPress={() => setAssignOpen(true)} style={styles.flex} testID="assign-template-button" />
-            <AppButton title="Eşlemeyi kaldır" variant="outline" size="sm" onPress={() => setUnassignConfirm(true)} style={styles.flex} />
+          {/* Web kuralı: eşli cihazda yalnız "Eşlemeyi kaldır"; eşli değilken "Şablon ata" ve
+              (listesi varsa) "Şablon olarak kaydet". Bilgi gelmiyorsa (eski sunucu) hepsi. */}
+          {mappedTemplate ? (
+            <AppText variant="callout" color="textSecondary" testID="mapped-template">
+              Bu cihaz <AppText variant="callout" weight="600">{mappedTemplate.name}</AppText> şablonuna eşli.
+            </AppText>
+          ) : templateKnown ? (
+            <AppText variant="caption" color="textTertiary" testID="mapped-template-none">
+              Cihaz bir şablona eşli değil.
+            </AppText>
+          ) : null}
+          <View style={[styles.actions, templateKnown ? styles.mt : null]}>
+            {!mappedTemplate ? (
+              <AppButton title="Şablon ata" icon="layers" variant="outline" size="sm" onPress={() => setAssignOpen(true)} style={styles.flex} testID="assign-template-button" />
+            ) : null}
+            {mappedTemplate || !templateKnown ? (
+              <AppButton title="Eşlemeyi kaldır" variant="outline" size="sm" onPress={() => setUnassignConfirm(true)} style={styles.flex} testID="unassign-template-button" />
+            ) : null}
           </View>
-          <AppButton
-            title="Şablon olarak kaydet"
-            icon="save"
-            variant="ghost"
-            size="sm"
-            onPress={() => setSaveTplOpen(true)}
-            disabled={data.items.length === 0}
-            style={styles.mt}
-          />
-          <AppText variant="caption" color="textTertiary">
-            Cihazın hangi şablona eşli olduğu bilgisi API&apos;de bulunmuyor.
-          </AppText>
+          {!mappedTemplate && data.items.length > 0 ? (
+            <AppButton
+              title="Şablon olarak kaydet"
+              icon="save"
+              variant="ghost"
+              size="sm"
+              onPress={() => setSaveTplOpen(true)}
+              style={styles.mt}
+              testID="save-as-template-button"
+            />
+          ) : null}
         </AppCard>
       ) : null}
 

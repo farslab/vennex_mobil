@@ -86,7 +86,12 @@ function pageMeta(o: Raw, resultsLength: number) {
 export function normalizeDeviceFillRate(v: unknown): FillRate | null {
   const o = asObjOrNull(v);
   if (!o) return null;
-  return { pct: toNumber(o.pct), qty: toNumber(o.qty) ?? 0, max: toNumber(o.max) ?? 0 };
+  const out: FillRate = { pct: toNumber(o.pct), qty: toNumber(o.qty) ?? 0, max: toNumber(o.max) ?? 0 };
+  // Kahve otomatı: bileşen (hazne) doluluğu — /products/ stok modu ve liste kaynağı
+  const containersPct = toNumber(o.containers_pct);
+  if (containersPct != null) out.containers_pct = containersPct;
+  if (o.source === "containers") out.source = "containers";
+  return out;
 }
 
 export function normalizeDeviceListItem(v: unknown): PosDeviceListItem {
@@ -252,7 +257,15 @@ export function normalizeDeviceProducts(v: unknown): PosProductsResponse {
     mode: o.mode === "stock" ? "stock" : "normal",
     items: arr(o.items).map(normalizeDeviceProduct),
     fill: normalizeDeviceFillRate(o.fill),
+    template: normalizeTemplateRef(o),
   };
+}
+
+function normalizeTemplateRef(o: Record<string, unknown>): PosProductsResponse["template"] {
+  if (!("template" in o)) return undefined;
+  const t = asObjOrNull(o.template);
+  const id = t ? int(t.id) : null;
+  return t && id != null ? { id, name: str(t.name) || `Şablon #${id}` } : null;
 }
 
 function normalizeCashItem(v: unknown): CashHistoryItem {

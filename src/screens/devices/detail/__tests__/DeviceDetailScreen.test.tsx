@@ -268,6 +268,33 @@ describe("DeviceDetailScreen", () => {
     expect(screen.queryByTestId("assign-template-button")).toBeNull();
   });
 
+  const renderStockWithTemplate = async (template: unknown) => {
+    setUser(["owner", "manage_stock", "manage_device_settings"]);
+    mock.resetHandlers();
+    mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
+    mock.onGet("/stock/locations/").reply(200, { results: [] });
+    mock.onGet(`/pos-devices/${SN}/products/`).reply(200, { ...productsBody, template });
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await fireEvent.press(await screen.findByText("Stok"));
+  };
+
+  it("Stok/şablon: eşli cihazda şablon adı ve yalnız 'Eşlemeyi kaldır' (web kuralı)", async () => {
+    await renderStockWithTemplate({ id: 3, name: "Kahve Şablonu" });
+    expect(await screen.findByTestId("mapped-template")).toHaveTextContent("Bu cihaz Kahve Şablonu şablonuna eşli.");
+    expect(screen.getByTestId("unassign-template-button")).toBeOnTheScreen();
+    expect(screen.queryByTestId("assign-template-button")).toBeNull();
+    expect(screen.queryByTestId("save-as-template-button")).toBeNull();
+    expect(screen.queryByText(/API/)).toBeNull();
+  });
+
+  it("Stok/şablon: eşli değilken 'Şablon ata' ve 'Şablon olarak kaydet', 'Eşlemeyi kaldır' yok (web kuralı)", async () => {
+    await renderStockWithTemplate(null);
+    expect(await screen.findByTestId("mapped-template-none")).toBeOnTheScreen();
+    expect(screen.getByTestId("assign-template-button")).toBeOnTheScreen();
+    expect(screen.getByTestId("save-as-template-button")).toBeOnTheScreen();
+    expect(screen.queryByTestId("unassign-template-button")).toBeNull();
+  });
+
   it("Stok: owner kaynak lokasyon seçmeden dolum yapamaz; slot silme onay ister", async () => {
     setUser(["owner", "manage_stock", "manage_device_settings"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody({ sales_visible: false }));

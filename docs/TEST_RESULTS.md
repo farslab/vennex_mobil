@@ -81,6 +81,31 @@ Bulunan ve düzeltilen başlıca hatalar:
 - Stok hareketleri 5,3 sn → 71 ms, cihaz listesi 1,5 sn → 190 ms, cari özeti 237 SQL → 2 SQL.
 - Panel (önbellek ısındıktan sonra): 0,2–0,5 sn.
 
+### Canlı arayüz turu (2026-11-19, serpetco sahibi, yalnız okuma)
+Release derleme canlı API'ye (`tms.vennex.com.tr`) bağlandı, giriş kullanıcı tarafından yapıldı. Hiçbir kayıt değiştirilmedi; bildirim açılmadı, cihaza komut gönderilmedi.
+
+| Ekran | Ekranda | Veritabanı | Sonuç |
+|---|---|---|---|
+| Panel · Geçen Ay | ₺4.018,71 · 114 işlem / 73 başarılı / 41 başarısız · önceki ay ₺4.373,42 | aynı | AYNI |
+| Panel · Son 30 Gün | ₺4.939,60 · 191 / 167 / 24 · önceki 30 gün ₺6,93 | aynı (başlangıç 20.10, web ile aynı tanım) | AYNI |
+| Panel · Bu Ay ödeme tipleri | Nakit ₺780,00 (47) · Personel Kart ₺114,66 (15) · Kredi/Banka ₺28,94 (60) | aynı | AYNI |
+| Panel · başarısızlık nedenleri | Banka reddi 11 · Teknik hata 7 | iptalNo 2 → 11, 3 → 7 | AYNI |
+| Panel · en çok satan | ₺785,60 / 103 · ₺138,00 / 19 | toplam ₺923,60 / 122 | AYNI |
+| Cihaz listesi | 13 cihaz · son iletişim · doluluk | aynı | AYNI |
+| Cihaz detayı · Satışlar (Bu ay) | 36 / 19 / 17 · ₺138,00 · saatler TR | aynı | AYNI |
+| Cihaz detayı · İstatistikler | Bu ay ₺138,00 · geçen ay ₺5,40 · %2.455,6 | aynı | AYNI |
+| Kartlar | Aktif 41 / bekleyen 0 · ilk 7 satırın bakiye, son 4 hane ve grupları | aynı | AYNI |
+| Kart detayı · bakiye hareketleri | 30 kayıt · ilk 4 satış · "Yeni Değer" (−₺97,80) | aynı | AYNI |
+| Stok özeti | 24 ürün · 0 tükenen · 0 negatif · 6 ürünün toplamı | aynı | AYNI |
+| Stok hareketleri | 215 (tüketim hariç) · en yeni 27.07 14:19 | aynı | AYNI |
+| Bildirimler | 31 okunmamış · en yeni "Ödeme hatası", 18 gün önce | 83 toplam / 31 okunmamış | AYNI |
+
+Turda bulunan ve düzeltilen iki sorun:
+1. **Kahve otomatında doluluk "—" görünüyordu.** Cihaz listesi %96 gösterirken detayın Genel ve Stok sekmelerinde doluluk "—" çıkıyordu. Sebep: sunucunun gönderdiği bileşen (hazne) doluluğunu (`containers_pct`) mobil yanıtı okurken atıyordu. Düzeltme: slot kapasitesi yoksa doluluk, webdeki "Bileşenler" göstergesinde olduğu gibi haznelerden gösteriliyor; altında "Bileşen hazneleri" yazıyor. Testler: `deviceFillInfo` birim testleri ve GeneralTab testi.
+2. **Stok sekmesinde teknik not ve web kuralına uymayan şablon düğmeleri.** Ekranda "Cihazın hangi şablona eşli olduğu bilgisi API'de bulunmuyor" yazıyordu ve üç düğmenin hepsi birden görünüyordu. Düzeltme: `/products/` yanıtına `template` alanı (`{id, name}` veya `null`) eklendi. Mobil artık web kuralını uyguluyor: eşli cihazda şablonun adı ve yalnız "Eşlemeyi kaldır"; eşli değilken "Şablon ata" ve, cihazın listesi varsa, "Şablon olarak kaydet". Sunucu bu alanı göndermiyorsa (eski sürüm) düğmelerin hepsi görünür, teknik not görünmez. Backend eki canlıya alındıktan sonra ekranda doğrulandı: eşli cihazda şablon adı ve yalnız "Eşlemeyi kaldır" görünüyor. Testler: backend `ProductsTemplateFieldTests`, mobil `DeviceDetailScreen` için iki test.
+
+Jest 752/752 · backend `vennex_mobile` 99/99.
+
 ## Dördüncü tur — uçtan uca kullanıcı yolculukları (2026-11-19)
 
 Ortam: Release derlemesi (`tr.com.vennex`, Metro yok), iOS 18.5 simülatör, yerel backend (gerçek `scc_lith` kodu, izole DB, kurgusal veri). Her yolculuk ekrandan yapıldı, sonuç **veritabanından** ve sunucu istek günlüğünden doğrulandı.

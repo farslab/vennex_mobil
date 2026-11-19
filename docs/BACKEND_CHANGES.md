@@ -202,3 +202,15 @@ Amaç: mobil API, web panelinin yetki, rakam ve performans davranışıyla bireb
 - Süre karşılaştırması (önce → sonra): stok hareketleri 5,3 sn → 71 ms; cihaz listesi 1,5 sn → 190 ms; kart işlemleri 0,86 sn → 287 ms; cari özeti 237 SQL → 2 SQL / 63 ms. Panel önbellek ısındıktan sonra 0,2–0,5 sn; yeniden başlatmanın hemen ardından ilk istekte 4–6 sn sürdü.
 - Geri dönüş noktası: `git reset --hard d0196d9` ya da 6 commit'in `git revert` edilmesi, ardından web yeniden başlatma.
 - Sunucudan GitHub'a push edildi (`d0196d9..4db6d4c`, ileri sarma). Sunucu `main` = `origin/main`.
+
+# Dördüncü değişiklik — ürünler yanıtında eşli şablon (2026-11-19) · **CANLIDA ve GitHub `main`'de (`f368f20`)**
+Canlı arayüz turunda bulundu. Webde stok sekmesindeki şablon düğmeleri `device.product_template`'e bakıyor; mobil bu bilgiyi almıyordu.
+
+| Dosya | Değişiklik |
+|---|---|
+| `vennex_mobile/views/pos_devices.py` · `POSDeviceProductsView` | Her iki modda yanıta `template: {id, name}` ya da `null` eklendi. Yalnız ek alan; mevcut alanlar değişmedi. Şablon ata/kaldır uçları önbelleği zaten temizliyor. |
+| `vennex_mobile/test_web_parity.py` | `ProductsTemplateFieldTests` |
+
+Canlıya alma: tek dosya, migration yok. Önceki dalla aynı adımlar: yama, `manage.py check`, yalnız web konteynerini yeniden başlatma. Bu alan olmadan da mobil çalışır: düğmelerin hepsi görünür, teknik not görünmez.
+
+Canlıya alma kaydı (2026-11-19): sunucu temizdi ve `origin` ile aynıydı (`4db6d4c`). `git am` ile uygulandı → `f368f20`. `manage.py check` temiz; yalnız web konteyneri yeniden başlatıldı; logda hata yok. Kontrol: 13 serpetco cihazının hepsinde `template` alanı veritabanıyla aynı; `live_readonly_check.py` 200 dışı yanıt 0, panel rakamları aynı. Ekranda: PAV200015995 için "Bu cihaz DEMO Cihazdan Şablon şablonuna eşli." ve yalnız "Eşlemeyi kaldır" görünüyor. Sunucudan GitHub'a push edildi.

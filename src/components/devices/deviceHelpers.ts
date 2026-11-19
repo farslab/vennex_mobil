@@ -139,6 +139,21 @@ export function fillInfo(fill: FillRate | null | undefined): FillInfo {
   return { pct, tone, label: `%${pct}`, detail };
 }
 
+/**
+ * Cihaz toplam doluluğu (web pos_device_list / pos_device_detail ile aynı kaynak):
+ * slot kapasitesi varsa slotlardan; yoksa ve cihazda bileşen haznesi varsa
+ * bileşenlerden (kahve otomatı). Kaynak, açıklama satırı için döner.
+ */
+export function deviceFillInfo(fill: FillRate | null | undefined): FillInfo & { source: "slots" | "containers" | null } {
+  const slots = fillInfo(fill);
+  if (slots.pct != null) return { ...slots, source: "slots" };
+  const cp = fill?.containers_pct;
+  if (cp != null && Number.isFinite(cp)) {
+    return { ...fillInfo({ pct: cp, qty: 0, max: 0 }), source: "containers" };
+  }
+  return { ...slots, source: null };
+}
+
 function formatCount(n: number): string {
   return new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(n);
 }
