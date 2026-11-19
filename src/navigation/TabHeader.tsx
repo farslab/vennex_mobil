@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { AppIconButton, AppText, makeStyles } from "@/design-system";
 import { CompanySwitcher } from "@/components/CompanySwitcher";
+import { VennexLogo } from "@/components/brand/VennexLogo";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import type { RootStackParamList } from "./types";
 
@@ -12,7 +13,7 @@ import type { RootStackParamList } from "./types";
  * Sekme kök ekranlarının başlığı: büyük başlık + şirket seçici + bildirim zili.
  * Detay ekranları native stack başlığını kullanır.
  */
-export function TabHeader({ title, right }: { title: string; right?: React.ReactNode }) {
+export function TabHeader({ title, right, logo = false }: { title: string; right?: React.ReactNode; logo?: boolean }) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -23,9 +24,16 @@ export function TabHeader({ title, right }: { title: string; right?: React.React
       <View style={styles.row}>
         <View style={styles.titleBlock}>
           <CompanySwitcher />
-          <AppText variant="title" accessibilityRole="header" numberOfLines={1}>
-            {title}
-          </AppText>
+          {logo ? (
+            // Genel Bakış: başlık yerine Vennex logosu (ekran okuyucuya başlık adı söylenir)
+            <View accessible accessibilityRole="header" accessibilityLabel={title} style={styles.logo} testID="header-logo">
+              <VennexLogo height={42} />
+            </View>
+          ) : (
+            <AppText variant="title" accessibilityRole="header" numberOfLines={1}>
+              {title}
+            </AppText>
+          )}
         </View>
         <View style={styles.actions}>
           {right}
@@ -59,6 +67,7 @@ const useStyles = makeStyles((t) =>
       alignSelf: "center",
     },
     titleBlock: { flex: 1, gap: 2 },
+    logo: { paddingVertical: 4, alignSelf: "flex-start" },
     actions: { flexDirection: "row", alignItems: "center", marginRight: -t.spacing.sm },
   })
 );

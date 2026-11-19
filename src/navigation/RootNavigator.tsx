@@ -54,7 +54,7 @@ function AppTabs() {
       initialRouteName="Dashboard"
       screenLayout={centeredScreenLayout}
       screenOptions={({ route }) => ({
-        header: () => <TabHeader title={TAB_META[route.name].title} />,
+        header: () => <TabHeader title={TAB_META[route.name].title} logo={route.name === "Dashboard"} />,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textTertiary,
         // "POS Cihazları" dar telefonlarda sığsın: tek satır, gerekirse hafif küçülür (kesilmez)

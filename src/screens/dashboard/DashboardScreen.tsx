@@ -64,6 +64,7 @@ export default function DashboardScreen() {
       header: () => (
         <TabHeader
           title="Genel Bakış"
+          logo
           right={
             canExport ? (
               <AppIconButton
