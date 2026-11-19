@@ -1,10 +1,10 @@
 import React, { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { AppBadge, AppIcon, AppText, makeStyles } from "@/design-system";
+import { AppBadge, AppText, makeStyles, useTheme } from "@/design-system";
 import { ConnectivityBadge, FillBar } from "@/components/devices/DeviceUi";
-import { connectivityInfo, deviceTitle, fillInfo, machineAlert, type RevenueColumn } from "@/components/devices/deviceHelpers";
+import { connectivityInfo, deviceTitle, fillInfo, lastSaleBadge, machineAlert, type RevenueColumn } from "@/components/devices/deviceHelpers";
+import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import { formatCurrency, formatInteger } from "@/utils/number";
-import { formatRelative } from "@/utils/date";
 import type { PosDeviceListItem } from "@/types/devices";
 
 export interface DeviceRowProps {
@@ -20,7 +20,9 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
   const conn = connectivityInfo(device.online);
   const fill = fillInfo(device.fill_rate);
   const title = deviceTitle(device);
-  const lastSeen = formatRelative(device.last_seen);
+  // Web listesi gibi son SATIŞ zamanı (son görülme değil), yaşına göre renkli
+  const lastSale = lastSaleBadge(device.last_transaction);
+  const { isDark } = useTheme();
   const revenueValue = revenue ? device[revenue.key] : null;
   const showTxCount = revenue?.key === "today_revenue" && device.today_tx_count != null;
 
@@ -30,7 +32,7 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
     machineAlert(device.online, device.act_macstat) ? `makine ${machineAlert(device.online, device.act_macstat)}` : null,
     device.stat ? null : "Pasif",
     fill.pct != null ? `Doluluk ${fill.label}` : null,
-    `Son iletişim ${lastSeen}`,
+    `Son satış ${lastSale.label}`,
     revenue ? `${revenue.label} ciro ${formatCurrency(revenueValue)}` : null,
   ]
     .filter(Boolean)
@@ -84,10 +86,9 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
           </View>
         ) : null}
         <View style={styles.spacer} />
-        <AppIcon name="activity" size={12} color="textTertiary" />
-        <AppText variant="caption" color="textTertiary" numberOfLines={1}>
-          {lastSeen}
-        </AppText>
+        <View testID={`device-last-sale-${device.sn}`}>
+          <AppBadge size="sm" icon="clock" label={lastSale.label} colors={webBadgeColors(lastSale.color, isDark)} />
+        </View>
       </View>
     </Pressable>
   );

@@ -111,6 +111,18 @@ describe("DevicesListScreen", () => {
     expect(screen.queryByTestId("device-fill-SN2")).toBeNull();
   });
 
+  it("web gibi son görülme yerine son satış zamanı, yaşına göre renkli", async () => {
+    const ago = (min: number) => new Date(Date.now() - min * 60000).toISOString();
+    mock.onGet("/pos-devices/").reply(
+      200,
+      page([row(1, { last_transaction: ago(5) }), row(2, { last_transaction: ago(130) }), row(3, { last_transaction: null })])
+    );
+    await renderWithProviders(<DevicesListScreen />);
+    expect(within(await screen.findByTestId("device-last-sale-SN1")).getByText("5 dakika")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("device-last-sale-SN2")).getByText("2 saat 10 dakika")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("device-last-sale-SN3")).getByText("—")).toBeOnTheScreen();
+  });
+
   it("view_sales yoksa ciro gösterilmez ve ciro gizleme düğmesi yoktur", async () => {
     useAuthStore.setState({ user: makeUser({ permissions: ["tech"] }) });
     mock.onGet("/pos-devices/").reply(200, page([row(1)]));

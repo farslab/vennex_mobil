@@ -15,7 +15,8 @@ export type WebBadgeColor =
   | "rose"
   | "indigo"
   | "cyan"
-  | "amber";
+  | "amber"
+  | "red";
 
 const LIGHT: Record<WebBadgeColor, { bg: string; fg: string }> = {
   gray: { bg: "#F3F4F6", fg: "#374151" },
@@ -31,6 +32,7 @@ const LIGHT: Record<WebBadgeColor, { bg: string; fg: string }> = {
   indigo: { bg: "#E0E7FF", fg: "#4338CA" },
   cyan: { bg: "#CFFAFE", fg: "#0E7490" },
   amber: { bg: "#FEF3C7", fg: "#B45309" },
+  red: { bg: "#FEE2E2", fg: "#B91C1C" },
 };
 
 const DARK: Record<WebBadgeColor, { bg: string; fg: string }> = {
@@ -47,6 +49,7 @@ const DARK: Record<WebBadgeColor, { bg: string; fg: string }> = {
   indigo: { bg: "rgba(49,46,129,0.35)", fg: "#818CF8" },
   cyan: { bg: "rgba(22,78,99,0.35)", fg: "#22D3EE" },
   amber: { bg: "rgba(120,53,15,0.35)", fg: "#FBBF24" },
+  red: { bg: "rgba(127,29,29,0.35)", fg: "#F87171" },
 };
 
 export function webBadgeColors(color: WebBadgeColor, isDark: boolean): { bg: string; fg: string } {

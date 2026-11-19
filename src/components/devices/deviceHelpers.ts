@@ -400,3 +400,20 @@ export function txStatusLabel(status: boolean, ptType: unknown, iptalNo: unknown
   if (n === 3) return "Teknik Hata";
   return "Başarısız";
 }
+
+
+/**
+ * Son satış rozeti — web `last_tx_badge` (dashboard_v2/templatetags/v2_filters.py) ile aynı metin ve renk:
+ * < 60 dk yeşil "N dakika", 60–120 dk sarı, > 120 dk kırmızı "N saat M dakika", satış yoksa gri "—".
+ */
+export function lastSaleBadge(iso: string | null | undefined, now: Date = new Date()): { label: string; color: WebBadgeColor } {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  if (!iso || Number.isNaN(t)) return { label: "—", color: "gray" };
+  const total = Math.max(0, Math.floor((now.getTime() - t) / 60000));
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  // Rozet kısa kalsın diye "önce" yazılmaz (web: "N dakika önce")
+  if (total < 60) return { label: `${minutes} dakika`, color: "emerald" };
+  const label = minutes ? `${hours} saat ${minutes} dakika` : `${hours} saat`;
+  return { label, color: total < 120 ? "amber" : "red" };
+}
