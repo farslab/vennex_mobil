@@ -170,11 +170,12 @@ const config: ExpoConfig = {
     [
       "expo-splash-screen",
       {
-        image: "./assets/images/splash-icon.png",
-        imageWidth: 120,
+        // Tam Vennex logosu (simge + VENNEX + PAYMENT SYSTEMS); koyu temada lacivert yazı açık renk
+        image: "./assets/images/splash-logo.png",
+        imageWidth: 240,
         resizeMode: "contain",
         backgroundColor: "#FFFFFF",
-        dark: { image: "./assets/images/splash-icon.png", backgroundColor: "#0A0F17" },
+        dark: { image: "./assets/images/splash-logo-dark.png", backgroundColor: "#0A0F17" },
       },
     ],
   ],
