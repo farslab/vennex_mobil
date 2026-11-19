@@ -89,4 +89,14 @@ describe("LoginScreen", () => {
     await fireEvent.press(screen.getByLabelText("Şifreyi göster"));
     expect(screen.getByTestId("login-password")).toHaveProp("secureTextEntry", false);
   });
+
+  it("alt bilgideki vennex.com.tr bağlantısı web sitesini açar", async () => {
+    const { Linking } = jest.requireActual<typeof import("react-native")>("react-native");
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    await render(<LoginScreen />);
+    expect(screen.getByText("vennex.com.tr")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("login-site-link"));
+    expect(open).toHaveBeenCalledWith("https://vennex.com.tr");
+    open.mockRestore();
+  });
 });

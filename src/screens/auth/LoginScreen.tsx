@@ -1,8 +1,10 @@
 import React, { useRef, useState } from "react";
-import type { TextInput } from "react-native";
+import { Linking, Pressable, type TextInput } from "react-native";
 import { AppButton, AppInput, AppNotice, AppText } from "@/design-system";
 import { useAuthStore } from "@/store/authStore";
 import { AuthLayout } from "./AuthLayout";
+
+export const VENNEX_SITE_URL = "https://vennex.com.tr";
 
 export default function LoginScreen() {
   const login = useAuthStore((s) => s.login);
@@ -44,9 +46,20 @@ export default function LoginScreen() {
       title="Hesabınıza giriş yapın"
       subtitle="POS cihazlarınızı, kartlarınızı ve stoklarınızı tek yerden yönetin."
       footer={
-        <AppText variant="caption" color="textTertiary" align="center">
-          Vennex Payment Systems
-        </AppText>
+        <Pressable
+          onPress={() => Linking.openURL(VENNEX_SITE_URL).catch(() => {})}
+          accessibilityRole="link"
+          accessibilityLabel="Vennex web sitesi: vennex.com.tr"
+          hitSlop={12}
+          testID="login-site-link"
+        >
+          <AppText variant="caption" color="textTertiary" align="center">
+            Vennex Payment Systems
+          </AppText>
+          <AppText variant="caption" color="primary" align="center">
+            vennex.com.tr
+          </AppText>
+        </Pressable>
       }
     >
       {banner ? <AppNotice tone="danger" message={banner} /> : null}

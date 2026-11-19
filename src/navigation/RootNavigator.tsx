@@ -15,7 +15,6 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import { VennexLogo } from "@/components/brand/VennexLogo";
 import type { AuthStackParamList, RootStackParamList, TabParamList } from "./types";
 import { TabHeader } from "./TabHeader";
-import { CenterTabButton } from "./CenterTabButton";
 import { centeredScreenLayout } from "./CenteredScreen";
 import { linking } from "./linking";
 import { flushPendingNavigation, navigationRef } from "./navigationRef";
@@ -83,18 +82,11 @@ function AppTabs() {
         sceneStyle: { backgroundColor: theme.colors.background },
       })}
     >
-      {/* Sıra: POS Cihazları · Kartlar · [Genel Bakış — ortada büyük düğme] · Stok · Profil */}
+      {/* Sıra: Genel Bakış · POS Cihazları · Kartlar · Stok · Profil — hepsi aynı standart sekme.
+          Yetkiye göre gizlenen sekmeler (Kartlar/Stok) diğerlerinin yerini ve görünümünü bozmaz. */}
+      <Tab.Screen name="Dashboard" component={screenRegistry.Dashboard} />
       <Tab.Screen name="Devices" component={screenRegistry.Devices} />
       {cardsVisible ? <Tab.Screen name="Cards" component={screenRegistry.Cards} /> : null}
-      <Tab.Screen
-        name="Dashboard"
-        component={screenRegistry.Dashboard}
-        options={{
-          tabBarButton: (props) => (
-            <CenterTabButton {...props} icon={TAB_META.Dashboard.icon} label={TAB_META.Dashboard.title} />
-          ),
-        }}
-      />
       {stockVisible ? <Tab.Screen name="Stock" component={screenRegistry.Stock} /> : null}
       <Tab.Screen name="Profile" component={screenRegistry.Profile} />
     </Tab.Navigator>
