@@ -183,7 +183,7 @@ export default function DevicesListScreen() {
             <AppSearchField
               value={search}
               onChangeText={setSearch}
-              placeholder="Ad, seri no veya otomat ara"
+              placeholder="POS cihazı adı veya seri numarası"
               testID="devices-search"
             />
           </View>
