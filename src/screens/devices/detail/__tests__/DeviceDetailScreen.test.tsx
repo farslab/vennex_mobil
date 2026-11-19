@@ -118,7 +118,8 @@ describe("DeviceDetailScreen", () => {
     expect(screen.queryByText(/₺/)).toBeNull();
     expect(screen.getAllByText("—").length).toBeGreaterThan(3);
     expect(screen.queryByText("Satışlar")).toBeNull();
-    expect(screen.queryByText("Nakit & Ciro")).toBeNull();
+    // Web: teknisyen nakit panelini görür (tutarlar gizli)
+    expect(screen.getByText("Nakit & Ciro")).toBeOnTheScreen();
     expect(screen.queryByText("İstatistikler")).toBeNull();
     expect(mock.history.get.some((r) => r.url?.endsWith("/summary/"))).toBe(false);
     expect(navigation.setOptions).toHaveBeenCalledWith({ title: SN });
@@ -205,35 +206,31 @@ describe("DeviceDetailScreen", () => {
     expect(screen.getByText("machine_type_id atlandı: select_machine_type izni yok.")).toBeOnTheScreen();
   });
 
-  it("Ayarlar: manage_device_settings ve send_device_commands yoksa komutlar ve kaydet gizli, alanlar salt okunur", async () => {
+  it("cihaz ayarı yetkisi yoksa Ayarlar sekmesi hiç yok (web `pos_device_detail.html:53`)", async () => {
     setUser(["owner", "view_sales"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody({ permissions: { manage_device_settings: false, manage_stock: false } }));
     mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
-    await fireEvent.press(await screen.findByText("Ayarlar"));
-
-    expect(await screen.findByText(/ayarlarını değiştirme yetkiniz yok/)).toBeOnTheScreen();
-    expect(screen.queryByText("Cihaz komutları")).toBeNull();
+    expect(await screen.findByText("Genel")).toBeOnTheScreen();
+    expect(screen.queryByText("Ayarlar")).toBeNull();
     expect(screen.queryByTestId("command-eod_trig")).toBeNull();
-    expect(screen.queryByTestId("settings-save")).toBeNull();
   });
 
-  it("Ayarlar: send_device_commands varsa ayar yetkisi olmasa da komutlar görünür (web kuralı)", async () => {
+  it("send_device_commands tek başına komut göstermez; komutlar cihaz ayarı yetkisi ister (web)", async () => {
     setUser(["tech", "send_device_commands"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody({ permissions: { manage_device_settings: false, manage_stock: false } }));
     mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
-    await fireEvent.press(await screen.findByText("Ayarlar"));
-
-    expect(await screen.findByTestId("command-eod_trig")).toBeOnTheScreen();
-    expect(screen.queryByTestId("settings-save")).toBeNull();
+    expect(await screen.findByText("Genel")).toBeOnTheScreen();
+    expect(screen.queryByText("Ayarlar")).toBeNull();
+    expect(screen.queryByTestId("command-eod_trig")).toBeNull();
   });
 
   it("Ayarlar: gün sonu komutu onay sayfası arkasında, PATCH {commands:{eod_trig:true}}", async () => {
-    // Komut yetkisi sunucunun ortak kaydından gelir (send_device_commands) — web ile aynı kural
-    setUser(["owner", "send_device_commands"]);
+    // Web: komutlar Ayarlar sekmesinde, cihaz ayarı yetkisiyle
+    setUser(["owner", "manage_device_settings", "send_device_commands"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
     mock.onGet("/overview/locations/").reply(200, { results: [] });
     mock.onPatch(`/pos-devices/${SN}/`).reply(200, detailBody({ commands: { eod_trig: true } }));

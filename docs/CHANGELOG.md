@@ -13,6 +13,36 @@
 - Mağaza hazırlığı: iOS gizlilik manifesti, şifreleme beyanı, minimum Android izinleri, uygulama içi hesap silme.
 - Yerel mock sunucu (`mock-server/`) ve gerçek backend kodunun izole yerel kurulumu (`../backend-local`).
 
+### Beşinci tur (2026-11-19) — web paritesi, büyük veri, canlı doğrulama
+- **Rapor formu web ile birebir** (kritik düzeltmeler):
+  - "Başarılı/Başarısız" filtresi `success|fail` gidiyordu, backend yalnız `true|false` tanıdığı için **sessizce yok sayılıyordu**. Örneğin "Başarısız" seçilen rapor tüm işlemleri içeriyordu. Düzeltildi; varsayılan durum web gibi Başarılı.
+  - Şirket/bölge/konum çoğul anahtarlarla gidiyordu ve backend hepsini **yok sayıyordu**, yani rapor tüm şirketleri kapsıyordu. Artık şirket tekil gönderiliyor ve oturumdaki şirket önseçili. Bölge/konum seçimi web gibi cihaz kapsamına çevriliyor; cihazı olmayan bölge seçilirse rapor oluşturulmaz, hata verilir.
+  - Tip adları ve sırası webdeki gibi: Özet, Detay, PersonelKart Hareketleri. "Aylık Analiz" PersonelKart altında ay/yıl seçimli bir seçenek; şirkette PersonelKart POS'u yoksa PersonelKart gizli.
+  - PersonelKart raporunda şirket, grup (gruptaki kartları işaretler) ve tek tek kart seçimi.
+  - Ödeme tipleri ve adları web listesiyle aynı. İstemcide de 365 gün ve 1000 cihaz sınırı uyarısı.
+  - Rapor kartı: durum adları web ile aynı ("Sıraya alındı"). Tahmini satır yalnız hazırlanırken gösteriliyor. Saklama süresi dolan raporda İndir butonu yok. Tamamlanan rapor web gibi "Tekrar" ile yeniden üretilebiliyor; iptal edilen yalnız silinebiliyor.
+- **Excel butonları (webdeki gibi):** cihaz listesi, cihaz ürünleri, personel kartları, stok özeti.
+- **Rol bazlı butonlar web ile aynı:**
+  - Ürün şablonları yalnız cihaz ayarı yetkisiyle görünüyor (öncekinde 403 dönebiliyordu).
+  - Ayarlar sekmesi ve cihaz komutları cihaz ayarı yetkisi istiyor.
+  - Özel sıralama herkese açık.
+  - Nakit toplama, satış yetkisi olan ya da teknisyen için açık.
+  - Kart grubu kısıtlı teknisyende grup oluştur/düzenle/sil gizli; yeni kartta grup zorunlu.
+- **Kart geçmişi webdeki gibi bakiye hareketleri:** yükleme, satış, iade, düzeltme, silme; sayfalı. Önceden en fazla 500 POS işlemi sanallaştırılmadan çiziliyordu.
+- **Grup istihkakı tek istekte:** önceden gruptaki her kart için ayrı istek atılıyordu (10 bin kartta yaklaşık 10 bin istek). "Dağıtım" seçeneği eklendi: her ürüne ayrı / havuz.
+- **Sonsuz listeler:** 21. sayfadan sonra ilk sayfanın düşmesi ve yenilemede tüm sayfaların tekrar çekilmesi düzeltildi.
+- **Saat dilimi:** sunucu zamanları ve "bugün" her zaman Türkiye saatiyle (web ile aynı); telefon başka saat dilimindeyse de doğru.
+- **Stok SKU araması:** sunucu ilk 50 sonucu döndürdüğünde uyarı gösteriliyor ve yanıltıcı tür sayıları gizleniyor.
+
+### Dördüncü tur (2026-11-19) — uçtan uca doğrulama
+- 10 kullanıcı yolculuğu + 4 negatif senaryo Release derlemesinde, gerçek backend koduyla ve DB doğrulamasıyla (`e2e/maestro/20–29`).
+- **Düzeltildi:** iOS'ta form + onay sayfası birlikte kapanınca kalan görünmez pencerenin tüm dokunuşları kilitlemesi (`AppSheet`).
+- **Düzeltildi:** rapor indirmede 406 (`Accept` başlığı).
+- **Düzeltildi (güvenlik):** çıkışta refresh token'ın kara listeye alınmaması (token'lar istekten önce siliniyordu).
+- **Yeni:** sunucuya ulaşılamayan açılışta giriş ekranı yerine bağlantı ekranı; oturum korunur, bağlantı gelince otomatik devam.
+- **iPad:** tüm ekranlar, sekme başlığı ve alt sayfalar okunabilir genişlikte ortalı (`CenteredScreen`).
+- Alt sayfalarda klavye sürükleyerek kapanır (iOS etkileşimli).
+
 ### Üçüncü tur (2026-11-18) — eksik tamamlama, mağaza uygunluğu
 - **Paket adı `tr.com.vennex`** (iOS + Android): Flutter uygulamasının `com.vennex.mobile` kimliğiyle çakışmaz. Flutter'a ait Firebase dosyaları kaldırıldı; `app.config.ts` kimliği eşleşmeyen Firebase dosyasını reddeder, production derlemesi Firebase'siz başlamaz, dosyalar yokken push kodu hiç çalışmaz.
 - **Geri bildirim ve destek** (Profil): öneri/hata/soru gönderme, önceki bildirimlerin durumu. Ekip tarafı Nexus → Mobil Geri Bildirim (backend dalı).

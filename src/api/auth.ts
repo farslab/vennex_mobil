@@ -30,7 +30,17 @@ export const authApi = {
       .post<{ access: string; refresh: string }>("/auth/refresh/", { refresh }, { skipAuth: true })
       .then((r) => r.data),
 
-  logout: (refresh: string) => apiClient.post("/auth/logout/", { refresh }),
+  /**
+   * Refresh token'ı kara listeye alır. Token'lar silinmeden ÖNCE ve erişim token'ı AÇIKÇA verilerek
+   * çağrılır (skipAuth): aksi halde istek token'sız gider → 401 → refresh kara listeye girmez ve
+   * istemcinin "oturum sona erdi" akışı tetiklenir (yerel gerçek backend E2E'sinde yakalandı).
+   */
+  logout: (refresh: string, access?: string | null) =>
+    apiClient.post(
+      "/auth/logout/",
+      { refresh },
+      { skipAuth: true, timeout: 5000, headers: access ? { Authorization: `Bearer ${access}` } : undefined }
+    ),
 
   me: (signal?: AbortSignal) => apiClient.get<AuthUser>("/auth/me/", { signal }).then((r) => r.data),
 

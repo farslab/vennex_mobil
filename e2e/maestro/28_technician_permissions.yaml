@@ -1,0 +1,39 @@
+# E2E (yolculuk 18–19): yeni teknisyenle giriş → yetkilerin uygulanması → çıkış — yerel gerçek backend
+# e2etek: yalnız "Stok Yönetimi" grubu (27_technician_create.yaml ile oluşturulur)
+appId: tr.com.vennex
+---
+- launchApp
+- runFlow:
+    when: { visible: "Profil" }
+    commands:
+      - tapOn: "Profil"
+      - scrollUntilVisible: { element: { id: "row-logout" }, centerElement: true }
+      - tapOn: { id: "row-logout" }
+      - tapOn: "Çıkış yap"
+- extendedWaitUntil: { visible: "Hesabınıza giriş yapın", timeout: 15000 }
+- tapOn: { id: "login-username" }
+- inputText: "e2etek"
+- tapOn: "Şifreyi göster"
+- tapOn: { id: "login-password" }
+- inputText: "Parola12345"
+- waitForAnimationToEnd
+- tapOn: { id: "login-submit" }
+- extendedWaitUntil: { visible: "Profil", timeout: 20000 }
+- takeScreenshot: j18_tech_home
+# Yetkiler: personel kartı yetkisi yok → Kartlar sekmesi yok; satış görüntüleme yok → ciro yok
+- assertNotVisible: "Kartlar"
+- assertNotVisible: "Ciro trendi"
+- assertVisible: ".*Satış verileri gizli.*"
+# Not: Stok sekmesi teknisyene atanmış cihaz (→ şirket bağlamı, stok modu) olunca açılır (sunucu modül kuralı)
+# Profil: kullanıcı yönetimi ve şirket/cari yalnız sahipte
+- tapOn: "Profil"
+- assertNotVisible: { id: "row-users" }
+- assertNotVisible: { id: "row-company-account" }
+- takeScreenshot: j18_tech_profile
+# 19) Çıkış → yeniden açılışta oturum yok
+- scrollUntilVisible: { element: { id: "row-logout" }, centerElement: true }
+- tapOn: { id: "row-logout" }
+- tapOn: "Çıkış yap"
+- extendedWaitUntil: { visible: "Hesabınıza giriş yapın", timeout: 15000 }
+- launchApp
+- extendedWaitUntil: { visible: "Hesabınıza giriş yapın", timeout: 15000 }

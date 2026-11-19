@@ -1,0 +1,26 @@
+# Negatif senaryo: gönderimin hemen ardından uygulama kapatılır.
+# Beklenen: yeniden açılışta oturum korunur; sunucuda en fazla bir kayıt olur (çift kayıt yok).
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element: { id: "row-feedback" }
+    centerElement: true
+- tapOn: { id: "row-feedback" }
+- tapOn: "Öneri"
+- tapOn: { id: "feedback-message" }
+- inputText: "Kapanma testi: gonderimden hemen sonra uygulama kapatildi"
+- hideKeyboard
+- tapOn: { id: "feedback-submit" }
+- stopApp
+- launchApp
+- extendedWaitUntil: { visible: "Profil", timeout: 30000 }
+- assertNotVisible: "Hesabınıza giriş yapın"
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element: { id: "row-feedback" }
+    centerElement: true
+- tapOn: { id: "row-feedback" }
+- extendedWaitUntil: { visible: ".*Geri bildirim.*", timeout: 10000 }
+- takeScreenshot: neg_kill_history

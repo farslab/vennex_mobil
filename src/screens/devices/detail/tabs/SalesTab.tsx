@@ -39,7 +39,7 @@ import {
   type DatePreset,
 } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger } from "@/utils/number";
-import { formatDate, formatTime, parseUserDate, toApiDate } from "@/utils/date";
+import { businessToday, formatDate, formatTime, parseUserDate, toApiDate } from "@/utils/date";
 import type {
   CancelReasonFilter,
   PosTransaction,
@@ -72,7 +72,7 @@ const INITIAL: SalesFilterState = {
 };
 
 /** UI filtresi → backend sorgu parametreleri (tarih her zaman açıkça gönderilir) */
-export function toTransactionFilters(f: SalesFilterState, cardLast4: string, now: Date = new Date()): TransactionFilters {
+export function toTransactionFilters(f: SalesFilterState, cardLast4: string, now: Date = businessToday()): TransactionFilters {
   const range =
     f.preset === "custom" && f.customStart && f.customEnd
       ? { start: f.customStart, end: f.customEnd }

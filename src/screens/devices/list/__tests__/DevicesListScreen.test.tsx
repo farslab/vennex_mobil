@@ -84,8 +84,9 @@ describe("DevicesListScreen", () => {
     expect(await screen.findByText("Otomat 1")).toBeOnTheScreen();
     expect(screen.queryByText("₺1.234,50")).toBeNull();
     expect(screen.queryByTestId("devices-toggle-revenue")).toBeNull();
-    // özel sıralama da manage_device_settings ister
-    expect(screen.queryByText("Özel sıralama")).toBeNull();
+    // Web: özel sıralama herkese açık; ürün şablonları cihaz ayarı yetkisi ister (yoksa 403 olurdu)
+    expect(screen.getByText("Özel sıralama")).toBeOnTheScreen();
+    expect(screen.queryByText("Ürün şablonları")).toBeNull();
   });
 
   it("arama debounce'ludur: art arda yazımda tek istek, q parametresiyle", async () => {

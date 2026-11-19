@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { EXPORTS } from "@/api/exports";
+import { useExcelExport } from "@/hooks/useExcelExport";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -127,6 +129,7 @@ export function PersonnelCardsTab() {
     },
   });
 
+  const excel = useExcelExport();
   const activeCount = list.firstPage?.active_count;
   const pendingCount = list.firstPage?.pending_count;
 
@@ -157,6 +160,14 @@ export function PersonnelCardsTab() {
           style={styles.toolbarGrow}
         />
         {group ? <AppIconButton icon="x" label="Grup filtresini kaldır" onPress={() => setGroup(null)} /> : null}
+        {selectionMode ? null : (
+          <AppIconButton
+            icon="download"
+            label={excel.exporting ? "Excel hazırlanıyor" : "Kartları Excel'e aktar"}
+            onPress={() => excel.run(EXPORTS.cards)}
+            testID="cards-export"
+          />
+        )}
         {selectionMode ? null : (
           <AppButton size="sm" variant="outline" icon="check-square" title="Seç" onPress={() => setSelectionMode(true)} testID="card-select-mode" />
         )}

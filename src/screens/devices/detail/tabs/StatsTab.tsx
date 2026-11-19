@@ -12,7 +12,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { FillBar, MetricCell } from "@/components/devices/DeviceUi";
 import { ptTypeLabel } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger, formatPercent, percentChange } from "@/utils/number";
-import { formatDateTime, toApiDate } from "@/utils/date";
+import { businessToday, formatDateTime, toApiDate } from "@/utils/date";
 import { useDeviceSummary, useRevenueCounts } from "../useDeviceQueries";
 
 export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing: boolean; onRefresh: () => void }) {
@@ -20,7 +20,7 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
   const { colors } = useTheme();
   const summary = useDeviceSummary(sn, true);
   const counts = useRevenueCounts(sn, true);
-  const today = toApiDate(new Date());
+  const today = toApiDate(businessToday());
   const todayTx = useQuery({
     queryKey: [...queryKeys.devices.all, "tx-summary", sn, today] as const,
     queryFn: ({ signal }) => devicesApi.transactions(sn, { start_date: today, end_date: today }, signal),

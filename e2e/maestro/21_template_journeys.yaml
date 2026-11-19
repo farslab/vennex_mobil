@@ -23,7 +23,6 @@ appId: tr.com.vennex
 - tapOn: { id: "template-item-price" }
 - eraseText: 10
 - inputText: "17,5"
-- hideKeyboard
 - tapOn: { id: "template-item-save" }
 - extendedWaitUntil: { visible: ".*Kola 330ml.*", timeout: 15000 }
 - takeScreenshot: j6_template_item

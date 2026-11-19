@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useCardAccess } from "../hooks/useCardAccess";
 import { StyleSheet } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -74,6 +75,7 @@ export interface CardFormSheetProps {
 
 /** Kart oluşturma / düzenleme. Başlangıç bakiyesi yalnız `change_card_balance` ile ve özet onayıyla. */
 export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSaved }: CardFormSheetProps) {
+  const { scopeRestricted } = useCardAccess();
   const styles = useStyles();
   const isCreate = card == null;
   const [form, setForm] = useState<FormState>(() => initialState(card));
@@ -128,6 +130,8 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
 
   const submit = () => {
     const { errors: errs, balance } = validate(form, isCreate, canChangeBalance);
+    // Kart grubu kısıtlı teknisyen: kart bir grubuna bağlanmalı (backend 400, web formu zorunlu tutar)
+    if (scopeRestricted && form.group_ids.length === 0) errs.group_ids = "Yetkili olduğunuz bir grup seçin.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     mutation.reset();
@@ -211,6 +215,7 @@ export function CardFormSheet({ visible, card, canChangeBalance, onClose, onSave
       <AppSelect<number>
         multiple
         label="Kart grupları"
+        required={scopeRestricted}
         value={form.group_ids}
         onChange={(v) => set("group_ids", v)}
         options={groupOptions}

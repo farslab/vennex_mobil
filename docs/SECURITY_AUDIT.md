@@ -33,6 +33,15 @@
 | S24 | Hata dönüştürücü `message` adlı ALANIN DRF hatasını (dizi) genel mesaj sayıp atıyordu → kullanıcı "Request failed with status code 400" görüyordu | Mobil | Düşük | **Düzeltildi** + test |
 | S25 | Projede Flutter uygulamasına (`com.vennex.mobile`) ait Firebase istemci dosyaları vardı; yeni kimlikle (`tr.com.vennex`) eşleşmiyordu | Mobil | Orta | **Düzeltildi** — dosyalar kaldırıldı; `app.config.ts` kimlik eşleşmesi olmayan dosyayı reddeder, production Firebase'siz derlenmez |
 | S26 | Herkese açık yeni sayfalar (gizlilik, hesap silme talebi) | Backend | — | Tasarım: hesap varlığı açığa çıkmaz, CSRF zorunlu, IP başına saatte 5 talep, markdown ham HTML kapalı + `javascript:` linkleri reddedilir, `X-Frame-Options: DENY`; talepler kimlik doğrulanmadan hesaba bağlanmaz (Nexus'ta doğrulama notu) |
+| S27 | Çıkışta token'lar istekten **önce** siliniyordu → `/auth/logout/` 401 dönüyor, **refresh token kara listeye alınmıyordu** (çalınmış bir refresh token çıkıştan sonra da geçerli kalırdı) | Mobil | Yüksek | **Düzeltildi** — çıkış isteği açık access token'la, token'lar silinmeden ve beklenerek (en fazla 5 sn) gönderilir; yerel sunucuda 204 + kara liste doğrulandı, 2 test |
+| S28 | `GET pos-devices/` satış yetkisi olmayan kullanıcıya da cihaz cirolarını ve işlem sayılarını döndürüyordu; arayüz yalnız gizliyordu | Backend | Yüksek | **Düzeltildi** (parite dalı): hesaplanmaz, `null`; ciroya göre sıralama kapalı |
+| S29 | Ürün şablonu uçları (liste/oluştur/detay) cihaz ayarı yetkisi olmadan açıktı; web 403 veriyor | Backend | Yüksek | **Düzeltildi** (parite dalı) + mobilde giriş gizli |
+| S30 | Periyodik bakiye kuralı, kart **bakiye** yetkisi olmayan teknisyen tarafından API ile yazılabiliyordu (zamanlanmış bakiye yükleme) | Backend | Yüksek | **Düzeltildi** (parite dalı): `CanChangeCardBalance` |
+| S31 | Cihaz komutları (Android reset, gün sonu, MDB reset) cihaza erişimi olan herkese açıktı; web yalnız cihaz ayarı yetkisiyle gösteriyor | Backend + Mobil | Orta | **Düzeltildi**: yetenek = cihaz ayarı yetkisi; mobilde Ayarlar sekmesi de bu yetkiye bağlı (S7'nin kapanışı) |
+| S32 | Toplu kart bakiye/silme/grup işlemleri: üst sınır yok, transaction ve satır kilidi yok (yarıda kalma, eşzamanlı POS satışıyla bakiye ezilmesi); negatif tutar kabul | Backend | Orta | **Düzeltildi** (parite dalı): en fazla 1000, `atomic` + `select_for_update`, negatif yok |
+| S33 | Rapor formu filtreleri (işlem durumu, şirket/bölge/konum) backend'de sessizce yok sayılıyordu: kullanıcı "başarısız işlemler / tek şirket" isteyip tüm işlemleri / tüm şirketleri içeren dosya alıyordu (yetki kapsamı dışına çıkmıyor ama **yanlış veri**) | Mobil | Yüksek | **Düzeltildi**: web sözleşmesi; gerçek backend'de doğrulandı (48 başarısız satır = ORM, önceden 812) |
+| S34 | Kart grubu kısıtlı teknisyene 403 dönen grup oluştur/düzenle/sil butonları gösteriliyordu | Mobil + Backend | Düşük | **Düzeltildi**: `card_scope_restricted` bayrağı |
+| S35 | Admin rolü mobilde her şirketin kartlarını yönetebiliyor (webde admin'e kart yetkisi yok) | Backend | Orta | **Açık — ürün kararı gerekiyor** (`capabilities.py:38-39,47-48`) |
 
 \* Bu paketler yalnız geliştirme/derleme zamanında çalışır; uygulama paketine girmez.
 
@@ -44,7 +53,8 @@
 - Access/refresh token yalnızca **`expo-secure-store`** (iOS Keychain / Android Keystore) içinde. AsyncStorage'da yalnız hassas olmayan tercihler (tema, seçili şirket id) tutulur.
 - Eşzamanlı 401'lerde **tek** refresh isteği (paylaşılan promise); refresh başarısızsa token'lar silinir, önbellek temizlenir, kullanıcı girişe yönlenir. Test: `src/api/__tests__/client.test.ts`.
 - Oturum açılışında, çıkışta ve 401 kaynaklı düşüşte `queryClient.clear()` (S3).
-- Açılışta `/auth/me/` ağ hatası verirse oturum silinmez (çevrimdışı açılış); yalnız 401/403'te silinir.
+- Açılışta `/auth/me/` ağ/5xx hatası verirse oturum silinmez: bağlantı ekranı gösterilir (Tekrar dene / Çıkış yap; otomatik deneme yalnız bağlantı gelince veya uygulama öne alınınca, periyodik istek yok). Yalnız 401/403'te silinir.
+- Çıkışta refresh token, token'lar silinmeden önce açık access token'la sunucuda kara listeye alınır (S27).
 - 2FA: 401 (süre doldu / deneme aşıldı) → giriş ekranına dönüş; kalan deneme hakkı gösterilir.
 - Parolalar, OTP ve token'lar hiçbir yerde loglanmaz (kaynakta `console.log` yok; ESLint `no-console` kuralı).
 

@@ -149,6 +149,7 @@ describe("İstihkak yenileme sekmesi", () => {
       is_active: true,
       start_date: "2027-01-05",
       description: null,
+      dagitim: "ayri",
     });
   });
 });
@@ -161,31 +162,46 @@ describe("İstihkak sekmesi — gruptaki tüm kartlar", () => {
   });
   afterEach(() => mock.restore());
 
-  it("kart başına sıralı istek, sonuçlar listelenir, ilk hatada durur", async () => {
+  it("gruptaki tüm kartlar: kart listesi çekilmez, onaydan sonra TEK istek (web ile aynı); dağıtım gider", async () => {
     mock.onGet("/card-quotas/").reply(200, page([]));
     mock.onGet("/card-groups/").reply(200, groups);
-    mock.onGet("/cards/").reply(200, { count: 3, page: 1, num_pages: 1, active_count: 3, pending_count: 0, results: [cardJson(1), cardJson(2), cardJson(3)] });
-    mock.onPost("/card-quotas/").replyOnce(201, { detail: "1 kota oluşturuldu.", created_ids: [10] });
-    mock.onPost("/card-quotas/").replyOnce(400, { detail: "Mevcut istihkakla çakışıyor." });
+    mock.onPost("/card-quotas/").reply(201, { detail: "ok", created: 40, skipped: 2, cards: 21 });
+    await renderWithProviders(<CardQuotasTab />);
+    await fireEvent.press(await screen.findByTestId("quota-create"));
+    await fireEvent.press(screen.getByTestId("quota-group"));
+    await fireEvent.press(await screen.findByText("Vardiya A"));
+    await fireEvent.press(screen.getByText("Gruptaki tüm kartlar"));
+    await fireEvent.changeText(screen.getByTestId("quota-product"), "1,2,3");
+    await fireEvent.press(screen.getByText("Havuz (tek hak)"));
+    await fireEvent.press(screen.getByTestId("quota-create-submit"));
+
+    expect(await screen.findByText("Gruptaki tüm kartlara istihkak tanımlansın mı?")).toBeOnTheScreen();
+    expect(mock.history.post).toHaveLength(0);
+    expect(mock.history.get.some((r) => r.url === "/cards/")).toBe(false);
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({
+      group: 2,
+      product_no: "1,2,3",
+      period: "monthly",
+      quantity: 1,
+      is_active: true,
+      dagitim: "havuz",
+    });
+  });
+
+  it("grup istihkakı çakışırsa sunucu mesajı gösterilir, hiçbiri yazılmaz", async () => {
+    mock.onGet("/card-quotas/").reply(200, page([]));
+    mock.onGet("/card-groups/").reply(200, groups);
+    mock.onPost("/card-quotas/").reply(400, { detail: "Mevcut istihkakla çakışıyor: 04 01" });
     await renderWithProviders(<CardQuotasTab />);
     await fireEvent.press(await screen.findByTestId("quota-create"));
     await fireEvent.press(screen.getByTestId("quota-group"));
     await fireEvent.press(await screen.findByText("Vardiya A"));
     await fireEvent.press(screen.getByText("Gruptaki tüm kartlar"));
     await fireEvent.press(screen.getByTestId("quota-create-submit"));
-
-    expect(await screen.findByText("Başlat (3 istek)")).toBeOnTheScreen();
-    expect(mock.history.get.find((r) => r.url === "/cards/")?.params).toEqual({ status: "active", group_id: 2, page: 1 });
-    expect(mock.history.post).toHaveLength(0);
-    await fireEvent.press(screen.getByTestId("quota-batch-start"));
-
-    expect(await screen.findByText("İşlem hatada durduruldu")).toBeOnTheScreen();
-    expect(mock.history.post).toHaveLength(2);
-    expect(mock.history.post.map((r) => JSON.parse(r.data).card)).toEqual([1, 2]);
-    expect(JSON.parse(mock.history.post[0].data)).toEqual({ card: 1, group: 2, product_no: "*", period: "monthly", quantity: 1, is_active: true });
-    expect(screen.getByText("Oluşturuldu")).toBeOnTheScreen();
-    expect(screen.getAllByText("Mevcut istihkakla çakışıyor.").length).toBeGreaterThan(0);
-    expect(screen.getByText("Gönderilmedi")).toBeOnTheScreen();
+    await fireEvent.press(await screen.findByTestId("confirm-sheet-confirm"));
+    expect(await screen.findByText("Mevcut istihkakla çakışıyor: 04 01")).toBeOnTheScreen();
   });
 
   it("istihkak düzenleme yalnız miktar/aktiflik PATCH eder", async () => {
@@ -225,7 +241,8 @@ describe("Kart grupları sekmesi", () => {
     mock.onPatch("/card-groups/1/").reply(200, { id: 1, name: "Ofis", pos_devices: [] });
     await renderWithProviders(<CardGroupsTab />);
     await screen.findByText("Fabrika");
-    expect(mock.history.get.map((r) => r.url)).toEqual(["/card-groups/"]);
+    // /app/config/ uygulama genelinde önbellekli yapılandırma (kapsam bayrağı) — sayılmaz
+    expect(mock.history.get.map((r) => r.url).filter((u) => u !== "/app/config/")).toEqual(["/card-groups/"]);
 
     await fireEvent.press(screen.getByTestId("group-row-1"));
     expect(await screen.findByText("PAV1")).toBeOnTheScreen();

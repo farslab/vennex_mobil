@@ -1,0 +1,72 @@
+# E2E (yolculuk 11–14): stok lokasyonu oluştur → mal girişi → lokasyonlar arası transfer → sayım düzeltmesi
+# Beklenen: E2E Depo'da Su 500ml = 24 − 10 − 2 = 12; Merkez Depo +10 — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Stok"
+- extendedWaitUntil: { visible: { id: "stock-screen" }, timeout: 15000 }
+# 11) Lokasyon oluştur (varsayılan tip: depo)
+- tapOn: "Lokasyonlar"
+- tapOn: { id: "location-new" }
+- tapOn: { id: "location-name" }
+- inputText: "E2E Depo"
+- tapOn: { id: "location-save" }
+- extendedWaitUntil: { visible: ".*E2E Depo.*", timeout: 15000 }
+- takeScreenshot: j11_location
+# 12) Mal girişi: 24 adet Su 500ml → E2E Depo
+- tapOn: "Hareketler"
+- tapOn: { id: "movement-new-receipt" }
+- tapOn: { id: "movement-sku" }
+- tapOn: { id: "sku-picker-search" }
+- inputText: "Su 500"
+- extendedWaitUntil: { visible: "Su 500ml.*", timeout: 10000 }
+- waitForAnimationToEnd
+- tapOn: "Su 500ml.*"
+- tapOn: { id: "movement-to" }
+- tapOn: "E2E Depo.*"
+- tapOn: { id: "movement-quantity" }
+- inputText: "24"
+- tapOn: { id: "movement-continue" }
+- tapOn: { id: "confirm-sheet-confirm" }
+- extendedWaitUntil: { notVisible: { id: "confirm-sheet-confirm" }, timeout: 15000 }
+# 13) Transfer: 10 adet E2E Depo → Merkez Depo
+- extendedWaitUntil: { visible: { id: "movement-new-transfer" }, timeout: 10000 }
+- tapOn: { id: "movement-new-transfer" }
+- tapOn: { id: "movement-sku" }
+- tapOn: { id: "sku-picker-search" }
+- inputText: "Su 500"
+- extendedWaitUntil: { visible: "Su 500ml.*", timeout: 10000 }
+- waitForAnimationToEnd
+- tapOn: "Su 500ml.*"
+- tapOn: { id: "movement-from" }
+- tapOn: "E2E Depo.*"
+- tapOn: { id: "movement-to" }
+- tapOn: "Merkez Depo.*"
+- tapOn: { id: "movement-quantity" }
+- inputText: "10"
+- tapOn: { id: "movement-continue" }
+- tapOn: { id: "confirm-sheet-confirm" }
+- extendedWaitUntil: { notVisible: { id: "confirm-sheet-confirm" }, timeout: 15000 }
+# 14) Düzeltme: E2E Depo'dan 2 adet çıkar (sayım farkı)
+- extendedWaitUntil: { visible: { id: "movement-new-adjustment" }, timeout: 10000 }
+- tapOn: { id: "movement-new-adjustment" }
+- tapOn: { id: "movement-sku" }
+- tapOn: { id: "sku-picker-search" }
+- inputText: "Su 500"
+- extendedWaitUntil: { visible: "Su 500ml.*", timeout: 10000 }
+- waitForAnimationToEnd
+- tapOn: "Su 500ml.*"
+- tapOn: { id: "movement-location" }
+- tapOn: "E2E Depo.*"
+- tapOn: "Çıkar (−)"
+- tapOn: { id: "movement-quantity" }
+- inputText: "2"
+# Sayısal klavyede "Bitti" yok: boş alana dokunup klavyeyi kapat
+- tapOn: "Yön"
+- scrollUntilVisible: { element: { id: "movement-reason" }, direction: DOWN, visibilityPercentage: 100 }
+- tapOn: { id: "movement-reason" }
+- inputText: "Sayim farki"
+- tapOn: { id: "movement-continue" }
+- tapOn: { id: "confirm-sheet-confirm" }
+- extendedWaitUntil: { notVisible: { id: "confirm-sheet-confirm" }, timeout: 15000 }
+- takeScreenshot: j14_movements

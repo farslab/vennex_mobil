@@ -1,0 +1,18 @@
+# E2E (yolculuk 15b): hazır raporu indir ve paylaş — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+# 15b) Hazır raporu indir (paylaşım sayfası açılır, kapatılır)
+- tapOn: "Profil"
+- scrollUntilVisible: { element: { id: "row-reports" }, centerElement: true }
+- tapOn: { id: "row-reports" }
+- extendedWaitUntil: { visible: { id: "report-download-.*" }, timeout: 20000 }
+- tapOn: { id: "report-download-.*" }
+- extendedWaitUntil: { visible: ".*(Close|Kapat|Save to Files|Dosyalar).*", timeout: 20000 }
+- takeScreenshot: j15_share_sheet
+- runFlow:
+    when: { visible: "Close" }
+    commands: [ { tapOn: "Close" } ]
+- runFlow:
+    when: { visible: "Kapat" }
+    commands: [ { tapOn: "Kapat" } ]

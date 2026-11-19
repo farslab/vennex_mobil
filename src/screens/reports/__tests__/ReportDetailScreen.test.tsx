@@ -98,21 +98,29 @@ describe("ReportDetailScreen", () => {
     await renderWithProviders(<ReportDetailScreen />);
     expect(await screen.findByText("Ekim satışları")).toBeOnTheScreen();
     expect(screen.getByText("Hazır")).toBeOnTheScreen();
-    expect(await screen.findByText(/^Cihaz Bazlı Özet · /)).toBeOnTheScreen();
+    expect(await screen.findByText(/^Özet · /)).toBeOnTheScreen();
     expect(screen.getByText(/^120 satır · 20 KB · \d+ gün içinde silinecek$/)).toBeOnTheScreen();
     expect(screen.getByText(/Bitiş: .* · 3 kez indirildi/)).toBeOnTheScreen();
     expect(screen.getByTestId("report-download-5")).toBeOnTheScreen();
     expect(screen.getByTestId("report-delete-5")).toBeOnTheScreen();
     expect(screen.queryByTestId("report-cancel-5")).toBeNull();
-    expect(screen.queryByTestId("report-retry-5")).toBeNull();
+    // Web: tamamlanan rapor "↻ Tekrar" ile yeniden üretilebilir
+    expect(screen.getByTestId("report-retry-5")).toBeOnTheScreen();
   });
 
   it.each([
-    ["pending", { status: "pending", progress_pct: 0, ...ACTIVE }, "Sırada", "Sırada bekliyor", { cancel: true, retry: false, del: false, dl: false }],
+    ["pending", { status: "pending", progress_pct: 0, ...ACTIVE }, "Sıraya alındı", "Sırada bekliyor", { cancel: true, retry: false, del: false, dl: false }],
     ["running", { status: "running", progress_pct: 40, ...ACTIVE }, "Hazırlanıyor", "%40 tamamlandı", { cancel: true, retry: false, del: false, dl: false }],
     ["failed", { status: "failed", is_downloadable: false, error_message: "Zaman aşımı" }, "Başarısız", "Zaman aşımı", { cancel: false, retry: true, del: true, dl: false }],
-    ["cancelled", { status: "cancelled", is_downloadable: false }, "İptal edildi", null, { cancel: false, retry: true, del: true, dl: false }],
-    ["süresi dolmuş", { status: "completed", is_downloadable: false }, "Süresi doldu", null, { cancel: false, retry: true, del: true, dl: false }],
+    ["cancelled", { status: "cancelled", is_downloadable: false }, "İptal edildi", null, { cancel: false, retry: false, del: true, dl: false }],
+    ["dosyası olmayan", { status: "completed", is_downloadable: false }, "Dosya yok", null, { cancel: false, retry: true, del: true, dl: false }],
+    [
+      "saklama süresi geçmiş (temizlik öncesi)",
+      { status: "completed", is_downloadable: true, expires_at: "2020-01-01T00:00:00Z" },
+      "Süresi doldu",
+      null,
+      { cancel: false, retry: true, del: true, dl: false },
+    ],
   ])("%s durumu doğru rozet ve aksiyonlarla gösterilir", async (_name, over, badge, extra, a) => {
     mock.onGet("/reports/5/").reply(200, job(over as Partial<ReportJob>));
     await renderWithProviders(<ReportDetailScreen />);
@@ -205,7 +213,7 @@ describe("ReportDetailScreen", () => {
     await renderWithProviders(<ReportDetailScreen />);
     await fireEvent.press(await screen.findByTestId("report-cancel-5"));
     expect(screen.getByText("Rapor iptal edilsin mi?")).toBeOnTheScreen();
-    expect(screen.getAllByText("Cihaz Bazlı Özet").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Özet").length).toBeGreaterThan(0);
     await fireEvent.press(screen.getByText("Vazgeç"));
     expect(screen.queryByText("Rapor iptal edilsin mi?")).toBeNull();
     expect(mock.history.post).toHaveLength(0);

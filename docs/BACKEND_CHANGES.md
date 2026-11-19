@@ -127,3 +127,78 @@ Modül çalışanlarının kod incelemesinde bulundu; ayrıntı ve satır numara
 Doğrulama (yerel izole DB): `vennex_mobile`, `nexus`, `dashboard_v2`, `api.test_ota_runtime` → **123/123 OK**.
 Canlıya alma (2026-11-18 23:52–23:53): sunucu temizdi (HEAD `9e2fd69`, commit edilmemiş değişiklik yok), yama `git am` ile uygulandı → sunucu `main` = `d0196d9`; yalnız `vennex_mobile.0010` uygulandı (yeni tablo); `manage.py check` temiz; yalnız web konteyneri yeniden başlatıldı (36 sn). Kontrol: yasal sayfalar ve hesap silme formu 200 (tms.vennex.com.tr ve sp.serpetpay.com, HTTPS), `feedback/` oturumsuz 401, Nexus sayfası girişe 302, mevcut uçlar normal, 5xx/traceback 0. Canlıda form gönderimi yapılmadı.
 Geri dönüş: `migrate vennex_mobile 0009` + `git revert d0196d9` + web yeniden başlatma. **GitHub'a push edilmedi** (sunucu `main`, `origin/main`'in 1 commit önünde).
+
+---
+
+# Üçüncü dal — `feature/mobil-parite-performans` (2026-11-19) · **CANLIDA ve GitHub `main`'de (2026-11-19)**
+
+`e1e0703` (canlıdaki kodla aynı içerik) üzerinden 6 commit:
+- `98b888c` yetkiler
+- `78f7de1` performans
+- `42b6d08` sayılar
+- `50d6cda` kart bütünlüğü ve yeni uçlar
+- `fd593f9` üretim ölçümüne göre performans
+- `0e1bd1d` export yolu
+
+Amaç: mobil API, web panelinin yetki, rakam ve performans davranışıyla birebir aynı olsun. Web (`dashboard_v2/`) davranışı **değişmedi**. Webde dokunulan tek şey `capabilities.can_send_device_commands`; web şablonları bunu kullanmıyor.
+
+| Konu | Önce (mobil API) | Sonra (= web) |
+|---|---|---|
+| Cihaz listesinde ciro | Satış yetkisi olmayana da ciro/işlem sayısı dönüyordu (**veri sızıntısı**) | Hesaplanmaz, `null`; ciroya göre sıralama varsayılana düşer; `sales_visible` |
+| Ürün şablonları | Liste/oluştur/detay yetkisiz açıktı | Cihaz ayarı yetkisi (`CanManageDeviceSettings`) |
+| Periyodik bakiye yazma | Kart yetkisi yetiyordu | Kart **bakiye** yetkisi |
+| Cihaz komutları / ayar PATCH | Herkes komut gönderebiliyordu | Cihaz ayarı yetkisi; makine tipi iki yetkiyle |
+| Nakit toplama | Cihaz ayarı yetkisi istiyordu (web istemiyor) | Cihaza erişimi olan her sahip/teknisyen |
+| Raporlar | Aylık analiz kapısız; filtre seçenekleri şirketi yok sayıyordu; hata metni `['...']` | Aylık analiz PersonelKart POS şartlı; seçenekler seçili şirkete daralır; düz metin |
+| `app/config` | — | `card_scope_restricted` (kart grubu kısıtlı teknisyen) |
+| Panel | Tüm işlemler Python'a çekiliyordu, 12 SQL | Webin `_fetch_rollup` fonksiyonu, 7 SQL; tüm KPI'lar webin `_compute_metrics` sonucuyla testli |
+| Cihaz listesi ciro haritası / özet | Tüm geçmiş taranıyordu | Webdeki düzeltme: geçen ay başı–şimdi sınırı, son işlem alt sorgusu |
+| Kart grupları | Grup başına COUNT (N+1), önbellek kart değişince bayat | Anotasyon; kart yazmalarında önbellek temizlenir |
+| Bildirimler | Satır başına GenericFK sorgusu | Prefetch (sabit sorgu sayısı) |
+| Stok hareketleri | Canlıda **5,3 sn** (paylaşılan dev tabloda OR-join) | Lokasyon id'leriyle indeksli tarama; tüketim satırları varsayılan hariç (web gibi); iki kısmi indeks (`0263`, `CONCURRENTLY`) |
+| Cari özet | 237 SQL | 2 SQL, yanıt aynı |
+| Kart işlemleri | Tarih sınırsız, `pt_pan` indekssiz | Varsayılan son 90 gün (`?days=`) |
+| SKU araması | Tüm katalog | `q` varken en fazla 50 + `truncated` |
+| Sayaçlar | Çevrimiçi/çevrimdışı sayısı filtreden sonra; kart sekme sayıları filtreyi yok sayıyordu | Web ile aynı |
+| Doluluk % | Reçeteli slotlar ve kahve hazneleri yanlış | Web mantığı |
+| Ödeme tipi 9 | Etiket yok | VennexSelf |
+| Toplu kart işlemleri | Sınırsız, transaction'sız, kilitsiz; negatif tutar kabul | En fazla 1000; tek transaction + satır kilidi; negatif yok |
+| `pos_odemetip` | 0–10 | 0/1 |
+| **Yeni** `GET cards/<id>/balance-logs/` | — | Web kart geçmişi (bakiye hareketleri), 25/sayfa |
+| **Yeni** `POST card-quotas/` (kartsız, `group`) | Mobil kart başına istek atıyordu | Gruptaki tüm aktif kartlar tek istekte; çakışmada hiçbiri yazılmaz; `dagitim` (ayri/havuz) artık işliyor |
+| `pos-devices/export/` | `<sn>/` kalıbına düşüp **404** dönüyordu (canlıda da) | Doğru görünüm |
+
+**Testler:**
+- `vennex_mobile dashboard_v2 nexus api.test_ota_runtime` → **168/168 OK** (önceki 123).
+- Yeni parite testleri `vennex_mobile/test_web_parity.py` dosyasında (45 test).
+
+**Ölçüm (yerel, yaklaşık 600 bin işlem, önbellek boş):**
+
+| Uç | Önce | Sonra |
+|---|---|---|
+| Panel "son 30 gün" | 1469 ms / 12 SQL | 626 ms / 7 SQL |
+| Panel "geçen ay" | 910 ms / 12 SQL | ~270 ms / 7 SQL |
+| Kart grupları | 31 SQL | 5 SQL |
+| Stok hareketleri, ~2,4 milyon satırlık simülasyon | 296 ms | 75 ms |
+
+**Uyumluluk:**
+- Yanıt şekilleri geriye uyumlu (alanlar yalnız eklendi).
+- Eski mobil sürüm, yetkisi olmayan kullanıcıda şablon/ayar/periyodik bakiye yazmada artık 403 görür. Webde de yasak olan işlemler bunlar.
+- **Yeni mobil sürüm, bu dal canlıya alınmadan yayınlanmamalı.** Kart geçmişi ve grup istihkakı yeni uçları kullanıyor; nakit toplama yetkisi de bu dala bağlı.
+
+## Canlıya alma planı (üçüncü dal)
+1. Sunucuda `git status` temiz mi bak; başka oturumun değişikliği varsa bekle.
+2. Dalı uygula (`git am` veya merge) → `python manage.py migrate api 0263`. Migration `CONCURRENTLY` kullanıyor: tabloyu kilitlemez, birkaç dakika sürebilir.
+3. `manage.py check`, ardından yalnız web konteynerini yeniden başlat. Celery'de değişiklik yok.
+4. Salt okuma kontrolü: `backend-local/live_readonly_check.py` (serpetco). Beklenen: 40 uç 200, rakamlar ORM ile aynı, stok hareketleri < 300 ms.
+5. Geri dönüş: `git revert` (6 commit) ve web yeniden başlatma. İndeksler kalabilir, zararsız; istenirse `migrate api 0262`.
+
+### Canlıya alma kaydı (2026-11-19)
+- Ön kontrol: sunucu `main` = `d0196d9`; ağacı yerel taban `e1e0703` ile aynı (`fe57efe`). İzlenen dosyalarda değişiklik yoktu (yalnız başka oturumların izlenmeyen dosyaları vardı, bunlara dokunulmadı). Bekleyen migration yoktu.
+- `git am --3way` ile 6 yama uygulandı: sunucuda `3981d76`…`4db6d4c` (yerel `98b888c`…`0e1bd1d`). `manage.py check` temiz, `makemigrations --check` değişiklik yok.
+- `migrate api 0263`: 17,6 sn (3,17 milyon satırlık tabloda `CONCURRENTLY`). İki indeks geçerli (`indisvalid`), her biri 584 kB.
+- Yalnız `spserpetpaycom-web-1` yeniden başlatıldı; celery, celery-beat, celery-reports ve DB'ye dokunulmadı. Logda hata yok.
+- `live_readonly_check.py` (serpetco): 41/41 uç 200. Panel 4 dönem ORM ile aynı (bu ay ₺923,60, son 30 gün ₺4.939,60). 13 cihaz özetinde 0 uyuşmazlık. Kartlar 41/41.
+- Süre karşılaştırması (önce → sonra): stok hareketleri 5,3 sn → 71 ms; cihaz listesi 1,5 sn → 190 ms; kart işlemleri 0,86 sn → 287 ms; cari özeti 237 SQL → 2 SQL / 63 ms. Panel önbellek ısındıktan sonra 0,2–0,5 sn; yeniden başlatmanın hemen ardından ilk istekte 4–6 sn sürdü.
+- Geri dönüş noktası: `git reset --hard d0196d9` ya da 6 commit'in `git revert` edilmesi, ardından web yeniden başlatma.
+- Sunucudan GitHub'a push edildi (`d0196d9..4db6d4c`, ileri sarma). Sunucu `main` = `origin/main`.

@@ -91,6 +91,23 @@ export interface CardTransactionsResponse {
   fail_count: number;
 }
 
+/** GET cards/{id}/balance-logs/?page= — web kart geçmişiyle aynı kaynak (NFC_CardBalanceLog), 25/sayfa */
+export interface CardBalanceLog {
+  id: number;
+  created_at: string;
+  /** Değişim (balance_after - balance_before); negatif = düşüm */
+  amount: MoneyValue;
+  balance_before: MoneyValue;
+  balance_after: MoneyValue;
+  source: string;
+  source_label: string;
+  operation: string;
+  operation_label: string;
+  description: string | null;
+  user: { id: number; name: string } | null;
+  pos_device: { id: number; sn: string; pos_name: string | null } | null;
+}
+
 export type BulkBalanceOperation = "add" | "subtract" | "set";
 export type BulkGroupsOperation = "add_groups" | "remove_groups";
 
@@ -219,6 +236,9 @@ export interface CardQuota {
 }
 
 /** CardQuotaWriteSerializer — POST tek kart; grup zorunlu (views:741-744) */
+/** Web "Dağıtım": "1,2,3" + miktar 1 → ayri: her ürüne 1 (toplam 3 hak) · havuz: hangisi alınırsa toplam 1 hak */
+export type QuotaDistribution = "ayri" | "havuz";
+
 export interface CardQuotaCreatePayload {
   card: number;
   group: number;
@@ -226,6 +246,17 @@ export interface CardQuotaCreatePayload {
   period: QuotaPeriod;
   quantity: number;
   is_active: boolean;
+  dagitim?: QuotaDistribution;
+}
+
+/** POST card-quotas/ {group, ...} (kart yok): gruptaki tüm aktif kartlara tek istekte (web ile aynı) */
+export type GroupQuotaCreatePayload = Omit<CardQuotaCreatePayload, "card">;
+
+export interface GroupQuotaResult {
+  created: number;
+  skipped: number;
+  cards: number;
+  detail: string;
 }
 
 /** PATCH card-quotas/{id}/ yalnız bu iki alanı işler (views:785-795) */
@@ -276,6 +307,7 @@ export interface RecurringQuotaPayload {
   is_active: boolean;
   start_date: string;
   description: string | null;
+  dagitim?: QuotaDistribution;
 }
 
 export type PagedRecurringBalance = PageResponse<RecurringBalanceRule>;

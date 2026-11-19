@@ -7,7 +7,11 @@ import { queryClient } from "@/store/queryClient";
 import { stopPush } from "@/push/pushService";
 import type { AuthUser, Company } from "@/types/auth";
 
-type AuthStatus = "booting" | "unauthenticated" | "requires_2fa" | "authenticated";
+/**
+ * `offline`: kayıtlı oturum var ama açılışta sunucuya ulaşılamadı (ağ yok / 5xx).
+ * Token'lar korunur; kullanıcı giriş ekranına atılmaz, bağlantı ekranından tekrar dener.
+ */
+type AuthStatus = "booting" | "offline" | "unauthenticated" | "requires_2fa" | "authenticated";
 
 /** Seçili şirket hassas veri değildir; kullanıcı bazında saklanır */
 const companyKey = (userId: number) => `vennex.selectedCompany.${userId}`;
@@ -78,12 +82,16 @@ export const useAuthStore = create<AuthState>((set, get) => {
       try {
         const user = await authApi.me();
         const selectedCompanyId = await resolveCompanyId(user);
-        set({ status: "authenticated", user, selectedCompanyId });
+        set({ status: "authenticated", user, selectedCompanyId, errorMessage: null });
       } catch (e) {
         const status = (e as { status?: number }).status;
-        // Ağ hatasında oturumu silme — kullanıcı çevrimdışı açmış olabilir; tekrar denenebilir
-        if (status === 401 || status === 403) await tokenStorage.clear();
-        set({ status: "unauthenticated", errorMessage: status ? null : (e as Error).message });
+        if (status === 401 || status === 403) {
+          await tokenStorage.clear();
+          set({ status: "unauthenticated", errorMessage: null });
+          return;
+        }
+        // Ağ hatası / sunucu hatası: oturum geçerli olabilir — silme, bağlantı ekranında tekrar denensin
+        set({ status: "offline", errorMessage: (e as Error).message });
       }
     },
 
@@ -148,9 +156,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
     logout: async () => {
       // Push kaydı oturum token'ı geçerliyken silinir (aksi halde cihaz bildirim almaya devam eder)
       await stopPush();
-      const refresh = await tokenStorage.getRefresh();
-      // Backend refresh token'ı blacklist'e alır; başarısız olsa da istemci çıkışı tamamlanır
-      if (refresh) authApi.logout(refresh).catch(() => {});
+      const [access, refresh] = await Promise.all([tokenStorage.getAccess(), tokenStorage.getRefresh()]);
+      // Backend refresh token'ı kara listeye alır. Token'lar silinmeden önce, açık token'la ve
+      // beklenerek gönderilir (en fazla 5 sn); başarısız olsa da istemci çıkışı tamamlanır.
+      if (refresh) await authApi.logout(refresh, access).catch(() => {});
       await tokenStorage.clear();
       queryClient.clear();
       set({ ...initialSession, status: "unauthenticated" });

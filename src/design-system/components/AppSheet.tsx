@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -32,11 +32,22 @@ export interface AppSheetProps {
 }
 
 /**
- * İç içe sayfa derinliği. Bir sayfanın içinden açılan ikinci sayfa (ör. form → silme onayı)
- * kendi tam koyu arka planını çizerse kararma ikiye katlanır ve alttaki form kaybolur;
- * iç sayfa bu yüzden arka planını hafif çizer.
+ * İç içe sayfa bağlamı.
+ * - depth: içteki sayfa (ör. form → onay) arka planını hafif çizer; kararma ikiye katlanmaz.
+ * - setChildPresented: iOS'ta iç içe iki Modal AYNI ANDA kapanırsa ekranda görünmez bir pencere
+ *   kalır ve uygulama dokunmalara kapanır (React Native bilinen sorunu; ör. stok hareketi
+ *   kaydedilince form + onay birlikte kapanıyordu). Bu yüzden üst sayfa, içindeki sayfa tamamen
+ *   kapanana (onDismiss / güvenlik süresi) kadar açık kalır, sonra kapanır.
  */
-const SheetDepthContext = createContext(0);
+interface SheetContextValue {
+  depth: number;
+  setChildPresented: (id: number, presented: boolean) => void;
+}
+const SheetContext = createContext<SheetContextValue>({ depth: 0, setChildPresented: () => {} });
+
+let sheetSeq = 0;
+/** onDismiss gelmezse (Android/test) içteki sayfanın kapanmış sayılacağı süre */
+export const CHILD_DISMISS_FALLBACK_MS = 450;
 
 /**
  * Alttan açılan sayfa (bottom sheet). Ek native bağımlılık gerektirmez;
@@ -56,14 +67,55 @@ export function AppSheet({
 }: AppSheetProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
-  const depth = useContext(SheetDepthContext);
+  const parent = useContext(SheetContext);
+  const depth = parent.depth;
+  const [id] = useState(() => ++sheetSeq);
+
+  // Bu sayfa ekranda mı (kapanma animasyonu dahil)? Açılınca hemen, kapanınca onDismiss'te false.
+  const [presented, setPresented] = useState(visible);
+  if (visible && !presented) setPresented(true);
+  useEffect(() => {
+    if (visible || !presented) return;
+    const t = setTimeout(() => setPresented(false), CHILD_DISMISS_FALLBACK_MS);
+    return () => clearTimeout(t);
+  }, [visible, presented]);
+  const { setChildPresented } = parent;
+  useEffect(() => {
+    setChildPresented(id, presented);
+    return () => setChildPresented(id, false);
+  }, [setChildPresented, id, presented]);
+
+  // İçteki sayfalardan biri hâlâ ekrandaysa bu sayfa kapanmayı bekler
+  const [openChildren, setOpenChildren] = useState<ReadonlySet<number>>(() => new Set());
+  const onChildPresented = useCallback((childId: number, on: boolean) => {
+    setOpenChildren((cur) => {
+      if (cur.has(childId) === on) return cur;
+      const next = new Set(cur);
+      if (on) next.add(childId);
+      else next.delete(childId);
+      return next;
+    });
+  }, []);
+  const childContext = useMemo<SheetContextValue>(
+    () => ({ depth: depth + 1, setChildPresented: onChildPresented }),
+    [depth, onChildPresented]
+  );
+  const modalVisible = visible || openChildren.size > 0;
+
   const close = () => {
     if (!dismissible) return;
     if (dirty) confirmDiscard(onClose);
     else onClose();
   };
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
+    <Modal
+      visible={modalVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={close}
+      onDismiss={() => setPresented(false)}
+      statusBarTranslucent
+    >
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -99,17 +151,19 @@ export function AppSheet({
               style={styles.body}
               contentContainerStyle={styles.bodyContent}
               keyboardShouldPersistTaps="handled"
+              // iOS sayısal klavyede "Bitti" yok: sayfayı sürükleyerek klavye kapatılabilsin
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             >
-              <SheetDepthContext.Provider value={depth + 1}>{children}</SheetDepthContext.Provider>
+              <SheetContext.Provider value={childContext}>{children}</SheetContext.Provider>
             </ScrollView>
           ) : (
             <View style={[styles.body, styles.bodyContent]}>
-              <SheetDepthContext.Provider value={depth + 1}>{children}</SheetDepthContext.Provider>
+              <SheetContext.Provider value={childContext}>{children}</SheetContext.Provider>
             </View>
           )}
           {footer ? (
             <View style={styles.footer}>
-              <SheetDepthContext.Provider value={depth + 1}>{footer}</SheetDepthContext.Provider>
+              <SheetContext.Provider value={childContext}>{footer}</SheetContext.Provider>
             </View>
           ) : null}
         </View>
@@ -127,6 +181,10 @@ const useStyles = makeStyles((t) =>
     sheet: {
       marginTop: "auto",
       maxHeight: "90%",
+      // iPad: ekranlarla aynı okunabilir genişlikte, ortalı (telefonda etkisiz)
+      width: "100%",
+      maxWidth: t.layout.maxContentWidth,
+      alignSelf: "center",
       backgroundColor: t.colors.surface,
       borderTopLeftRadius: t.radius.xl,
       borderTopRightRadius: t.radius.xl,

@@ -5,6 +5,7 @@ import {
   AppBadge,
   AppButton,
   AppChip,
+  AppNotice,
   AppEmptyState,
   AppErrorState,
   AppListSkeleton,
@@ -38,12 +39,13 @@ export function SkusTab({ canManage }: { canManage: boolean }) {
   // Arama sunucuda (`q`: ad/kod/barkod); tür filtresi backend'de yok → istemcide
   const query = useQuery({
     queryKey: stockKeys.skuSearch({ q: debounced }),
-    queryFn: ({ signal }) => stockApi.skus.list({ q: debounced }, signal),
+    queryFn: ({ signal }) => stockApi.skus.search({ q: debounced }, signal),
     staleTime: 30_000,
     placeholderData: (prev) => prev,
   });
 
-  const all = useMemo(() => query.data ?? [], [query.data]);
+  const all = useMemo(() => query.data?.items ?? [], [query.data]);
+  const truncated = query.data?.truncated === true;
   const filtered = useMemo(() => (kind ? all.filter((s) => s.kind === kind) : all), [all, kind]);
   const kindCounts = useMemo(() => {
     const c: Record<StockSkuKind, number> = { simple: 0, composite: 0, ingredient: 0 };
@@ -76,9 +78,18 @@ export function SkusTab({ canManage }: { canManage: boolean }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         <AppChip label="Tümü" selected={kind == null} onPress={() => setKind(null)} />
         {(Object.keys(SKU_KIND_LABELS) as StockSkuKind[]).map((k) => (
-          <AppChip key={k} label={`${SKU_KIND_LABELS[k]} (${kindCounts[k]})`} selected={kind === k} onPress={() => setKind(k)} />
+          // Kesilmiş aramada sayılar yalnız ilk sonuçları sayardı → gösterilmez (yanlış bilgi olmasın)
+          <AppChip
+            key={k}
+            label={truncated ? SKU_KIND_LABELS[k] : `${SKU_KIND_LABELS[k]} (${kindCounts[k]})`}
+            selected={kind === k}
+            onPress={() => setKind(k)}
+          />
         ))}
       </ScrollView>
+      {truncated ? (
+        <AppNotice tone="info" message="Aramayla eşleşen ilk 50 ürün gösteriliyor. Daha fazlası için aramayı daraltın." />
+      ) : null}
     </View>
   );
 

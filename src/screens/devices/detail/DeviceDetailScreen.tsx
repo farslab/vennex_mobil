@@ -46,13 +46,15 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
 
   const tabs = useMemo<SegmentItem<DeviceTabKey>[]>(() => {
     const list: SegmentItem<DeviceTabKey>[] = [{ key: "general", label: "Genel" }];
-    if (access.sales || access.manageSettings) list.push({ key: "cash", label: "Nakit & Ciro" });
+    // Web: nakit paneli satış yetkisi veya teknisyen rolüyle görünür
+    if (access.sales || access.isTech) list.push({ key: "cash", label: "Nakit & Ciro" });
     if (access.sales) list.push({ key: "sales", label: "Satışlar" });
     list.push({ key: "stock", label: "Stok" });
     if (access.sales) list.push({ key: "stats", label: "İstatistikler" });
-    list.push({ key: "settings", label: "Ayarlar" });
+    // Web: Ayarlar sekmesi yalnız cihaz ayarı yetkisiyle görünür (`pos_device_detail.html:53,59`)
+    if (access.manageSettings) list.push({ key: "settings", label: "Ayarlar" });
     return list;
-  }, [access.sales, access.manageSettings]);
+  }, [access.sales, access.isTech, access.manageSettings]);
 
   // Yetki değişip seçili sekme kalktıysa Genel'e dön
   const activeTab = tabs.some((t) => t.key === tab) ? tab : "general";

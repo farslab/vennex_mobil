@@ -9,15 +9,23 @@ import type { ReportActions } from "../useReportActions";
 
 /* ------------------------------------------------------------- Helpers */
 
+/** Saklama süresi (`expires_at`) geçti mi — sunucu temizliği saatliktir, arada dosya hâlâ görünebilir */
+export function isExpired(job: Pick<ReportJob, "expires_at">, now: Date = new Date()): boolean {
+  const d = parseApiDate(job.expires_at);
+  return !!d && d.getTime() <= now.getTime();
+}
+
+/** Web ile aynı durum adları (`reporting/models.py` STATUS_CHOICES) */
 export function reportStatusInfo(job: ReportJob): { label: string; tone: StatusTone } {
   const s = normalizeReportStatus(job.status);
   switch (s) {
     case "pending":
-      return { label: "Sırada", tone: "neutral" };
+      return { label: "Sıraya alındı", tone: "neutral" };
     case "running":
       return { label: "Hazırlanıyor", tone: "info" };
     case "completed":
-      return job.is_downloadable ? { label: "Hazır", tone: "success" } : { label: "Süresi doldu", tone: "neutral" };
+      if (!job.is_downloadable) return { label: "Dosya yok", tone: "neutral" };
+      return isExpired(job) ? { label: "Süresi doldu", tone: "neutral" } : { label: "Hazır", tone: "success" };
     case "failed":
       return { label: "Başarısız", tone: "danger" };
     case "cancelled":
@@ -45,9 +53,14 @@ export function formatExpiry(expiresAt: string | null, now: Date = new Date()): 
   return `${Math.floor(h / 24)} gün içinde silinecek`;
 }
 
+/** Web: tamamlanan ve başarısız raporlar yeniden üretilebilir; iptal edilen yalnız silinir */
 export function canRetry(job: ReportJob): boolean {
   const s = normalizeReportStatus(job.status);
-  return !jobIsActive(job) && (s === "failed" || s === "cancelled" || (s === "completed" && !job.is_downloadable));
+  return !jobIsActive(job) && (s === "failed" || s === "completed");
+}
+
+export function canDownload(job: ReportJob): boolean {
+  return normalizeReportStatus(job.status) === "completed" && job.is_downloadable && !isExpired(job);
 }
 
 /* ---------------------------------------------------------------- Card */
@@ -78,12 +91,13 @@ export function ReportJobCard({ job, typeLabel, actions, anotherActive, onPress,
   if (job.custom_name) meta.push(typeLabel);
   meta.push(formatDateTime(job.created_at));
 
+  // Web: satır/boyut yalnız tamamlanan raporda; tahmin yalnız hazırlanırken (eski/0 tahmin gösterilmez)
   const facts: string[] = [];
   if (s === "completed" && job.row_count != null) facts.push(`${formatInteger(job.row_count)} satır`);
-  else if (job.estimated_rows != null) facts.push(`~${formatInteger(job.estimated_rows)} satır`);
+  else if (s === "running" && job.estimated_rows) facts.push(`~${formatInteger(job.estimated_rows)} satır`);
   const size = s === "completed" ? formatBytes(job.file_size_bytes) : null;
   if (size) facts.push(size);
-  if (s === "completed" && job.is_downloadable) {
+  if (canDownload(job)) {
     const exp = formatExpiry(job.expires_at);
     if (exp) facts.push(exp);
   }
@@ -166,7 +180,7 @@ export function ReportJobCard({ job, typeLabel, actions, anotherActive, onPress,
         ) : null}
 
         <View style={styles.actions}>
-          {s === "completed" && job.is_downloadable ? (
+          {canDownload(job) ? (
             <AppButton
               title="İndir ve paylaş"
               icon="download"
@@ -189,7 +203,7 @@ export function ReportJobCard({ job, typeLabel, actions, anotherActive, onPress,
           ) : null}
           {canRetry(job) ? (
             <AppButton
-              title="Tekrar dene"
+              title={s === "completed" ? "Tekrar" : "Tekrar dene"}
               icon="refresh-cw"
               size="sm"
               variant="outline"

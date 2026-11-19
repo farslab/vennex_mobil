@@ -72,7 +72,8 @@ export function useDeviceAccess(detail: PosDeviceDetail | undefined): DeviceAcce
   return {
     sales: canViewSales(user) && detail?.sales_visible !== false,
     manageSettings: canManageDeviceSettings(user) && detail?.permissions?.manage_device_settings !== false,
-    sendCommands: canSendDeviceCommands(user),
+    // Web komut kutularını yalnız cihaz ayarı yetkisiyle çizer (`pos_device_detail.html:325-333`)
+    sendCommands: canSendDeviceCommands(user) && canManageDeviceSettings(user) && detail?.permissions?.manage_device_settings !== false,
     manageStock: canManageStock(user) && detail?.permissions?.manage_stock !== false,
     selectMachineType: canSelectMachineType(user),
     remoteVend: canRemoteVend(user),

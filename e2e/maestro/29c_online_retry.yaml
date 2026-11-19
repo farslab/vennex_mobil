@@ -1,0 +1,22 @@
+# Negatif senaryo (3/3) — sunucu yeniden AÇIK: aynı gönderim tek kayıtla başarılı olmalı.
+appId: tr.com.vennex
+---
+# Bağlantı ekranından tekrar dene → yeniden giriş istemeden oturum açılır
+- tapOn: { id: "offline-retry" }
+- extendedWaitUntil: { visible: "Profil", timeout: 20000 }
+- assertNotVisible: "Hesabınıza giriş yapın"
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element: { id: "row-feedback" }
+    centerElement: true
+- tapOn: { id: "row-feedback" }
+- tapOn: "Soru"
+- tapOn: { id: "feedback-message" }
+- inputText: "Ag kesintisi testi: sunucu kapaliyken gonderim"
+- hideKeyboard
+- tapOn: { id: "feedback-submit" }
+- extendedWaitUntil:
+    visible: ".*Ag kesintisi testi.*"
+    timeout: 15000
+- assertVisible: "Yeni"
+- takeScreenshot: neg_online_retry

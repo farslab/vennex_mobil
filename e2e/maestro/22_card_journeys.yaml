@@ -1,0 +1,42 @@
+# E2E (yolculuk 8–10): personel kartı oluştur → kart grubuna cihaz ata → karta bakiye yükle — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Kartlar"
+- extendedWaitUntil: { visible: { id: "cards-screen" }, timeout: 15000 }
+# 8) Kart oluştur (başlangıç bakiyesi yok → onaysız tek istek)
+- tapOn: { id: "card-create" }
+- tapOn: { id: "card-form-uid" }
+- inputText: "E2E00001"
+- tapOn: { id: "card-form-first-name" }
+- inputText: "Deneme"
+- tapOn: { id: "card-form-last-name" }
+- inputText: "Personel"
+- tapOn: { id: "card-form-submit" }
+- extendedWaitUntil: { visible: ".*Deneme Personel.*", timeout: 15000 }
+- takeScreenshot: j8_card_created
+# 9) Kart grubu oluştur ve cihaz ata
+- tapOn: "Kart Grupları"
+- tapOn: { id: "group-create" }
+- tapOn: { id: "group-form-name" }
+- inputText: "E2E Grup"
+- tapOn: { id: "group-form-devices" }
+- tapOn: ".*DEMO0003.*"
+- tapOn: "Uygula.*"
+- tapOn: { id: "group-form-submit" }
+- extendedWaitUntil: { visible: ".*E2E Grup.*", timeout: 15000 }
+- takeScreenshot: j9_group_created
+# 10) Karta bakiye yükle (12,5 TL) — özet onayı ile
+- tapOn: "Personel Kartları"
+- tapOn: { id: "card-search" }
+- inputText: "E2E00001"
+- tapOn: ".*Deneme Personel.*"
+- extendedWaitUntil: { visible: { id: "card-detail" }, timeout: 15000 }
+- tapOn: { id: "detail-balance" }
+- tapOn: { id: "balance-amount" }
+- inputText: "12,5"
+- tapOn: { id: "balance-continue" }
+- extendedWaitUntil: { visible: { id: "confirm-sheet-confirm" }, timeout: 10000 }
+- tapOn: { id: "confirm-sheet-confirm" }
+- extendedWaitUntil: { visible: { id: "card-balance", text: ".*12,50.*" }, timeout: 15000 }
+- takeScreenshot: j10_balance_loaded

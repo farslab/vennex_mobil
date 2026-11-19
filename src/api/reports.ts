@@ -7,7 +7,6 @@ import { apiClient, type ApiError } from "./client";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { toNumber } from "@/utils/number";
 import {
-  XLSX_MIME,
   type CreateReportPayload,
   type CreateReportResponse,
   type ReportFilterOptions,
@@ -89,6 +88,7 @@ const TYPE_FILE_PREFIX: Record<string, string> = {
   pos_summary: "POS_ozet",
   pos_detail: "POS_islem_detayi",
   nfc_balance_logs: "PersonelKart_Hareketleri",
+  nfc_monthly_analysis: "PersonelKart_Aylik_Analiz",
 };
 
 /** Dosya sistemi için güvenli ad (Türkçe harfler korunur, ayraçlar temizlenir) */
@@ -146,6 +146,7 @@ function mapNativeDownloadError(e: unknown): ApiError {
   if (status === 401) return downloadError("Oturumunuzun süresi doldu. Tekrar giriş yapıp deneyin.", 401);
   if (status === 403) return downloadError("Bu raporu indirme yetkiniz yok.", 403);
   if (status === 404) return downloadError("Rapor dosyası bulunamadı ya da saklama süresi doldu.", 404);
+  if (status === 406) return downloadError("Rapor indirme isteği sunucu tarafından reddedildi (406).", 406);
   if (status && status >= 500) return downloadError("Sunucu dosyayı şu anda veremiyor. Biraz sonra tekrar deneyin.", status);
   return downloadError("Rapor indirilemedi. Bağlantınızı kontrol edip tekrar deneyin.", status);
 }
@@ -204,7 +205,10 @@ export const reportsApi = {
 
     const access = await tokenStorage.getAccess();
     const url = `${apiClient.defaults.baseURL ?? ""}/reports/${job.id}/download/`;
-    const headers: Record<string, string> = { Accept: XLSX_MIME };
+    // Accept "*/*": backend görünümü DRF içerik eşleştirmesinden geçer (yalnız JSON renderer) ve
+    // `Accept: application/vnd…sheet` isteğini görünüme ulaşmadan 406 ile reddeder (gerçek backend'de
+    // E2E ile yakalandı). Dosya türü yanıtın Content-Type'ından ve paylaşımda XLSX_MIME'den gelir.
+    const headers: Record<string, string> = { Accept: "*/*" };
     if (access) headers.Authorization = `Bearer ${access}`;
 
     let file: File;

@@ -3,6 +3,8 @@
  * Stok modu yazma: manage_stock · normal mod yazma: manage_device_settings (views/pos_devices.py:789-890).
  * Şablon işlemleri backend'de yalnız Mgmt ister; uygulama varsayılan-RED gereği manage_device_settings arar.
  */
+import { EXPORTS } from "@/api/exports";
+import { useExcelExport } from "@/hooks/useExcelExport";
 import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -63,6 +65,7 @@ export function StockTab({
   const styles = useStyles();
   const { colors } = useTheme();
   const invalidate = useInvalidateDevices();
+  const excel = useExcelExport();
   const products = useDeviceProducts(sn);
   const data = products.data;
   const isStock = data?.mode === "stock";
@@ -153,6 +156,15 @@ export function StockTab({
           </View>
         </View>
         <FillBar pct={fill.pct} tone={fill.tone} height={6} accessibilityLabel={`Toplam doluluk ${fill.label}`} />
+        <AppButton
+          title={excel.exporting ? "Excel hazırlanıyor…" : "Ürünleri Excel'e aktar"}
+          icon="download"
+          variant="ghost"
+          size="sm"
+          loading={excel.exporting}
+          onPress={() => excel.run(EXPORTS.deviceProducts(sn))}
+          testID="device-products-export"
+        />
       </AppCard>
 
       {isStock && access.manageStock ? (

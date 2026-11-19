@@ -1,0 +1,14 @@
+# Negatif senaryo (1/3): geri bildirim formunu doldur, göndermeden bekle.
+# Ardından test koşucusu yerel sunucuyu durdurur ve 29b'yi çalıştırır.
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Profil"
+- scrollUntilVisible:
+    element: { id: "row-feedback" }
+    centerElement: true
+- tapOn: { id: "row-feedback" }
+- tapOn: "Soru"
+- tapOn: { id: "feedback-message" }
+- inputText: "Ag kesintisi testi: sunucu kapaliyken gonderim"
+- hideKeyboard

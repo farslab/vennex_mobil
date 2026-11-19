@@ -1,0 +1,16 @@
+# E2E: web'deki Excel butonları — cihaz listesi ve stok özeti indirilip paylaşım sayfası açılır
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Cihazlar"
+- extendedWaitUntil: { visible: "Excel", timeout: 15000 }
+- tapOn: "Excel"
+- extendedWaitUntil: { visible: ".*(Close|Kapat|Save to Files|Dosyalar).*", timeout: 20000 }
+- takeScreenshot: ex_devices_share
+- runFlow: { when: { visible: "Close" }, commands: [ { tapOn: "Close" } ] }
+- tapOn: "Stok"
+- extendedWaitUntil: { visible: "Excel", timeout: 15000 }
+- tapOn: "Excel"
+- extendedWaitUntil: { visible: ".*(Close|Kapat|Save to Files|Dosyalar).*", timeout: 20000 }
+- takeScreenshot: ex_stock_share
+- runFlow: { when: { visible: "Close" }, commands: [ { tapOn: "Close" } ] }

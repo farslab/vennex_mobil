@@ -73,3 +73,22 @@ describe("metin yardımcıları", () => {
     expect(initials("")).toBe("?");
   });
 });
+
+describe("Türkiye saati (web ile aynı gösterim)", () => {
+  const { formatDateTime, formatDate, formatTime, businessToday } = jest.requireActual("@/utils/date") as typeof import("@/utils/date");
+
+  it("sunucu zamanları telefonun saat diliminden bağımsız Türkiye saatiyle gösterilir", () => {
+    expect(formatDateTime("2026-11-18T21:30:00Z")).toBe("19.11.2026 00:30");
+    expect(formatDate("2026-11-18T21:30:00Z")).toBe("19.11.2026");
+    expect(formatTime("2026-11-18T05:07:00+00:00")).toBe("08:07");
+  });
+
+  it("bugün Türkiye takvimine göredir (gece 00:00–03:00 kayması yok)", () => {
+    const t = businessToday(new Date("2026-11-18T22:00:00Z")); // TR: 19 Kasım 01:00
+    expect([t.getFullYear(), t.getMonth() + 1, t.getDate()]).toEqual([2026, 11, 19]);
+  });
+
+  it("kullanıcının seçtiği takvim tarihi (Date) kaydırılmaz", () => {
+    expect(formatDate(new Date(2026, 0, 31))).toBe("31.01.2026");
+  });
+});

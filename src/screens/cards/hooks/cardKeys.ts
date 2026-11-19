@@ -12,6 +12,7 @@ export const cardKeys = {
   list: queryKeys.cards.list,
   detail: queryKeys.cards.detail,
   transactions: (id: number, limit: number) => [...queryKeys.cards.transactions(id), { limit }] as const,
+  balanceLogs: (id: number) => [...queryKeys.cards.transactions(id), "balance-logs"] as const,
   groupList: (q: string) => [...root, "group-list", { q }] as const,
   group: queryKeys.cards.group,
   deviceOptions: (source: DeviceOptionSource, companyId: number | null) =>

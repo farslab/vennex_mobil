@@ -1,0 +1,15 @@
+# E2E (yolculuk 16): bildirimleri okundu yap — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+# 16) Bildirimleri okundu yap
+- tapOn: "Profil"
+- scrollUntilVisible: { element: { id: "row-notifications" }, centerElement: true }
+- tapOn: { id: "row-notifications" }
+- extendedWaitUntil: { visible: ".*Yerel E2E testi.*", timeout: 15000 }
+- tapOn: { id: "mark-all-read" }
+- runFlow:
+    when: { visible: { id: "confirm-sheet-confirm" } }
+    commands: [ { tapOn: { id: "confirm-sheet-confirm" } } ]
+- waitForAnimationToEnd
+- takeScreenshot: j16_notifications_read

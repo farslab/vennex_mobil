@@ -5,7 +5,7 @@ import { apiClient } from "@/api/client";
 import NewReportScreen from "@/screens/reports/NewReportScreen";
 import { useAuthStore } from "@/store/authStore";
 import { makeUser, renderWithProviders } from "@/test/utils";
-import { formatDate, toApiDate } from "@/utils/date";
+import { businessToday, formatDate, toApiDate } from "@/utils/date";
 
 // İkon fontu yükleyicisi (expo-font/expo-asset) testte gereksiz
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
@@ -40,8 +40,8 @@ const filterOptions = {
 
 describe("NewReportScreen", () => {
   let mock: MockAdapter;
-  const today = formatDate(new Date());
-  const todayApi = toApiDate(new Date());
+  const today = formatDate(businessToday());
+  const todayApi = toApiDate(businessToday());
 
   beforeEach(() => {
     mock = new MockAdapter(apiClient);
@@ -52,11 +52,12 @@ describe("NewReportScreen", () => {
     mock.restore();
   });
 
-  it("seçenekleri backend'den alır; sahte cihaz/bölge içermez; NFC tipi devre dışı", async () => {
+  it("web adlarıyla tipler; sahte cihaz/bölge içermez; PersonelKart POS yoksa NFC tipi gizli", async () => {
     await renderWithProviders(<NewReportScreen />);
-    expect(await screen.findByText("Cihaz Bazlı Özet")).toBeOnTheScreen();
+    expect(await screen.findByText("Özet")).toBeOnTheScreen();
+    expect(screen.getByText("Detay")).toBeOnTheScreen();
     expect(screen.queryByText(/serpetco|PAX3080007269|İstanbul Anadolu/)).toBeNull();
-    expect(screen.getByTestId("report-type-nfc_balance_logs")).toBeDisabled();
+    expect(screen.queryByTestId("report-type-nfc_balance_logs")).toBeNull();
     expect(screen.getByText("Tüm cihazlar (2)")).toBeOnTheScreen();
   });
 
@@ -64,7 +65,7 @@ describe("NewReportScreen", () => {
     let resolve: (v: [number, unknown]) => void = () => {};
     mock.onPost("/reports/").reply(() => new Promise((r) => (resolve = r)));
     await renderWithProviders(<NewReportScreen />);
-    await screen.findByText("Cihaz Bazlı Özet");
+    await screen.findByText("Özet");
 
     await fireEvent.press(screen.getByTestId("report-type-pos_detail"));
     await fireEvent.press(screen.getByText("Başarısız"));
@@ -78,7 +79,8 @@ describe("NewReportScreen", () => {
       custom_name: "Kasım",
       start_date: todayApi,
       end_date: todayApi,
-      transaction_status: "fail",
+      company: 1,
+      transaction_status: "false",
       min_amount: "12.50",
     });
     expect(screen.getByTestId("submit-report")).toBeDisabled();
@@ -91,7 +93,7 @@ describe("NewReportScreen", () => {
 
   it("geçersiz aralıkta istek atmaz", async () => {
     await renderWithProviders(<NewReportScreen />);
-    await screen.findByText("Cihaz Bazlı Özet");
+    await screen.findByText("Özet");
     await fireEvent.changeText(screen.getByTestId("report-start"), "31.12.2999");
     await fireEvent.changeText(screen.getByTestId("report-end"), today);
     await fireEvent.press(screen.getByTestId("submit-report"));
@@ -102,7 +104,7 @@ describe("NewReportScreen", () => {
   it("429'da eşzamanlı rapor uyarısı ve raporlara git aksiyonu gösterir", async () => {
     mock.onPost("/reports/").reply(429, { detail: "Önceki raporunuz hazırlanıyor, lütfen bitmesini bekleyin." });
     await renderWithProviders(<NewReportScreen />);
-    await screen.findByText("Cihaz Bazlı Özet");
+    await screen.findByText("Özet");
     await fireEvent.press(screen.getByTestId("submit-report"));
 
     expect(await screen.findByText("Önceki rapor hazırlanıyor")).toBeOnTheScreen();
@@ -114,8 +116,33 @@ describe("NewReportScreen", () => {
   it("404'te kayıt bulunamadı mesajı", async () => {
     mock.onPost("/reports/").reply(404, { detail: "Bu filtrelerle hiç kayıt bulunamadı." });
     await renderWithProviders(<NewReportScreen />);
-    await screen.findByText("Cihaz Bazlı Özet");
+    await screen.findByText("Özet");
     await fireEvent.press(screen.getByTestId("submit-report"));
     expect(await screen.findByText("Kayıt bulunamadı")).toBeOnTheScreen();
+  });
+
+  it("oturumdaki şirket önseçili gider; bölge seçimi cihaz listesine çevrilir (web)", async () => {
+    mock.onGet("/reports/filter-options/").reply(200, {
+      ...filterOptions,
+      companies: [
+        { id: 1, name: "Şirket A" },
+        { id: 2, name: "Şirket B" },
+      ],
+      regions: [{ id: 7, name: "B Bölge", company_id: 2 }],
+      locations: [{ id: 8, name: "B Konum", region_id: 7, region_name: "B Bölge" }],
+      devices: [...filterOptions.devices, { id: 9, sn: "SN-B", pos_name: "B Otomat", company_id: 2, location_id: 8 }],
+    });
+    mock.onPost("/reports/").reply(202, { detail: "ok", job_id: 1, status: "pending", estimated_rows: 1 });
+    useAuthStore.setState({ user: makeUser({ permissions: ["owner", "view_sales"] }), selectedCompanyId: 2 });
+
+    await renderWithProviders(<NewReportScreen />);
+    await screen.findByText("Özet");
+    expect(screen.getByText("Tüm cihazlar (1)")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("submit-report"));
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
+    const body = JSON.parse(mock.history.post[0].data);
+    expect(body.company).toBe(2);
+    expect(body).not.toHaveProperty("companies");
+    expect(body).not.toHaveProperty("regions");
   });
 });

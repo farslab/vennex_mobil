@@ -43,6 +43,8 @@ export interface AppConfig {
   enums: Record<string, EnumOption[]>;
   features: { key: string; label: string; enabled: boolean; note?: string }[];
   version_policy: VersionPolicyResponse;
+  /** Teknisyen belirli kart gruplarıyla sınırlı (web: grup oluştur/düzenle/sil gizli, kartta grup zorunlu) */
+  card_scope_restricted: boolean;
 }
 
 /** Mağaza (native) sürümü; native modül yoksa (test/web) uygulama yapılandırmasındaki sürüm */
@@ -82,6 +84,7 @@ export function normalizeConfig(raw: Partial<AppConfig> | null | undefined): App
     enums: raw?.enums && typeof raw.enums === "object" ? raw.enums : {},
     features: Array.isArray(raw?.features) ? raw!.features : [],
     version_policy: raw?.version_policy ?? {},
+    card_scope_restricted: raw?.card_scope_restricted === true,
   };
 }
 

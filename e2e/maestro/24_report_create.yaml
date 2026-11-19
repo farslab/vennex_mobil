@@ -1,0 +1,14 @@
+# E2E (yolculuk 15a): rapor oluştur — yerel gerçek backend (üretim görevi celery; yerelde elle çalıştırılır)
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Profil"
+- scrollUntilVisible: { element: { id: "row-reports" }, centerElement: true }
+- tapOn: { id: "row-reports" }
+- extendedWaitUntil: { visible: { id: "reports-screen" }, timeout: 15000 }
+- tapOn: { id: "new-report" }
+- extendedWaitUntil: { visible: { id: "new-report-screen" }, timeout: 15000 }
+- tapOn: "Son 7 gün"
+- tapOn: { id: "submit-report" }
+- extendedWaitUntil: { visible: { id: "report-job-.*" }, timeout: 15000 }
+- takeScreenshot: j15_report_queued

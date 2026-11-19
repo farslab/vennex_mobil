@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import { DarkTheme, DefaultTheme, NavigationContainer, type Theme as NavTheme } from "@react-navigation/native";
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+  type Theme as NavTheme,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppIcon, AppLoading, useTheme, useThemePreference, type IconName } from "@/design-system";
@@ -10,12 +15,14 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import { VennexLogo } from "@/components/brand/VennexLogo";
 import type { AuthStackParamList, RootStackParamList, TabParamList } from "./types";
 import { TabHeader } from "./TabHeader";
+import { centeredScreenLayout } from "./CenteredScreen";
 import { linking } from "./linking";
 import { flushPendingNavigation, navigationRef } from "./navigationRef";
 import { startPush, stopPushListeners } from "@/push/pushService";
 
 import LoginScreen from "@/screens/auth/LoginScreen";
 import TwoFactorScreen from "@/screens/auth/TwoFactorScreen";
+import OfflineScreen from "@/screens/auth/OfflineScreen";
 import LegalConsentGateScreen from "@/screens/legal/LegalConsentGateScreen";
 import LegalDocumentScreen from "@/screens/legal/LegalDocumentScreen";
 
@@ -44,6 +51,7 @@ function AppTabs() {
 
   return (
     <Tab.Navigator
+      screenLayout={centeredScreenLayout}
       screenOptions={({ route }) => ({
         header: () => <TabHeader title={TAB_META[route.name].title} />,
         tabBarActiveTintColor: theme.colors.primary,
@@ -132,6 +140,8 @@ export function RootNavigator() {
   );
 
   if (status === "booting") return <BootScreen />;
+  // Kayıtlı oturum var, sunucuya ulaşılamadı: giriş ekranına atmadan bağlantı ekranı
+  if (status === "offline") return <OfflineScreen />;
 
   return (
     <NavigationContainer
@@ -146,30 +156,34 @@ export function RootNavigator() {
         ) : (
           <RootStack.Navigator screenOptions={stackOptions}>
             <RootStack.Screen name="Tabs" component={AppTabs} options={{ headerShown: false }} />
-            {screenRegistry.stack.map(({ name, component, title, headerShown }) => (
+            <RootStack.Group screenLayout={centeredScreenLayout}>
+              {screenRegistry.stack.map(({ name, component, title, headerShown }) => (
+                <RootStack.Screen
+                  key={name}
+                  name={name}
+                  component={component}
+                  options={{ title, headerShown: headerShown ?? true }}
+                />
+              ))}
               <RootStack.Screen
-                key={name}
-                name={name}
-                component={component}
-                options={{ title, headerShown: headerShown ?? true }}
+                name="LegalDocument"
+                component={LegalDocumentScreen}
+                options={({ route }) => ({
+                  title:
+                    route.params.slug === "kvkk"
+                      ? "KVKK Aydınlatma Metni"
+                      : route.params.slug === "privacy"
+                        ? "Gizlilik Politikası"
+                        : "Kullanım Koşulları",
+                })}
               />
-            ))}
-            <RootStack.Screen
-              name="LegalDocument"
-              component={LegalDocumentScreen}
-              options={({ route }) => ({
-                title:
-                  route.params.slug === "kvkk"
-                    ? "KVKK Aydınlatma Metni"
-                    : route.params.slug === "privacy"
-                      ? "Gizlilik Politikası"
-                      : "Kullanım Koşulları",
-              })}
-            />
+            </RootStack.Group>
           </RootStack.Navigator>
         )
       ) : (
-        <AuthStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
+        <AuthStack.Navigator
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}
+        >
           {status === "requires_2fa" ? (
             <AuthStack.Screen name="TwoFactor" component={TwoFactorScreen} />
           ) : (

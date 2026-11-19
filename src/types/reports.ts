@@ -5,7 +5,7 @@
  */
 
 /** Bilinen tipler (`reporting.py:68`). Geçerli liste ve etiketler `filter-options.report_types`'tan gelir. */
-export type KnownReportType = "pos_detail" | "pos_summary" | "nfc_balance_logs";
+export type KnownReportType = "pos_detail" | "pos_summary" | "nfc_balance_logs" | "nfc_monthly_analysis";
 export type ReportType = KnownReportType | (string & {});
 
 /** `pending | running | completed | failed | cancelled` (`API_REFERENCE.md:1491`) */
@@ -68,10 +68,8 @@ export type ReportTransactionStatus = "all" | "success" | "fail";
 export type ReportFailureReason = "1" | "2" | "3" | "other";
 
 /**
- * POST /reports/ gövdesi.
- * SÖZLEŞME: doğrulanamadı — `reporting.validators.parse_filters` backend kopyasında yok.
- * Anahtarlar backend dokümanından (`API_REFERENCE.md:1450-1464`, çoğul diziler) alınmıştır;
- * Flutter dokümanı tekil `company/region/location` diyor (çelişki, API_CONTRACTS §3.7).
+ * POST /reports/ gövdesi — `reporting/validators.py:parse_filters` (web formuyla aynı anahtarlar).
+ * `company` TEKİL; bölge/konum istemcide cihaz listesine çevrilir (web `applyScope`).
  * Boş filtreler hiç gönderilmez: view tekil değerleri `str(v)` ile QueryDict'e koyar
  * (`reporting.py:91-96`) → `null` "None" string'ine dönüşürdü.
  */
@@ -80,18 +78,17 @@ export interface CreateReportPayload {
   start_date: string;
   end_date: string;
   custom_name?: string;
-  companies?: number[];
-  regions?: number[];
-  locations?: number[];
-  /** Seri numaraları (doküman örneği: `["PAV200000884"]`) */
+  company?: number;
+  /** Seri numaraları */
   devices?: string[];
-  transaction_status?: ReportTransactionStatus;
-  /** "" (hepsi) veya 0-7 (doküman) */
+  /** Backend yalnız "true" / "false" tanır (`querybuilder.py:76-78`) */
+  transaction_status?: "true" | "false";
+  /** "" (hepsi) veya 0-5 (web formu) */
   payment_type?: string;
   /** Ondalık string ("12.50") */
   min_amount?: string;
   failure_reason?: ReportFailureReason;
-  // nfc_balance_logs
+  // nfc_balance_logs / nfc_monthly_analysis
   nfc_source?: string;
   nfc_operation?: string;
   nfc_card_uids?: string[];
@@ -105,45 +102,34 @@ export interface CreateReportResponse {
   estimated_rows: number | null;
 }
 
-/** filter-options gelmeden önce / bilinmeyen tipte kullanılan yedek etiketler */
+/** Web arayüzündeki adlar (`reporting.html:31-72`, `reports_list_v2.html`) */
 export const REPORT_TYPE_LABELS: Record<KnownReportType, string> = {
-  pos_summary: "Cihaz bazlı özet",
-  pos_detail: "Detaylı işlem listesi",
-  nfc_balance_logs: "PersonelKart hareketleri",
+  pos_summary: "Özet",
+  pos_detail: "Detay",
+  nfc_balance_logs: "PersonelKart Hareketleri",
+  nfc_monthly_analysis: "PersonelKart Aylık Analiz",
 };
 
-export const REPORT_TYPE_DESCRIPTIONS: Record<KnownReportType, string> = {
-  pos_summary: "Cihaz ve şirket bazında satış adetleri ve cirolar",
-  pos_detail: "Her işlem ayrı satır: kart, ürün, durum ve tutar",
-  nfc_balance_logs: "Yükleme, satış, iade ve düzeltme dahil tüm bakiye hareketleri",
-};
-
+/** Web adı öncelikli; bilinmeyen tipte sunucunun etiketi */
 export function reportTypeLabel(type: string, options?: ReportOption[] | null): string {
-  const fromBackend = options?.find((o) => o.value === type)?.label;
-  if (fromBackend) return fromBackend;
-  return (REPORT_TYPE_LABELS as Record<string, string>)[type] ?? type;
+  return (REPORT_TYPE_LABELS as Record<string, string>)[type] ?? options?.find((o) => o.value === type)?.label ?? type;
 }
 
-/**
- * Ödeme tipi filtresi. Etiketler backend `services.py:22-33` (PT_TYPE_LABELS);
- * rapor validator'ı yalnız 0-7 kabul ediyor (`API_REFERENCE.md:1461`) → 8 ve 10 sunulmaz.
- */
+/** Ödeme tipi filtresi — web rapor formuyla aynı liste ve adlar (`reporting.html:240-248`) */
 export const REPORT_PAYMENT_TYPES: ReportOption[] = [
   { value: "0", label: "Nakit" },
-  { value: "1", label: "Kredi/Banka Kartı" },
+  { value: "1", label: "Kredi Kartı" },
   { value: "2", label: "İstanbulKart" },
   { value: "3", label: "Multinet" },
   { value: "4", label: "Metropol" },
-  { value: "5", label: "Personel Kart" },
-  { value: "6", label: "Setcard" },
-  { value: "7", label: "Ticket" },
+  { value: "5", label: "Personel Kart (NFC)" },
 ];
 
 /** `iptalNo`: 1 zaman aşımı, 2 banka reddi, 3 teknik (`overview.py:81-84`) */
 export const REPORT_FAILURE_REASONS: { value: ReportFailureReason; label: string }[] = [
-  { value: "1", label: "Zaman aşımı" },
-  { value: "2", label: "Banka reddi" },
-  { value: "3", label: "Teknik hata" },
+  { value: "1", label: "Zaman Aşımı" },
+  { value: "2", label: "Banka Reddi" },
+  { value: "3", label: "Teknik Hata" },
   { value: "other", label: "Diğer" },
 ];
 

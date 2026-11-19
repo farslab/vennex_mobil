@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DistributionField } from "../components/DistributionField";
 import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import {
   AppButton,
@@ -25,8 +26,8 @@ import { errorMessage } from "@/api/client";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { formatInteger } from "@/utils/number";
-import { formatDate, formatDateTime } from "@/utils/date";
-import type { CreatedIdsResponse, QuotaPeriod, RecurringQuotaPayload, RecurringQuotaRule, RecurringTargetType } from "@/types/cards";
+import { businessToday, formatDate, formatDateTime } from "@/utils/date";
+import type { CreatedIdsResponse, QuotaDistribution, QuotaPeriod, RecurringQuotaPayload, RecurringQuotaRule, RecurringTargetType } from "@/types/cards";
 import { cardKeys } from "../hooks/cardKeys";
 import { fieldErrorsOf, generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
 import { ActiveBadge, DateField, ListFooter, RuleRow, apiDateToUser, userDateToApi } from "../components/Common";
@@ -123,6 +124,7 @@ interface FormState {
   start: string;
   is_active: boolean;
   description: string;
+  dagitim: QuotaDistribution;
 }
 
 function initial(rule: RecurringQuotaRule | null): FormState {
@@ -134,9 +136,10 @@ function initial(rule: RecurringQuotaRule | null): FormState {
     product_no: rule?.product_no ?? "*",
     period: rule?.period ?? "monthly",
     quantity: rule ? String(rule.quantity) : "1",
-    start: rule ? apiDateToUser(rule.start_date) : formatDate(new Date()),
+    start: rule ? apiDateToUser(rule.start_date) : formatDate(businessToday()),
     is_active: rule?.is_active ?? true,
     description: rule?.description ?? "",
+    dagitim: "ayri",
   };
 }
 
@@ -220,7 +223,8 @@ export function RecurringQuotaFormSheet({
       description: f.description.trim() || null,
     };
     if (!rule) {
-      save.run(full);
+      // Web: dağıtım yalnız oluştururken (ürün no parçalarının kayda açılışını belirler)
+      save.run({ ...full, dagitim: f.dagitim });
       return;
     }
     // PATCH grup değiştirmez (views:899-916) — grup salt okunur
@@ -341,6 +345,7 @@ export function RecurringQuotaFormSheet({
         }
         testID="rq-start"
       />
+      {!rule ? <DistributionField value={f.dagitim} onChange={(v) => set("dagitim", v)} /> : null}
       <AppSwitchRow label="Kural aktif" value={f.is_active} onChange={(v) => set("is_active", v)} />
       <AppInput label="Açıklama" value={f.description} onChangeText={(t) => set("description", t)} multiline error={errors.description} />
 

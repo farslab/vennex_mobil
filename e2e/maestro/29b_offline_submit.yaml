@@ -1,0 +1,17 @@
+# Negatif senaryo (2/3) — sunucu KAPALI: gönderim anlaşılır hata vermeli,
+# yazılan metin kaybolmamalı; yeniden açılışta oturum düşmemeli.
+appId: tr.com.vennex
+---
+- tapOn: { id: "feedback-submit" }
+- extendedWaitUntil:
+    visible: ".*Sunucuya ulaşılamadı.*"
+    timeout: 30000
+- assertVisible: ".*Ag kesintisi testi.*"
+- takeScreenshot: neg_offline_submit
+- stopApp
+- launchApp
+# Kayıtlı oturum korunur: giriş ekranı değil, bağlantı ekranı
+- extendedWaitUntil: { visible: { id: "offline-screen" }, timeout: 30000 }
+- assertNotVisible: "Hesabınıza giriş yapın"
+- assertVisible: { id: "offline-retry" }
+- takeScreenshot: neg_offline_relaunch

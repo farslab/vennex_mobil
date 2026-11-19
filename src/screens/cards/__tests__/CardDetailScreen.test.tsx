@@ -15,20 +15,22 @@ function props(id: number) {
   } as unknown as Pick<RootScreenProps<"CardDetail">, "route" | "navigation">;
 }
 
-const tx = (id: number, over: Record<string, unknown> = {}) => ({
+const log = (id: number, over: Record<string, unknown> = {}) => ({
   id,
-  pt_id: `T${id}`,
-  pt_datetime: "2026-11-17T12:30:00+03:00",
-  amount: "12.50",
-  pt_type: 5,
-  status: true,
-  iptalNo: 0,
-  product_no: "14",
-  pt_pan: "04 AA BB 05",
-  bankRefNo: null,
-  display_name: `Otomat 1 · Ürün ${id}`,
+  created_at: "2026-11-17T12:30:00+03:00",
+  amount: "-12.50",
+  balance_before: "50.00",
+  balance_after: "37.50",
+  source: "pos_sale",
+  source_label: "POS Satış",
+  operation: "subtract",
+  operation_label: "Düş",
+  description: null,
+  user: null,
+  pos_device: { id: 1, sn: "PAV1", pos_name: "Otomat 1" },
   ...over,
 });
+const logsPage = (results: unknown[], page = 1, num_pages = 1, count = results.length) => ({ count, page, num_pages, page_size: 25, results });
 
 describe("CardDetailScreen", () => {
   let mock: MockAdapter;
@@ -39,37 +41,37 @@ describe("CardDetailScreen", () => {
   });
   afterEach(() => mock.restore());
 
-  it("detay ve işlem geçmişini gösterir; başarısız işlemde neden yazar", async () => {
+  it("detay ve web ile aynı bakiye hareketlerini gösterir (POS işlem listesi değil)", async () => {
     mock.onGet("/cards/5/").reply(200, cardJson(5, { balance: "1234.5" }));
-    mock.onGet("/cards/5/transactions/").reply(200, {
-      card: cardJson(5),
-      transactions: [tx(1), tx(2, { status: false, iptalNo: 2 })],
-      success_count: 1,
-      fail_count: 1,
-    });
+    mock.onGet("/cards/5/balance-logs/").reply(200, logsPage([log(1), log(2, { amount: "25.00", operation_label: "Ekle", source_label: "Dashboard Manuel", pos_device: null, user: { id: 3, name: "Ayşe" }, balance_after: "62.50" })]));
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
     expect(await screen.findByText("₺1.234,50")).toBeOnTheScreen();
     expect(screen.getByText("04 AA BB 05")).toBeOnTheScreen();
-    expect(await screen.findByText("Otomat 1 · Ürün 1")).toBeOnTheScreen();
-    expect(screen.getByText(/Banka reddi/)).toBeOnTheScreen();
-    expect(screen.getByText("1 başarılı")).toBeOnTheScreen();
-    expect(mock.history.get.find((r) => r.url === "/cards/5/transactions/")?.params).toEqual({ limit: 100 });
+    expect(await screen.findByText("Düş")).toBeOnTheScreen();
+    expect(screen.getByText(/POS Satış · Otomat 1/)).toBeOnTheScreen();
+    expect(screen.getByText("+₺25,00")).toBeOnTheScreen();
+    expect(screen.getByText(/Dashboard Manuel · Ayşe/)).toBeOnTheScreen();
+    expect(screen.getByText("Bakiye ₺62,50")).toBeOnTheScreen();
+    expect(screen.getByText("2 / 2 hareket")).toBeOnTheScreen();
+    expect(mock.history.get.some((r) => r.url === "/cards/5/transactions/")).toBe(false);
   });
 
-  it("100 işlem dolunca 'Daha fazla göster' limit=500 ister", async () => {
+  it("'Daha fazla göster' sonraki sayfayı ister; toplam sayı sunucudan", async () => {
     mock.onGet("/cards/5/").reply(200, cardJson(5));
-    mock.onGet("/cards/5/transactions/").reply((config) => {
-      const n = config.params.limit === 500 ? 120 : 100;
-      return [200, { card: cardJson(5), transactions: Array.from({ length: n }, (_, i) => tx(i + 1)), success_count: n, fail_count: 0 }];
+    mock.onGet("/cards/5/balance-logs/").reply((config) => {
+      const page = config.params.page;
+      const rows = Array.from({ length: 25 }, (_, i) => log((page - 1) * 25 + i + 1));
+      return [200, logsPage(rows, page, 3, 60)];
     });
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
-    await fireEvent.press(await screen.findByTestId("tx-more"));
-    await waitFor(() => expect(screen.getByText("Son 120 işlem")).toBeOnTheScreen());
+    expect(await screen.findByText("25 / 60 hareket")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("logs-more"));
+    await waitFor(() => expect(screen.getByText("50 / 60 hareket")).toBeOnTheScreen());
   });
 
   it("tek kart bakiye işlemi toplu uca tek id ile gider", async () => {
     mock.onGet("/cards/5/").reply(200, cardJson(5, { balance: "20.00" }));
-    mock.onGet("/cards/5/transactions/").reply(200, { card: cardJson(5), transactions: [], success_count: 0, fail_count: 0 });
+    mock.onGet("/cards/5/balance-logs/").reply(200, logsPage([]));
     mock.onPost("/cards/bulk/balance/").reply(200, { detail: "1 kart güncellendi.", count: 1 });
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
     await fireEvent.press(await screen.findByTestId("detail-balance"));
@@ -85,7 +87,7 @@ describe("CardDetailScreen", () => {
   it("bakiye yetkisi yoksa bakiye işlemi butonu yok", async () => {
     loginAs(NO_BALANCE, "tech");
     mock.onGet("/cards/5/").reply(200, cardJson(5));
-    mock.onGet("/cards/5/transactions/").reply(200, { card: cardJson(5), transactions: [], success_count: 0, fail_count: 0 });
+    mock.onGet("/cards/5/balance-logs/").reply(200, logsPage([]));
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
     await screen.findByTestId("detail-edit");
     expect(screen.queryByTestId("detail-balance")).toBeNull();
@@ -93,7 +95,7 @@ describe("CardDetailScreen", () => {
 
   it("düzenleme yalnız değişen alanları PATCH eder", async () => {
     mock.onGet("/cards/5/").reply(200, cardJson(5));
-    mock.onGet("/cards/5/transactions/").reply(200, { card: cardJson(5), transactions: [], success_count: 0, fail_count: 0 });
+    mock.onGet("/cards/5/balance-logs/").reply(200, logsPage([]));
     mock.onGet("/card-groups/").reply(200, { results: [{ id: 1, name: "Ofis", active_cards_count: 1, pos_device_count: 1 }] });
     mock.onPatch("/cards/5/").reply(200, cardJson(5, { first_name: "Yeni" }));
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
@@ -106,7 +108,7 @@ describe("CardDetailScreen", () => {
 
   it("silme onaylanınca DELETE atar ve geri döner", async () => {
     mock.onGet("/cards/5/").reply(200, cardJson(5));
-    mock.onGet("/cards/5/transactions/").reply(200, { card: cardJson(5), transactions: [], success_count: 0, fail_count: 0 });
+    mock.onGet("/cards/5/balance-logs/").reply(200, logsPage([]));
     mock.onDelete("/cards/5/").reply(204);
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
     await fireEvent.press(await screen.findByTestId("detail-delete"));

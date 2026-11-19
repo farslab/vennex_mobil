@@ -177,6 +177,14 @@ describe("OverviewTab", () => {
 /* -------------------------------------------------------------- Ürünler */
 
 describe("SkusTab", () => {
+  it("sunucu aramayı kestiyse (ilk 50) uyarı gösterir ve tür sayılarını göstermez (yanlış sayı olmasın)", async () => {
+    mock.onGet("/stock/skus/").reply(200, { results: skus, truncated: true });
+    await renderWithProviders(<SkusTab canManage />);
+    expect(await screen.findByText(/ilk 50 ürün gösteriliyor/)).toBeOnTheScreen();
+    expect(screen.queryByText("Ürün (1)")).toBeNull();
+    expect(screen.getAllByText("Ürün").length).toBeGreaterThan(0);
+  });
+
   it("satırları Türkçe para/yüzde biçimi, birim ve tür rozetiyle eşler", async () => {
     mock.onGet("/stock/skus/").reply(200, { results: skus });
     await renderWithProviders(<SkusTab canManage />);

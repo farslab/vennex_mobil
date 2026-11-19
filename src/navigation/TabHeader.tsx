@@ -20,21 +20,23 @@ export function TabHeader({ title, right }: { title: string; right?: React.React
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 6 }]}>
-      <View style={styles.titleBlock}>
-        <CompanySwitcher />
-        <AppText variant="title" accessibilityRole="header" numberOfLines={1}>
-          {title}
-        </AppText>
-      </View>
-      <View style={styles.actions}>
-        {right}
-        <AppIconButton
-          icon="bell"
-          label="Bildirimler"
-          badge={unread}
-          onPress={() => navigation.navigate("Notifications")}
-          testID="header-notifications"
-        />
+      <View style={styles.row}>
+        <View style={styles.titleBlock}>
+          <CompanySwitcher />
+          <AppText variant="title" accessibilityRole="header" numberOfLines={1}>
+            {title}
+          </AppText>
+        </View>
+        <View style={styles.actions}>
+          {right}
+          <AppIconButton
+            icon="bell"
+            label="Bildirimler"
+            badge={unread}
+            onPress={() => navigation.navigate("Notifications")}
+            testID="header-notifications"
+          />
+        </View>
       </View>
     </View>
   );
@@ -43,12 +45,18 @@ export function TabHeader({ title, right }: { title: string; right?: React.React
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     root: {
-      flexDirection: "row",
-      alignItems: "flex-end",
       paddingHorizontal: t.layout.screenPadding,
       paddingBottom: t.spacing.sm,
       backgroundColor: t.colors.background,
+    },
+    // iPad'de sahnelerle aynı okunabilir genişliğe hizalanır (CenteredScreen)
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-end",
       gap: t.spacing.sm,
+      width: "100%",
+      maxWidth: t.layout.maxContentWidth - 2 * t.layout.screenPadding,
+      alignSelf: "center",
     },
     titleBlock: { flex: 1, gap: 2 },
     actions: { flexDirection: "row", alignItems: "center", marginRight: -t.spacing.sm },

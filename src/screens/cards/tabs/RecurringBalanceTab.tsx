@@ -24,7 +24,7 @@ import { errorMessage } from "@/api/client";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { formatCurrency, formatInteger, toApiDecimal } from "@/utils/number";
-import { formatDate, formatDateTime } from "@/utils/date";
+import { businessToday, formatDate, formatDateTime } from "@/utils/date";
 import type {
   RecurringBalancePayload,
   RecurringBalanceRule,
@@ -146,7 +146,7 @@ function initial(rule: RecurringBalanceRule | null): FormState {
     target_type: rule?.target_type ?? "group",
     card: rule?.target_card ? { id: rule.target_card, label: rule.target_card_uid ?? `#${rule.target_card}` } : null,
     group: rule?.target_group ? { id: rule.target_group, label: rule.target_group_name ?? `#${rule.target_group}` } : null,
-    start: rule ? apiDateToUser(rule.start_date) : formatDate(new Date()),
+    start: rule ? apiDateToUser(rule.start_date) : formatDate(businessToday()),
     is_active: rule?.is_active ?? true,
     description: rule?.description ?? "",
   };

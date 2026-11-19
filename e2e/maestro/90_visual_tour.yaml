@@ -34,7 +34,7 @@ appId: tr.com.vennex
 - waitForAnimationToEnd
 - takeScreenshot: 10_cihazlar
 - tapOn:
-    text: "Otomat 01"
+    text: "Otomat 02"
     optional: true
 - waitForAnimationToEnd
 - takeScreenshot: 11_cihaz_genel

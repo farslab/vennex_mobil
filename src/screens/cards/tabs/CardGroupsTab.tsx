@@ -32,6 +32,7 @@ import { useOnOpen, useOnValueChange } from "../hooks/useOnOpen";
 
 /** Kart grupları: sayfasız liste (cihaz sayısı listede), cihazlar yalnız detay açılınca çekilir */
 export function CardGroupsTab() {
+  const access = useCardAccess();
   const styles = useStyles();
   const { colors } = useTheme();
   const [q, setQ] = useState("");
@@ -62,7 +63,9 @@ export function CardGroupsTab() {
           <AppText variant="caption" color="textTertiary" style={styles.flex}>
             {query.data ? `${formatInteger(query.data.length)} grup` : " "}
           </AppText>
-          <AppButton size="sm" icon="plus" title="Yeni grup" onPress={() => setForm({ group: null })} testID="group-create" />
+          {access.canManageGroups ? (
+            <AppButton size="sm" icon="plus" title="Yeni grup" onPress={() => setForm({ group: null })} testID="group-create" />
+          ) : null}
         </View>
       </View>
       {query.isLoading ? (
@@ -106,6 +109,7 @@ function GroupRow({ group, onPress }: { group: CardGroup; onPress: () => void })
 }
 
 function GroupDetailSheet({ groupId, onClose }: { groupId: number | null; onClose: () => void }) {
+  const access = useCardAccess();
   const styles = useStyles();
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -133,7 +137,7 @@ function GroupDetailSheet({ groupId, onClose }: { groupId: number | null; onClos
       title={g?.name ?? "Kart grubu"}
       subtitle={g ? `${formatInteger(g.active_cards_count)} aktif kart` : undefined}
       footer={
-        g ? (
+        g && access.canManageGroups ? (
           <>
             <AppButton
               title="Sil"

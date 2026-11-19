@@ -1,0 +1,15 @@
+# E2E: kart detayı webdeki gibi bakiye hareketlerini gösterir (22_card_journeys sonrası: E2E00001'e ₺12,50 yüklendi)
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Kartlar"
+- tapOn: { id: "card-search" }
+- inputText: "E2E00001"
+- extendedWaitUntil: { visible: ".*Deneme Personel.*", timeout: 15000 }
+- hideKeyboard
+- tapOn: ".*Deneme Personel.*"
+- extendedWaitUntil: { visible: { id: "card-detail" }, timeout: 15000 }
+- scrollUntilVisible: { element: "Bakiye hareketleri", centerElement: true }
+- assertVisible: { id: "card-logs-count" }
+- assertVisible: ".*\\+₺12,50.*"
+- takeScreenshot: card_balance_logs

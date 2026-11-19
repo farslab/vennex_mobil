@@ -82,18 +82,6 @@ describe("cardsApi", () => {
     expect(res.transactions[0]).toMatchObject({ amount: "5.00", status: false, iptalNo: 2, display_name: null });
   });
 
-  it("allCardsInGroup tüm sayfaları gezer (yalnız 1. sayfa değil)", async () => {
-    mock
-      .onGet("/cards/", { params: { status: "active", group_id: 4, page: 1 } })
-      .reply(200, { count: 31, page: 1, num_pages: 2, results: Array.from({ length: 30 }, (_, i) => rawCard({ id: i + 1 })) });
-    mock
-      .onGet("/cards/", { params: { status: "active", group_id: 4, page: 2 } })
-      .reply(200, { count: 31, page: 2, num_pages: 2, results: [rawCard({ id: 31 })] });
-    const cards = await cardsApi.allCardsInGroup(4);
-    expect(cards).toHaveLength(31);
-    expect(mock.history.get).toHaveLength(2);
-  });
-
   it("deviceOptions: filter-options kaynağı seçili şirkete göre süzülür", async () => {
     mock.onGet("/reports/filter-options/").reply(200, {
       devices: [

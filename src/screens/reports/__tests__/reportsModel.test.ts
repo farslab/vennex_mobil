@@ -8,7 +8,16 @@ import {
 } from "@/api/reports";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { resetSecureStore } from "@/test/utils";
-import { initialReportForm, pruneSelections, validateReportForm } from "@/screens/reports/reportForm";
+import {
+  availableDevices,
+  defaultReportType,
+  initialReportForm,
+  monthlyAnalysisAvailable,
+  pruneSelections,
+  scopeDevices,
+  validateReportForm,
+  visibleReportTypes,
+} from "@/screens/reports/reportForm";
 import { nextPollDelay } from "@/screens/reports/useReportsPolling";
 import type { ReportFilterOptions } from "@/types/reports";
 
@@ -38,103 +47,173 @@ const job = {
   download_count: 0,
 };
 
-describe("reportForm", () => {
+describe("reportForm (web formuyla aynı sözleşme)", () => {
   const today = new Date(2026, 10, 18);
+  const options = {
+    report_types: [
+      { value: "pos_detail", label: "POS işlem detayı" },
+      { value: "pos_summary", label: "POS işlem özeti" },
+      { value: "nfc_balance_logs", label: "PersonelKart Hareketleri" },
+      { value: "nfc_monthly_analysis", label: "PersonelKart Aylık Analiz" },
+    ],
+    companies: [
+      { id: 1, name: "A" },
+      { id: 2, name: "B" },
+    ],
+    regions: [
+      { id: 1, name: "R1", company_id: 1 },
+      { id: 2, name: "R2", company_id: 2 },
+      { id: 3, name: "R3 boş", company_id: 1 },
+    ],
+    locations: [
+      { id: 10, name: "L1", region_id: 1, region_name: "R1" },
+      { id: 11, name: "L1b", region_id: 1, region_name: "R1" },
+      { id: 20, name: "L2", region_id: 2, region_name: "R2" },
+      { id: 30, name: "L3", region_id: 3, region_name: "R3 boş" },
+    ],
+    devices: [
+      { id: 1, sn: "S1", pos_name: null, company_id: 1, location_id: 10 },
+      { id: 2, sn: "S2", pos_name: null, company_id: 1, location_id: 11 },
+      { id: 3, sn: "S3", pos_name: null, company_id: 2, location_id: 20 },
+      { id: 4, sn: "S4", pos_name: null, company_id: 1, location_id: null },
+    ],
+    has_personel_kart_pos: true,
+    nfc_sources: [],
+    nfc_operations: [],
+  } as ReportFilterOptions;
 
-  it("boş filtreleri göndermez, tarihleri ISO yapar", () => {
-    const form = { ...initialReportForm(today), reportType: "pos_summary", startInput: "01.11.2026", endInput: "18.11.2026" };
-    expect(validateReportForm(form, today)).toEqual({
-      ok: true,
-      payload: { report_type: "pos_summary", start_date: "2026-11-01", end_date: "2026-11-18" },
-    });
+  it("tipler web sırası ve adlarıyla; aylık analiz ayrı tip değil; varsayılan Özet", () => {
+    expect(visibleReportTypes(options).map((t) => `${t.value}:${t.label}`)).toEqual([
+      "pos_summary:Özet",
+      "pos_detail:Detay",
+      "nfc_balance_logs:PersonelKart Hareketleri",
+    ]);
+    expect(defaultReportType(options)).toBe("pos_summary");
+    expect(monthlyAnalysisAvailable(options)).toBe(true);
+    const noNfc = { ...options, has_personel_kart_pos: false };
+    expect(visibleReportTypes(noNfc).map((t) => t.value)).toEqual(["pos_summary", "pos_detail"]);
+    expect(monthlyAnalysisAvailable(noNfc)).toBe(false);
   });
 
-  it("çoğul dizi anahtarları, ondalık tutar ve başarısızlık nedeni", () => {
-    const form = {
-      ...initialReportForm(today),
-      reportType: "pos_detail",
-      customName: "  Kasım  ",
-      startInput: "01.11.2026",
-      endInput: "02.11.2026",
-      companies: [1],
-      regions: [2],
-      locations: [3],
-      devices: ["PAV1"],
-      transactionStatus: "fail" as const,
-      paymentType: "1",
-      minAmount: "12,5",
-      failureReason: "2" as const,
-    };
-    const res = validateReportForm(form, today);
-    expect(res).toEqual({
+  it("varsayılan durum Başarılı → transaction_status 'true'; şirket tekil", () => {
+    const form = { ...initialReportForm(today, 1), reportType: "pos_summary", startInput: "01.11.2026", endInput: "18.11.2026" };
+    expect(validateReportForm(form, options, today)).toEqual({
       ok: true,
       payload: {
-        report_type: "pos_detail",
-        custom_name: "Kasım",
+        report_type: "pos_summary",
         start_date: "2026-11-01",
-        end_date: "2026-11-02",
-        companies: [1],
-        regions: [2],
-        locations: [3],
-        devices: ["PAV1"],
-        transaction_status: "fail",
-        payment_type: "1",
-        min_amount: "12.50",
-        failure_reason: "2",
+        end_date: "2026-11-18",
+        company: 1,
+        transaction_status: "true",
       },
     });
   });
 
-  it("NFC raporunda yalnız NFC filtreleri gönderilir", () => {
+  it("Başarısız → 'false' + sebep; Tümü → durum gönderilmez; tutar ondalık", () => {
+    const base = { ...initialReportForm(today), reportType: "pos_detail", startInput: "01.11.2026", endInput: "02.11.2026" };
+    const fail = validateReportForm(
+      { ...base, transactionStatus: "fail" as const, failureReason: "2" as const, paymentType: "1", minAmount: "12,5", customName: "  Kasım " },
+      options,
+      today
+    );
+    expect(fail.ok && fail.payload).toEqual({
+      report_type: "pos_detail",
+      custom_name: "Kasım",
+      start_date: "2026-11-01",
+      end_date: "2026-11-02",
+      transaction_status: "false",
+      payment_type: "1",
+      min_amount: "12.50",
+      failure_reason: "2",
+    });
+    const all = validateReportForm({ ...base, transactionStatus: "all" as const }, options, today);
+    expect(all.ok && all.payload.transaction_status).toBeUndefined();
+  });
+
+  it("bölge/konum çoğul anahtar olarak GİTMEZ; kapsamdaki cihazlara çevrilir (web applyScope)", () => {
+    const base = { ...initialReportForm(today, 1), reportType: "pos_detail" };
+    const byRegion = validateReportForm({ ...base, regions: [1] }, options, today);
+    expect(byRegion.ok && byRegion.payload).toMatchObject({ company: 1, devices: ["S1", "S2"] });
+    expect(byRegion.ok && Object.keys(byRegion.payload)).not.toEqual(expect.arrayContaining(["regions", "locations", "companies"]));
+    const byLoc = validateReportForm({ ...base, regions: [1], locations: [11] }, options, today);
+    expect(byLoc.ok && byLoc.payload.devices).toEqual(["S2"]);
+    // Açık cihaz seçimi kapsamdan önceliklidir
+    const explicit = validateReportForm({ ...base, regions: [1], devices: ["S4"] }, options, today);
+    expect(explicit.ok && explicit.payload.devices).toEqual(["S4"]);
+    // Cihazı olmayan bölge: yanlış (tüm şirket) rapor yerine hata
+    expect(validateReportForm({ ...base, regions: [3] }, options, today)).toMatchObject({ ok: false, errors: { scope: expect.any(String) } });
+  });
+
+  it("PersonelKart: yalnız NFC filtreleri + şirket + kart UID'leri", () => {
     const form = {
-      ...initialReportForm(today),
+      ...initialReportForm(today, 1),
       reportType: "nfc_balance_logs",
-      devices: ["PAV1"],
-      nfcSource: "pos",
+      devices: ["S1"],
+      nfcSource: "pos_sale",
+      nfcOperation: "add",
       minAmount: "abc",
+      nfcCardUids: ["U1", "U2"],
     };
-    const res = validateReportForm(form, today);
+    const res = validateReportForm(form, options, today);
     expect(res.ok && res.payload).toEqual({
       report_type: "nfc_balance_logs",
       start_date: "2026-11-18",
       end_date: "2026-11-18",
-      nfc_source: "pos",
+      company: 1,
+      nfc_source: "pos_sale",
+      nfc_operation: "add",
+      nfc_card_uids: ["U1", "U2"],
     });
   });
 
-  it("ters aralık, gelecek tarih ve geçersiz tutar hata verir", () => {
+  it("Aylık Analiz: nfc_monthly_analysis, ayın tamamı, kaynak/işlem gönderilmez", () => {
+    const form = {
+      ...initialReportForm(today, 1),
+      reportType: "nfc_balance_logs",
+      nfcMonthly: true,
+      analysisMonth: 2,
+      analysisYear: 2024,
+      nfcSource: "pos_sale",
+      startInput: "bozuk",
+    };
+    const res = validateReportForm(form, options, today);
+    expect(res.ok && res.payload).toEqual({
+      report_type: "nfc_monthly_analysis",
+      start_date: "2024-02-01",
+      end_date: "2024-02-29",
+      company: 1,
+    });
+  });
+
+  it("ters aralık, gelecek tarih, 365 günü aşan aralık ve geçersiz tutar hata verir", () => {
     const base = { ...initialReportForm(today), reportType: "pos_detail" };
-    expect(validateReportForm({ ...base, startInput: "10.11.2026", endInput: "01.11.2026" }, today)).toMatchObject({
+    expect(validateReportForm({ ...base, startInput: "10.11.2026", endInput: "01.11.2026" }, options, today)).toMatchObject({
       ok: false,
       errors: { range: expect.any(String) },
     });
-    expect(validateReportForm({ ...base, endInput: "19.11.2026" }, today)).toMatchObject({
+    expect(validateReportForm({ ...base, endInput: "19.11.2026" }, options, today)).toMatchObject({
       ok: false,
       errors: { endInput: expect.any(String) },
     });
-    expect(validateReportForm({ ...base, minAmount: "-3" }, today)).toMatchObject({
+    expect(validateReportForm({ ...base, startInput: "01.01.2025", endInput: "18.11.2026" }, options, today)).toMatchObject({
+      ok: false,
+      errors: { range: expect.stringContaining("365") },
+    });
+    expect(validateReportForm({ ...base, minAmount: "-3" }, options, today)).toMatchObject({
       ok: false,
       errors: { minAmount: expect.any(String) },
     });
   });
 
   it("şirket değişince geçersiz alt seçimleri temizler", () => {
-    const options = {
-      regions: [
-        { id: 1, name: "A", company_id: 1 },
-        { id: 2, name: "B", company_id: 2 },
-      ],
-      locations: [
-        { id: 10, name: "L1", region_id: 1, region_name: "A" },
-        { id: 20, name: "L2", region_id: 2, region_name: "B" },
-      ],
-      devices: [
-        { id: 1, sn: "S1", pos_name: null, company_id: 1, location_id: 10 },
-        { id: 2, sn: "S2", pos_name: null, company_id: 2, location_id: 20 },
-      ],
-    } as unknown as ReportFilterOptions;
-    const form = { ...initialReportForm(today), companies: [1], regions: [1, 2], locations: [10, 20], devices: ["S1", "S2"] };
+    const form = { ...initialReportForm(today, 1), regions: [1, 2], locations: [10, 20], devices: ["S1", "S3"] };
     expect(pruneSelections(form, options)).toMatchObject({ regions: [1], locations: [10], devices: ["S1"] });
+  });
+
+  it("filtre seçenekleri farklı şirketi içerse de seçili şirketin cihazları listelenir", () => {
+    expect(availableDevices(options, 2).map((d) => d.sn)).toEqual(["S3"]);
+    expect(availableDevices(options, null)).toHaveLength(4);
+    expect(scopeDevices(options, { company: 1, regions: [], locations: [] })).toBeNull();
   });
 });
 

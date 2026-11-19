@@ -1,6 +1,6 @@
 # Mağaza Uygunluk Denetimi — App Store & Google Play
 
-Tarih: 2026-11-18 · Uygulama kimliği: **`tr.com.vennex`** (iOS bundle id = Android paket adı)
+Tarih: 2026-11-19 · Uygulama kimliği: **`tr.com.vennex`** (iOS bundle id = Android paket adı)
 
 Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** (artık canlıda — ✔ say) · **👤** mağaza konsolunda sizin yapmanız gereken adım · **❓** karar gerekiyor.
 
@@ -33,7 +33,7 @@ Durumlar: **✔** uygulamada/kodda karşılandı · **⏳** (artık canlıda —
 | 2.1 Uygulama eksiksizliği, demo hesap | 👤 | Yukarıdaki inceleme hesabı |
 | 3.1 Ödeme | ✔ | Uygulama içi satın alma yok; cari/fatura yalnız görüntüleme (B2B hizmet) |
 | Push yeteneği | ✔ / 👤 | `aps-environment` entitlement hazır; Apple Developer'da `tr.com.vennex` App ID + Push Notifications |
-| iPad desteği | ✔ karar: **desteklenecek** / 👤 | `supportsTablet: true`. App Store Connect'e **iPad ekran görüntüleri** (13" iPad) yüklenmeli; inceleme iPad'de de yapılır. İçerik genişliği `layout.maxContentWidth` ile sınırlı; **iPad düzeninin simülatörde görsel kontrolü henüz yapılmadı** (NOT TESTED) |
+| iPad desteği | ✔ karar: **desteklenecek** / 👤 | `supportsTablet: true`. App Store Connect'e **iPad ekran görüntüleri** (13" iPad) yüklenmeli; inceleme iPad'de de yapılır. Tüm ekranlar, sekme başlığı ve alt sayfalar 720 pt okunabilir genişlikte ortalı; iPad Pro 13" simülatöründe görsel tur **PASS** (2026-11-19) |
 | Destek URL'si | 👤 | App Store Connect zorunlu alan (ör. vennex.com.tr iletişim sayfası) |
 | Yaş derecelendirmesi | 👤 | Anket: kullanıcı içeriği/şiddet vb. yok → 4+ |
 

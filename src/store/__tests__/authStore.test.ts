@@ -64,9 +64,24 @@ describe("authStore", () => {
 
       await useAuthStore.getState().bootstrap();
 
-      expect(useAuthStore.getState().status).toBe("unauthenticated");
+      // Giriş ekranına atmaz: bağlantı ekranı gösterilir, token'lar korunur
+      expect(useAuthStore.getState().status).toBe("offline");
       expect(useAuthStore.getState().errorMessage).toMatch(/ulaşılamadı/);
       expect(await tokenStorage.getAccess()).toBe("A");
+    });
+
+    it("sunucu 5xx verirse de oturumu korur; bağlantı gelince tekrar deneme oturumu açar", async () => {
+      await AsyncStorage.setItem("vennex.install.marker", "1");
+      await tokenStorage.setTokens("A", "R");
+      mock.onGet("/auth/me/").replyOnce(502, {}).onGet("/auth/me/").replyOnce(200, makeUser());
+
+      await useAuthStore.getState().bootstrap();
+      expect(useAuthStore.getState().status).toBe("offline");
+      expect(await tokenStorage.getRefresh()).toBe("R");
+
+      await useAuthStore.getState().bootstrap();
+      expect(useAuthStore.getState().status).toBe("authenticated");
+      expect(useAuthStore.getState().errorMessage).toBeNull();
     });
   });
 
@@ -199,6 +214,19 @@ describe("authStore", () => {
     expect(useAuthStore.getState()).toMatchObject({ status: "unauthenticated", user: null });
     expect(await tokenStorage.getAccess()).toBeNull();
     expect(JSON.parse(mock.history.post[0].data)).toEqual({ refresh: "R" });
+    // Token'lar silinmeden önce, erişim token'ıyla gönderilir (yoksa backend 401 verir, refresh kara listeye girmez)
+    expect(mock.history.post[0].headers?.Authorization).toBe("Bearer A");
+  });
+
+  it("logout isteği 401 dönse de 'oturum sona erdi' akışını tetiklemez", async () => {
+    await tokenStorage.setTokens("A", "R");
+    useAuthStore.setState({ status: "authenticated", user: makeUser() });
+    mock.onPost("/auth/logout/").reply(401, { detail: "Kimlik bilgileri verilmedi." });
+
+    await useAuthStore.getState().logout();
+
+    expect(useAuthStore.getState()).toMatchObject({ status: "unauthenticated", errorMessage: null });
+    expect(mock.history.post.filter((r) => r.url === "/auth/refresh/")).toHaveLength(0);
   });
 
   it("backend logout hata verse de istemci çıkışı tamamlanır", async () => {

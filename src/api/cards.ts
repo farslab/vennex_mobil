@@ -11,6 +11,9 @@ import { apiClient } from "./client";
 import { unwrapResults, type PageResponse } from "./pagination";
 import { toApiDecimal } from "@/utils/number";
 import type {
+  CardBalanceLog,
+  GroupQuotaCreatePayload,
+  GroupQuotaResult,
   BulkBalanceOperation,
   BulkGroupsOperation,
   BulkResult,
@@ -116,6 +119,26 @@ export function normalizeCardList(raw: unknown): CardListResponse {
     ...normalizePage(raw, normalizeCard),
     active_count: int(o.active_count),
     pending_count: int(o.pending_count),
+  };
+}
+
+export function normalizeBalanceLog(raw: unknown): CardBalanceLog {
+  const o = asObject(raw);
+  const u = o.user && typeof o.user === "object" ? asObject(o.user) : null;
+  const d = o.pos_device && typeof o.pos_device === "object" ? asObject(o.pos_device) : null;
+  return {
+    id: int(o.id),
+    created_at: str(o.created_at) ?? "",
+    amount: money(o.amount),
+    balance_before: money(o.balance_before),
+    balance_after: money(o.balance_after),
+    source: str(o.source) ?? "",
+    source_label: str(o.source_label) ?? str(o.source) ?? "",
+    operation: str(o.operation) ?? "",
+    operation_label: str(o.operation_label) ?? str(o.operation) ?? "",
+    description: str(o.description) || null,
+    user: u ? { id: int(u.id), name: str(u.name) ?? "" } : null,
+    pos_device: d ? { id: int(d.id), sn: str(d.sn) ?? "", pos_name: str(d.pos_name) || null } : null,
   };
 }
 
@@ -302,6 +325,10 @@ export const cardsApi = {
   rejectAllPending: (): Promise<BulkResult> =>
     apiClient.post("/cards/reject-all-pending/").then((r) => normalizeBulkResult(r.data)),
 
+  /** Bakiye hareketleri (web kart geçmişi), 25/sayfa, en yeni önce */
+  balanceLogs: (id: number, page = 1, signal?: AbortSignal): Promise<PageResponse<CardBalanceLog>> =>
+    apiClient.get(`/cards/${id}/balance-logs/`, { params: { page }, signal }).then((r) => normalizePage(r.data, normalizeBalanceLog)),
+
   transactions: (id: number, limit = CARD_TX_DEFAULT_LIMIT, signal?: AbortSignal): Promise<CardTransactionsResponse> =>
     apiClient
       .get(`/cards/${id}/transactions/`, { params: { limit: Math.min(limit, CARD_TX_MAX_LIMIT) }, signal })
@@ -333,17 +360,6 @@ export const cardsApi = {
    * Bir gruptaki tüm aktif kartların id'leri — tüm sayfalar gezilir (yalnız 1. sayfa değil).
    * Grup bazlı istihkak ataması için; backend'de toplu/grup seçeneği yok.
    */
-  allCardsInGroup: async (groupId: number, signal?: AbortSignal): Promise<PersonnelCard[]> => {
-    const out: PersonnelCard[] = [];
-    let page = 1;
-    for (;;) {
-      const res = await cardsApi.list({ status: "active", group_id: groupId, page }, signal);
-      out.push(...res.results);
-      if (res.page >= res.num_pages || res.results.length === 0) break;
-      page = res.page + 1;
-    }
-    return out;
-  },
 
   groups: {
     list: (params: { q?: string } = {}, signal?: AbortSignal): Promise<CardGroup[]> => {
@@ -413,6 +429,12 @@ export const cardsApi = {
       apiClient.get("/card-quotas/", { params: withQ(params), signal }).then((r) => normalizePage(r.data, normalizeQuota)),
     create: (payload: CardQuotaCreatePayload, signal?: AbortSignal): Promise<CreatedIdsResponse> =>
       apiClient.post("/card-quotas/", payload, { signal }).then((r) => normalizeCreatedIds(r.data)),
+    /** Gruptaki tüm aktif kartlar — tek istek; çakışmada hiçbiri yazılmaz (400) */
+    createForGroup: (payload: GroupQuotaCreatePayload): Promise<GroupQuotaResult> =>
+      apiClient.post("/card-quotas/", payload).then((r) => {
+        const o = asObject(r.data);
+        return { created: int(o.created), skipped: int(o.skipped), cards: int(o.cards), detail: str(o.detail) ?? "" };
+      }),
     update: (id: number, patch: CardQuotaUpdatePayload): Promise<CardQuota> =>
       apiClient.patch(`/card-quotas/${id}/`, patch).then((r) => normalizeQuota(r.data)),
     remove: (id: number): Promise<void> => apiClient.delete(`/card-quotas/${id}/`).then(() => undefined),

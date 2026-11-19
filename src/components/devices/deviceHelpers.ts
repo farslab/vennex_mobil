@@ -6,6 +6,7 @@
  *  - act_macstat: 0–5 (api/models.py:788)
  *  - operating_hours_mode: 0/1/2 (api/models.py:812-821)
  */
+import { businessToday } from "@/utils/date";
 import type { StatusTone } from "@/design-system";
 import { toNumber } from "@/utils/number";
 import type {
@@ -309,7 +310,7 @@ export const DATE_PRESETS: { key: DatePreset; label: string }[] = [
 ];
 
 /** Hazır tarih aralığı (yerel gün) */
-export function presetRange(preset: Exclude<DatePreset, "custom">, now: Date = new Date()): { start: Date; end: Date } {
+export function presetRange(preset: Exclude<DatePreset, "custom">, now: Date = businessToday()): { start: Date; end: Date } {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   switch (preset) {
     case "today":

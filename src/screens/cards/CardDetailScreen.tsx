@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
+import { usePagedList } from "@/hooks/usePagedList";
 import {
   AppBadge,
   AppButton,
@@ -16,12 +17,12 @@ import {
   AppText,
   makeStyles,
 } from "@/design-system";
-import { CARD_TX_DEFAULT_LIMIT, CARD_TX_MAX_LIMIT, cardsApi } from "@/api/cards";
+import { cardsApi } from "@/api/cards";
 import { errorMessage } from "@/api/client";
-import { formatCurrency, formatInteger } from "@/utils/number";
+import { formatCurrency, formatInteger, toNumber } from "@/utils/number";
 import { formatDate, formatDateTime } from "@/utils/date";
 import type { RootScreenProps } from "@/navigation/types";
-import type { CardTransaction } from "@/types/cards";
+import type { CardBalanceLog } from "@/types/cards";
 import { cardKeys } from "./hooks/cardKeys";
 import { useCardAccess } from "./hooks/useCardAccess";
 import { generalErrorOf, useLockedMutation } from "./hooks/useLockedMutation";
@@ -31,16 +32,13 @@ import { ApproveCardSheet } from "./components/ApproveCardSheet";
 import { InfoLine } from "./components/Common";
 import { cardDisplayName } from "./components/format";
 
-const CANCEL_REASONS: Record<number, string> = { 1: "Zaman aşımı", 2: "Banka reddi", 3: "Teknik hata" };
-
 type Props = Pick<RootScreenProps<"CardDetail">, "route" | "navigation">;
 
-/** Kart detayı: GET cards/{id}/, düzenleme, bakiye işlemi, onay/ret, silme, işlem geçmişi */
+/** Kart detayı: GET cards/{id}/, düzenleme, bakiye işlemi, onay/ret, silme, bakiye hareketleri (web ile aynı) */
 export default function CardDetailScreen({ route, navigation }: Props) {
   const id = route.params.id;
   const styles = useStyles();
   const access = useCardAccess();
-  const [limit, setLimit] = useState(CARD_TX_DEFAULT_LIMIT);
   const [editOpen, setEditOpen] = useState(false);
   const [balanceOpen, setBalanceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -52,11 +50,11 @@ export default function CardDetailScreen({ route, navigation }: Props) {
     queryKey: cardKeys.detail(id),
     queryFn: ({ signal }) => cardsApi.detail(id, signal),
   });
-  const txs = useQuery({
-    queryKey: cardKeys.transactions(id, limit),
-    queryFn: ({ signal }) => cardsApi.transactions(id, limit, signal),
+  // Web kart geçmişi bakiye hareketleridir (yükleme/satış/iade/düzeltme/silme), sayfalı
+  const logs = usePagedList<CardBalanceLog>({
+    queryKey: cardKeys.balanceLogs(id),
+    fetchPage: (page, signal) => cardsApi.balanceLogs(id, page, signal),
     enabled: detail.isSuccess,
-    placeholderData: (prev) => prev,
   });
 
   const remove = useLockedMutation({
@@ -84,7 +82,7 @@ export default function CardDetailScreen({ route, navigation }: Props) {
   const refresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([detail.refetch(), txs.refetch()]);
+      await Promise.all([detail.refetch(), logs.refresh()]);
     } finally {
       setRefreshing(false);
     }
@@ -101,8 +99,6 @@ export default function CardDetailScreen({ route, navigation }: Props) {
 
   const card = detail.data;
   const pending = !card.is_active;
-  const tx = txs.data;
-  const canLoadMore = tx != null && tx.transactions.length >= limit && limit < CARD_TX_MAX_LIMIT;
 
   return (
     <AppScreen refreshing={refreshing} onRefresh={refresh} testID="card-detail">
@@ -169,40 +165,36 @@ export default function CardDetailScreen({ route, navigation }: Props) {
         </AppCard>
       </AppSection>
 
-      <AppSection title="İşlem geçmişi">
-        {txs.isLoading ? (
+      <AppSection title="Bakiye hareketleri">
+        {logs.isLoading ? (
           <AppSkeleton height={140} />
-        ) : txs.isError ? (
-          <AppErrorState compact message={errorMessage(txs.error)} onRetry={() => txs.refetch()} />
-        ) : tx && tx.transactions.length > 0 ? (
+        ) : logs.isError ? (
+          <AppErrorState compact message={errorMessage(logs.error)} onRetry={() => logs.refetch()} />
+        ) : logs.items.length > 0 ? (
           <AppCard padded={false}>
             <View style={styles.txSummary}>
-              <AppText variant="caption" color="textSecondary">
-                Son {formatInteger(tx.transactions.length)} işlem
+              <AppText variant="caption" color="textSecondary" testID="card-logs-count">
+                {formatInteger(logs.items.length)} / {formatInteger(logs.total)} hareket
               </AppText>
-              <View style={styles.txCounts}>
-                <AppBadge size="sm" tone="success" label={`${formatInteger(tx.success_count)} başarılı`} />
-                <AppBadge size="sm" tone="danger" label={`${formatInteger(tx.fail_count)} başarısız`} />
-              </View>
             </View>
-            {tx.transactions.map((t, i) => (
-              <TransactionRow key={t.id} tx={t} last={i === tx.transactions.length - 1} />
+            {logs.items.map((l, i) => (
+              <BalanceLogRow key={l.id} log={l} last={i === logs.items.length - 1} />
             ))}
-            {canLoadMore ? (
+            {logs.hasMore ? (
               <View style={styles.more}>
                 <AppButton
                   title="Daha fazla göster"
                   variant="ghost"
                   size="sm"
-                  loading={txs.isFetching}
-                  onPress={() => setLimit(CARD_TX_MAX_LIMIT)}
-                  testID="tx-more"
+                  loading={logs.isFetchingMore}
+                  onPress={logs.loadMore}
+                  testID="logs-more"
                 />
               </View>
             ) : null}
           </AppCard>
         ) : (
-          <AppEmptyState compact icon="activity" title="Bu kartla işlem yapılmamış" />
+          <AppEmptyState compact icon="activity" title="Bu kartta bakiye hareketi yok" />
         )}
       </AppSection>
 
@@ -265,29 +257,35 @@ export default function CardDetailScreen({ route, navigation }: Props) {
   );
 }
 
-function TransactionRow({ tx, last }: { tx: CardTransaction; last: boolean }) {
+function BalanceLogRow({ log, last }: { log: CardBalanceLog; last: boolean }) {
   const styles = useStyles();
-  const reason = !tx.status ? (tx.iptalNo != null ? CANCEL_REASONS[tx.iptalNo] ?? "Diğer" : "Başarısız") : null;
+  const delta = toNumber(log.amount) ?? 0;
+  const who = log.pos_device ? log.pos_device.pos_name || log.pos_device.sn : log.user?.name ?? null;
+  const meta = [formatDateTime(log.created_at), log.source_label, who].filter(Boolean).join(" · ");
+  const sign = delta > 0 ? "+" : "";
   return (
     <View
       style={[styles.txRow, !last && styles.txBorder]}
       accessible
-      accessibilityLabel={`${tx.display_name ?? "İşlem"}, ${formatCurrency(tx.amount)}, ${tx.status ? "başarılı" : `başarısız: ${reason}`}, ${formatDateTime(tx.pt_datetime)}`}
+      accessibilityLabel={`${log.operation_label}, ${sign}${formatCurrency(log.amount)}, yeni bakiye ${formatCurrency(log.balance_after)}, ${meta}`}
     >
       <View style={styles.flex}>
         <AppText variant="callout" numberOfLines={1}>
-          {tx.display_name || (tx.product_no != null ? `Ürün ${tx.product_no}` : "İşlem")}
+          {log.operation_label}
         </AppText>
-        <AppText variant="caption" color="textTertiary">
-          {formatDateTime(tx.pt_datetime)}
-          {reason ? ` · ${reason}` : ""}
+        <AppText variant="caption" color="textTertiary" numberOfLines={2}>
+          {meta}
+          {log.description ? ` · ${log.description}` : ""}
         </AppText>
       </View>
       <View style={styles.txRight}>
-        <AppText variant="numeric" color={tx.status ? "text" : "textTertiary"}>
-          {formatCurrency(tx.amount)}
+        <AppText variant="numeric" color={delta < 0 ? "danger" : delta > 0 ? "success" : "text"}>
+          {sign}
+          {formatCurrency(log.amount)}
         </AppText>
-        {!tx.status ? <AppBadge size="sm" tone="danger" label="Başarısız" /> : null}
+        <AppText variant="caption" color="textTertiary">
+          Bakiye {formatCurrency(log.balance_after)}
+        </AppText>
       </View>
     </View>
   );
@@ -309,7 +307,6 @@ const useStyles = makeStyles((t) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: t.colors.border,
     },
-    txCounts: { flexDirection: "row", gap: t.spacing.xs },
     txRow: {
       flexDirection: "row",
       alignItems: "center",

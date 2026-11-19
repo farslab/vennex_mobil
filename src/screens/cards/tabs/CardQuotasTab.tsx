@@ -26,13 +26,13 @@ import { errorMessage } from "@/api/client";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { formatInteger } from "@/utils/number";
-import type { CardQuota, CardQuotaCreatePayload, PersonnelCard, QuotaPeriod } from "@/types/cards";
+import type { CardQuota, CardQuotaCreatePayload, GroupQuotaCreatePayload, QuotaDistribution, QuotaPeriod } from "@/types/cards";
 import { cardKeys } from "../hooks/cardKeys";
 import { fieldErrorsOf, generalErrorOf, useLockedMutation } from "../hooks/useLockedMutation";
 import { ActiveBadge, ListFooter, RuleRow } from "../components/Common";
 import { CardPicker, GroupPicker, type PickedRef } from "../components/Pickers";
 import { GroupFilterSheet, type GroupFilter } from "../components/GroupFilterSheet";
-import { QuotaBatchSheet } from "../components/QuotaBatchSheet";
+import { DistributionField } from "../components/DistributionField";
 import { QUOTA_PERIOD_LABELS, normalizeProductNo, validatePositiveInt } from "../components/format";
 import { useOnOpen, useOnValueChange } from "../hooks/useOnOpen";
 
@@ -268,10 +268,10 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
   const [quantity, setQuantity] = useState("1");
   const [active, setActive] = useState(true);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
-  const [batch, setBatch] = useState<{ cards: PersonnelCard[]; base: Omit<CardQuotaCreatePayload, "card"> } | null>(null);
-  const [loadingCards, setLoadingCards] = useState(false);
+  const [dagitim, setDagitim] = useState<QuotaDistribution>("ayri");
+  const [groupConfirm, setGroupConfirm] = useState<GroupQuotaCreatePayload | null>(null);
   // Kaydedilmemiş değişiklik: kapatırken onay iste
-  const dirty = useFormDirty(visible, { group: group?.id ?? null, mode, card: card?.id ?? null, productNo, period, quantity, active });
+  const dirty = useFormDirty(visible, { group: group?.id ?? null, mode, card: card?.id ?? null, productNo, period, quantity, active, dagitim });
   const guardedClose = useGuardedClose(dirty, onClose);
 
   useOnOpen(visible, () => {
@@ -282,8 +282,9 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
     setPeriod("monthly");
     setQuantity("1");
     setActive(true);
+    setDagitim("ayri");
     setErrors({});
-    setBatch(null);
+    setGroupConfirm(null);
   });
 
   const save = useLockedMutation({
@@ -311,25 +312,27 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
     if ("error" in qty) errs.quantity = qty.error;
     setErrors(errs);
     if (Object.keys(errs).length || !group || !("value" in pn) || !("value" in qty)) return;
-    const base = { group: group.id, product_no: pn.value, period, quantity: qty.value, is_active: active };
+    const base: GroupQuotaCreatePayload = { group: group.id, product_no: pn.value, period, quantity: qty.value, is_active: active, dagitim };
     if (mode === "card" && card) {
       save.run({ ...base, card: card.id });
       return;
     }
-    setLoadingCards(true);
-    try {
-      const cards = await cardsApi.allCardsInGroup(group.id);
-      if (cards.length === 0) {
-        setErrors({ group: "Bu grupta aktif kart yok." });
-        return;
-      }
-      setBatch({ cards, base });
-    } catch (e) {
-      setErrors({ group: errorMessage(e) });
-    } finally {
-      setLoadingCards(false);
-    }
+    // Web ile aynı: gruptaki tüm aktif kartlar TEK istekte, sunucu tarafında (çakışmada hiçbiri yazılmaz)
+    groupSave.reset();
+    setGroupConfirm(base);
   };
+
+  const groupSave = useLockedMutation({
+    mutationFn: (payload: GroupQuotaCreatePayload) => cardsApi.quotas.createForGroup(payload),
+    successMessage: (res) =>
+      res.skipped > 0
+        ? `${formatInteger(res.created)} istihkak oluşturuldu, ${formatInteger(res.skipped)} zaten tanımlıydı.`
+        : `${formatInteger(res.created)} istihkak oluşturuldu (${formatInteger(res.cards)} kart).`,
+    onSuccess: () => {
+      setGroupConfirm(null);
+      onClose();
+    },
+  });
 
   return (
     <AppSheet
@@ -337,14 +340,14 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
       onClose={onClose}
       dirty={dirty}
       title="Yeni istihkak"
-      dismissible={!save.isPending && !loadingCards}
+      dismissible={!save.isPending && !groupSave.isPending}
       footer={
         <>
           <AppButton title="Vazgeç" variant="outline" onPress={guardedClose} style={styles.flex} />
           <AppButton
             title={mode === "group_all" ? "Devam" : "Oluştur"}
             onPress={submit}
-            loading={save.isPending || loadingCards}
+            loading={save.isPending}
             style={styles.flex}
             testID="quota-create-submit"
           />
@@ -388,10 +391,7 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
           testID="quota-card"
         />
       ) : (
-        <AppNotice
-          tone="warning"
-          message="Toplu istihkak backend'de desteklenmiyor: gruptaki her aktif kart için ayrı istek gönderilir ve ilerleme tek tek gösterilir."
-        />
+        <AppNotice tone="info" message="Gruptaki tüm aktif kartlara aynı istihkak tek seferde tanımlanır. Çakışan bir tanım varsa hiçbiri yazılmaz." />
       )}
       <AppInput
         label="Ürün no"
@@ -401,7 +401,7 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
           setErrors((e) => ({ ...e, product_no: undefined }));
         }}
         autoCapitalize="none"
-        helper="* tüm ürünler · 12 · 1,2,3 · 20-40 (her parça ayrı istihkak)"
+        helper="* tüm ürünler · 12 tek · 20-40 aralık · 1,2,3 liste · 20-30,12,13 karışık"
         error={errors.product_no}
         testID="quota-product"
       />
@@ -418,27 +418,29 @@ function QuotaCreateSheet({ visible, onClose }: { visible: boolean; onClose: () 
         error={errors.quantity}
         testID="quota-quantity"
       />
+      <DistributionField value={dagitim} onChange={setDagitim} />
       <AppSwitchRow label="İstihkak aktif" value={active} onChange={setActive} />
 
-      <QuotaBatchSheet
-        visible={batch != null}
-        cards={batch?.cards ?? []}
-        base={batch?.base ?? null}
+      <AppConfirmSheet
+        visible={groupConfirm != null}
+        title="Gruptaki tüm kartlara istihkak tanımlansın mı?"
+        message="Gruptaki tüm aktif kartlara tek seferde tanımlanır."
         summary={
-          batch
+          groupConfirm
             ? [
                 { label: "Grup", value: group?.label ?? "—" },
-                { label: "Kart sayısı", value: `${batch.cards.length} kart` },
-                { label: "Ürün", value: productText(batch.base.product_no) },
-                { label: "Periyot", value: QUOTA_PERIOD_LABELS[batch.base.period] },
-                { label: "Miktar", value: `${batch.base.quantity} adet` },
+                { label: "Ürün", value: productText(groupConfirm.product_no) },
+                { label: "Dağıtım", value: groupConfirm.dagitim === "havuz" ? "Havuz (tek hak)" : "Her ürüne ayrı" },
+                { label: "Periyot", value: QUOTA_PERIOD_LABELS[groupConfirm.period] },
+                { label: "Miktar", value: `${groupConfirm.quantity} adet` },
               ]
             : []
         }
-        onClose={() => {
-          setBatch(null);
-          onClose();
-        }}
+        confirmLabel="Tanımla"
+        loading={groupSave.isPending}
+        error={generalErrorOf(groupSave.error)}
+        onConfirm={() => groupConfirm && groupSave.run(groupConfirm)}
+        onCancel={() => setGroupConfirm(null)}
       />
     </AppSheet>
   );

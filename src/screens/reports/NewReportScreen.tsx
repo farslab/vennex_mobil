@@ -26,34 +26,44 @@ import {
 import { errorMessage, type ApiError } from "@/api/client";
 import { reportsApi } from "@/api/reports";
 import { queryKeys } from "@/api/queryKeys";
-import { canViewSales } from "@/auth/permissions";
+import { cardsApi } from "@/api/cards";
+import { canManagePersonelCard, canViewSales } from "@/auth/permissions";
 import { useAuthStore } from "@/store/authStore";
 import { formatDate } from "@/utils/date";
 import { formatInteger } from "@/utils/number";
 import {
   REPORT_FAILURE_REASONS,
   REPORT_PAYMENT_TYPES,
-  REPORT_TYPE_DESCRIPTIONS,
   type ReportFailureReason,
   type ReportFilterOptions,
   type ReportTransactionStatus,
 } from "@/types/reports";
+import { CardPicker, GroupPicker } from "@/screens/cards/components/Pickers";
+import { cardDisplayName } from "@/screens/cards/components/format";
 import type { RootStackParamList } from "@/navigation/types";
 import {
   CUSTOM_NAME_MAX,
   DATE_PRESETS,
+  MONTH_NAMES,
+  analysisYears,
   availableDevices,
   availableLocations,
   availableRegions,
   defaultReportType,
   initialReportForm,
   isNfcReport,
+  monthlyAnalysisAvailable,
   presetRange,
   pruneSelections,
+  scopeDevices,
   validateReportForm,
+  visibleReportTypes,
   type ReportFormErrors,
   type ReportFormState,
 } from "./reportForm";
+
+/** Grup seçimi kartları işaretler (web); büyük gruplarda üst sınır */
+const GROUP_CARD_LIMIT = 1000;
 
 const ALL = "__all__";
 
@@ -71,14 +81,26 @@ export default function NewReportScreen() {
   });
   const options = optionsQuery.data;
 
-  const [form, setForm] = useState<ReportFormState>(() => initialReportForm());
+  const headerCompanyId = useAuthStore((s) => s.selectedCompanyId);
+  const [rawForm, setForm] = useState<ReportFormState>(() => initialReportForm());
+  const [companyChosen, setCompanyChosen] = useState(false);
   const [errors, setErrors] = useState<ReportFormErrors>({});
+
+  // Web: oturumdaki şirket önseçili; kullanıcı şirket seçene kadar o geçerlidir
+  const presetCompany = useMemo(() => {
+    const ids = options?.companies.map((c) => c.id) ?? [];
+    if (headerCompanyId != null && ids.includes(headerCompanyId)) return headerCompanyId;
+    return ids.length === 1 ? ids[0] : null;
+  }, [options, headerCompanyId]);
+  const form = companyChosen ? rawForm : { ...rawForm, company: presetCompany };
   const reportType = form.reportType || defaultReportType(options);
   const nfc = isNfcReport(reportType);
 
   const update = (patch: Partial<ReportFormState>, prune = false) => {
+    if ("company" in patch) setCompanyChosen(true);
     setForm((f) => {
-      const next = { ...f, ...patch };
+      const base = companyChosen || "company" in patch ? f : { ...f, company: presetCompany };
+      const next = { ...base, ...patch };
       return prune ? pruneSelections(next, options) : next;
     });
     setErrors((e) => {
@@ -105,7 +127,7 @@ export default function NewReportScreen() {
 
   const submit = () => {
     if (create.isPending) return;
-    const result = validateReportForm({ ...form, reportType });
+    const result = validateReportForm({ ...form, reportType }, options);
     if (!result.ok) {
       setErrors(result.errors);
       return;
@@ -157,30 +179,20 @@ export default function NewReportScreen() {
       <SubmitErrorNotice error={apiError} onGoReports={() => navigation.navigate("Reports")} />
 
       <AppSection title="Rapor tipi">
-        {options.report_types.length === 0 ? (
+        {visibleReportTypes(options).length === 0 ? (
           <AppNotice tone="warning" message="Sunucu kullanılabilir rapor tipi döndürmedi." />
         ) : (
           <View style={styles.typeList} accessibilityRole="radiogroup">
-            {options.report_types.map((t) => {
-              const disabled = isNfcReport(t.value) && !options.has_personel_kart_pos;
+            {visibleReportTypes(options).map((t) => {
               const selected = reportType === t.value;
-              const desc = disabled
-                ? "Şirketinizde PersonelKart özelliği aktif POS bulunmuyor."
-                : (REPORT_TYPE_DESCRIPTIONS as Record<string, string>)[t.value];
               return (
                 <Pressable
                   key={t.value}
-                  onPress={() => update({ reportType: t.value })}
-                  disabled={disabled}
+                  onPress={() => update({ reportType: t.value, nfcMonthly: false })}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected, disabled }}
-                  accessibilityLabel={`${t.label}${desc ? `. ${desc}` : ""}`}
-                  style={({ pressed }) => [
-                    styles.typeCard,
-                    selected && styles.typeCardOn,
-                    disabled && styles.disabled,
-                    pressed && !selected && styles.pressed,
-                  ]}
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`${t.label}. ${t.description}`}
+                  style={({ pressed }) => [styles.typeCard, selected && styles.typeCardOn, pressed && !selected && styles.pressed]}
                   testID={`report-type-${t.value}`}
                 >
                   <View style={[styles.radio, selected && styles.radioOn]}>
@@ -190,11 +202,9 @@ export default function NewReportScreen() {
                     <AppText variant="calloutStrong" color={selected ? "primary" : "text"}>
                       {t.label}
                     </AppText>
-                    {desc ? (
-                      <AppText variant="caption" color="textTertiary">
-                        {desc}
-                      </AppText>
-                    ) : null}
+                    <AppText variant="caption" color="textTertiary">
+                      {t.description}
+                    </AppText>
                   </View>
                 </Pressable>
               );
@@ -208,6 +218,7 @@ export default function NewReportScreen() {
         ) : null}
       </AppSection>
 
+      {nfc && form.nfcMonthly ? null : (
       <AppSection title="Tarih aralığı">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={styles.chipScroll}>
           {DATE_PRESETS.map((p) => {
@@ -253,6 +264,7 @@ export default function NewReportScreen() {
         </View>
         {errors.range ? <AppNotice tone="danger" message={errors.range} /> : null}
       </AppSection>
+      )}
 
       {nfc ? (
         <NfcFilters options={options} form={form} update={update} />
@@ -279,6 +291,20 @@ export default function NewReportScreen() {
 
 type Update = (patch: Partial<ReportFormState>, prune?: boolean) => void;
 
+function CompanySelect({ options, form, update }: { options: ReportFilterOptions; form: ReportFormState; update: Update }) {
+  if (options.companies.length <= 1) return null;
+  return (
+    <AppSelect<string>
+      label="Şirket"
+      placeholder="Tümü"
+      options={[{ value: ALL, label: "Tümü" }, ...options.companies.map((c) => ({ value: String(c.id), label: c.name }))]}
+      value={form.company == null ? ALL : String(form.company)}
+      onChange={(v) => update({ company: v === ALL ? null : Number(v), nfcCardUids: [] }, true)}
+      testID="report-company"
+    />
+  );
+}
+
 function PosFilters({
   options,
   form,
@@ -291,34 +317,25 @@ function PosFilters({
   errors: ReportFormErrors;
 }) {
   const styles = useStyles();
-  const regions = useMemo(() => availableRegions(options, form.companies), [options, form.companies]);
-  const locations = useMemo(
-    () => availableLocations(options, form.companies, form.regions),
-    [options, form.companies, form.regions]
-  );
-  const devices = useMemo(
-    () => availableDevices(options, form.companies, form.locations),
-    [options, form.companies, form.locations]
-  );
+  const regions = useMemo(() => availableRegions(options, form.company), [options, form.company]);
+  const locations = useMemo(() => availableLocations(options, form.company, form.regions), [options, form.company, form.regions]);
+  const devices = useMemo(() => availableDevices(options, form.company), [options, form.company]);
+  const scoped = useMemo(() => scopeDevices(options, form), [options, form]);
+
+  const deviceHint = form.devices.length
+    ? `${form.devices.length} cihaz seçildi`
+    : scoped
+      ? `Seçilen bölge/konumdaki ${scoped.length} cihaz rapora girer`
+      : null;
 
   return (
     <AppSection title="Filtreler">
       <View style={styles.fields}>
-        {options.companies.length > 1 ? (
-          <AppSelect<number>
-            multiple
-            label="Şirketler"
-            placeholder="Tüm şirketler"
-            options={options.companies.map((c) => ({ value: c.id, label: c.name }))}
-            value={form.companies}
-            onChange={(v) => update({ companies: v }, true)}
-            testID="report-companies"
-          />
-        ) : null}
+        <CompanySelect options={options} form={form} update={update} />
         {regions.length > 0 ? (
           <AppSelect<number>
             multiple
-            label="Bölgeler"
+            label="Bölge"
             placeholder="Tüm bölgeler"
             options={regions.map((r) => ({ value: r.id, label: r.name }))}
             value={form.regions}
@@ -329,18 +346,19 @@ function PosFilters({
         {locations.length > 0 ? (
           <AppSelect<number>
             multiple
-            label="Konumlar"
+            label="Konum"
             placeholder="Tüm konumlar"
             options={locations.map((l) => ({ value: l.id, label: l.name, description: l.region_name ?? undefined }))}
             value={form.locations}
             onChange={(v) => update({ locations: v }, true)}
+            searchable
             testID="report-locations"
           />
         ) : null}
         <AppSelect<string>
           multiple
           label="POS cihazları"
-          placeholder={devices.length ? `Tüm cihazlar (${devices.length})` : "Cihaz bulunamadı"}
+          placeholder={devices.length ? `Tüm cihazlar (${formatInteger(devices.length)})` : "Cihaz bulunamadı"}
           options={devices.map((d) => ({ value: d.sn, label: d.pos_name || d.sn, description: d.sn }))}
           value={form.devices}
           onChange={(v) => update({ devices: v })}
@@ -348,6 +366,12 @@ function PosFilters({
           searchable
           testID="report-devices"
         />
+        {deviceHint ? (
+          <AppText variant="caption" color="textSecondary" testID="report-scope-hint">
+            {deviceHint}
+          </AppText>
+        ) : null}
+        {errors.scope ? <AppNotice tone="danger" message={errors.scope} /> : null}
 
         <View style={styles.field}>
           <AppText variant="label" color="textSecondary">
@@ -367,9 +391,9 @@ function PosFilters({
 
         {form.transactionStatus === "fail" ? (
           <AppSelect<string>
-            label="Başarısızlık nedeni"
-            placeholder="Tüm nedenler"
-            options={[{ value: ALL, label: "Tüm nedenler" }, ...REPORT_FAILURE_REASONS]}
+            label="Başarısız sebebi"
+            placeholder="Tümü"
+            options={[{ value: ALL, label: "Tümü" }, ...REPORT_FAILURE_REASONS]}
             value={form.failureReason || ALL}
             onChange={(v) => update({ failureReason: v === ALL ? "" : (v as ReportFailureReason) })}
             testID="report-failure-reason"
@@ -389,7 +413,7 @@ function PosFilters({
           </View>
           <View style={styles.flex}>
             <AppInput
-              label="En az tutar"
+              label="Minimum tutar"
               placeholder="0,00"
               suffix="₺"
               keyboardType="decimal-pad"
@@ -407,29 +431,177 @@ function PosFilters({
 
 function NfcFilters({ options, form, update }: { options: ReportFilterOptions; form: ReportFormState; update: Update }) {
   const styles = useStyles();
-  if (!options.nfc_sources.length && !options.nfc_operations.length) return null;
+  const user = useAuthStore((s) => s.user);
+  // Kart/grup listeleri kart yetkisi ister; yoksa rapor yetki kapsamındaki tüm kartları içerir
+  const canPickCards = canManagePersonelCard(user);
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [groupNote, setGroupNote] = useState<string | null>(null);
+  const years = useMemo(() => analysisYears(), []);
+
+  const addCards = (items: { uid: string; label: string }[]) => {
+    setLabels((l) => ({ ...l, ...Object.fromEntries(items.map((i) => [i.uid, i.label])) }));
+    update({ nfcCardUids: Array.from(new Set([...form.nfcCardUids, ...items.map((i) => i.uid)])) });
+  };
+
+  /** Web: grup seçimi gruptaki kartları işaretler */
+  const selectGroup = async (groupId: number, groupLabel: string) => {
+    setGroupLoading(true);
+    setGroupNote(null);
+    try {
+      const picked: { uid: string; label: string }[] = [];
+      let page = 1;
+      let pages = 1;
+      do {
+        const res = await cardsApi.list({ status: "active", group_id: groupId, page });
+        res.results.forEach((c) => picked.push({ uid: c.uid, label: cardDisplayName(c) }));
+        pages = res.num_pages;
+        page += 1;
+      } while (page <= pages && picked.length < GROUP_CARD_LIMIT);
+      addCards(picked.slice(0, GROUP_CARD_LIMIT));
+      setGroupNote(
+        picked.length >= GROUP_CARD_LIMIT
+          ? `${groupLabel}: ilk ${formatInteger(GROUP_CARD_LIMIT)} kart işaretlendi.`
+          : `${groupLabel}: ${formatInteger(picked.length)} kart işaretlendi.`
+      );
+    } catch (e) {
+      setGroupNote(`Grup kartları alınamadı: ${errorMessage(e)}`);
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
   return (
-    <AppSection title="Filtreler">
+    <AppSection title="PersonelKart filtreleri">
       <View style={styles.fields}>
-        {options.nfc_sources.length ? (
-          <AppSelect<string>
-            label="Kaynak"
-            placeholder="Tüm kaynaklar"
-            options={[{ value: ALL, label: "Tüm kaynaklar" }, ...options.nfc_sources]}
-            value={form.nfcSource || ALL}
-            onChange={(v) => update({ nfcSource: v === ALL ? "" : v })}
-            testID="report-nfc-source"
-          />
+        <CompanySelect options={options} form={form} update={update} />
+        {monthlyAnalysisAvailable(options) ? (
+          <Pressable
+            onPress={() => update({ nfcMonthly: !form.nfcMonthly })}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: form.nfcMonthly }}
+            style={[styles.typeCard, form.nfcMonthly && styles.typeCardOn]}
+            testID="report-nfc-monthly"
+          >
+            <View style={[styles.checkbox, form.nfcMonthly && styles.checkboxOn]}>
+              {form.nfcMonthly ? <View style={styles.checkboxDot} /> : null}
+            </View>
+            <View style={styles.flex}>
+              <AppText variant="calloutStrong">Aylık Analiz</AppText>
+              <AppText variant="caption" color="textTertiary">
+                Tüm kart logları yerine seçilen ay için özet: eklenen kartlar, çıkan kartlar ve yüklenen bakiyeler.
+              </AppText>
+            </View>
+          </Pressable>
         ) : null}
-        {options.nfc_operations.length ? (
-          <AppSelect<string>
-            label="İşlem türü"
-            placeholder="Tüm işlemler"
-            options={[{ value: ALL, label: "Tüm işlemler" }, ...options.nfc_operations]}
-            value={form.nfcOperation || ALL}
-            onChange={(v) => update({ nfcOperation: v === ALL ? "" : v })}
-            testID="report-nfc-operation"
-          />
+
+        {form.nfcMonthly ? (
+          <View style={styles.field}>
+            <View style={styles.row}>
+              <View style={styles.flex}>
+                <AppSelect<number>
+                  label="Analiz ayı"
+                  options={MONTH_NAMES.map((m, i) => ({ value: i + 1, label: m }))}
+                  value={form.analysisMonth}
+                  onChange={(v) => update({ analysisMonth: v })}
+                  testID="report-analysis-month"
+                />
+              </View>
+              <View style={styles.flex}>
+                <AppSelect<number>
+                  label="Yıl"
+                  options={years.map((y) => ({ value: y, label: String(y) }))}
+                  value={form.analysisYear}
+                  onChange={(v) => update({ analysisYear: v })}
+                  testID="report-analysis-year"
+                />
+              </View>
+            </View>
+            <AppText variant="caption" color="textTertiary">
+              Analiz seçilen ayın tamamı (1&apos;i – ay sonu) için üretilir.
+            </AppText>
+          </View>
+        ) : (
+          <>
+            {options.nfc_sources.length ? (
+              <AppSelect<string>
+                label="Kaynak"
+                placeholder="Tümü"
+                options={[{ value: ALL, label: "Tümü" }, ...options.nfc_sources]}
+                value={form.nfcSource || ALL}
+                onChange={(v) => update({ nfcSource: v === ALL ? "" : v })}
+                testID="report-nfc-source"
+              />
+            ) : null}
+            {options.nfc_operations.length ? (
+              <AppSelect<string>
+                label="İşlem"
+                placeholder="Tümü"
+                options={[{ value: ALL, label: "Tümü" }, ...options.nfc_operations]}
+                value={form.nfcOperation || ALL}
+                onChange={(v) => update({ nfcOperation: v === ALL ? "" : v })}
+                testID="report-nfc-operation"
+              />
+            ) : null}
+          </>
+        )}
+
+        {canPickCards ? (
+          <View style={styles.field}>
+            <GroupPicker
+              label="Grup (kartları işaretler)"
+              value={null}
+              onChange={(g) => selectGroup(g.id, g.label)}
+              disabled={groupLoading}
+              testID="report-nfc-group"
+            />
+            <CardPicker
+              label="Kart ekle"
+              value={null}
+              onChange={(c) => {
+                const uid = c.label.split(" · ").pop() ?? "";
+                if (uid) addCards([{ uid, label: c.label.split(" · ")[0] }]);
+              }}
+              testID="report-nfc-card"
+            />
+            {groupNote ? (
+              <AppText variant="caption" color="textSecondary">
+                {groupNote}
+              </AppText>
+            ) : null}
+            <View style={styles.cardSummary}>
+              <AppText variant="caption" color="textSecondary" style={styles.flex} testID="report-nfc-card-count">
+                {form.nfcCardUids.length
+                  ? `${formatInteger(form.nfcCardUids.length)} kart seçildi`
+                  : "Kart seçilmedi: tüm kartlar rapora girer"}
+              </AppText>
+              {form.nfcCardUids.length ? (
+                <AppButton
+                  title="Tümünü temizle"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => {
+                    update({ nfcCardUids: [] });
+                    setGroupNote(null);
+                  }}
+                  testID="report-nfc-clear"
+                />
+              ) : null}
+            </View>
+            {form.nfcCardUids.length > 0 && form.nfcCardUids.length <= 20 ? (
+              <View style={styles.chipWrap}>
+                {form.nfcCardUids.map((uid) => (
+                  <AppChip
+                    key={uid}
+                    label={labels[uid] ? `${labels[uid]} · ${uid}` : uid}
+                    selected
+                    icon="x"
+                    onPress={() => update({ nfcCardUids: form.nfcCardUids.filter((u) => u !== uid) })}
+                  />
+                ))}
+              </View>
+            ) : null}
+          </View>
         ) : null}
       </View>
     </AppSection>
@@ -495,5 +667,18 @@ const useStyles = makeStyles((t) =>
     radioOn: { borderColor: t.colors.primary },
     radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: t.colors.primary },
     noticeBlock: { gap: t.spacing.sm, alignItems: "flex-start" },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: t.colors.borderStrong,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    checkboxOn: { borderColor: t.colors.primary, backgroundColor: t.colors.primary },
+    checkboxDot: { width: 8, height: 8, borderRadius: 2, backgroundColor: t.colors.onPrimary },
+    cardSummary: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
+    chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: t.spacing.xs },
   })
 );

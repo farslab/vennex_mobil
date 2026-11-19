@@ -481,3 +481,16 @@ Yetki listesine `send_device_commands` eklendi (mevcut kural: cihaza erişimi ol
 | `GET/POST /vennexmobile/hesap-silme/` | Yok (web formu, CSRF) | 302 → `/hesap-silme/alindi/` | Google Play web silme talebi; IP başına saatte 5; hesap varlığı açığa çıkmaz |
 
 Kullanılmayan: `auth/password-reset/`, `auth/password-reset/confirm/` (karar: kendi kendine parola sıfırlama yok; e-posta altyapısı da `console` — bkz. SECURITY S22).
+
+## 10. Parite dalı (`feature/mobil-parite-performans`, 2026-11-19)
+
+| Uç | Değişiklik |
+|---|---|
+| `POST /reports/` | Mobil artık web formuyla aynı anahtarları gönderir: `company` (tekil), `devices[]` (bölge/konum seçimi istemcide cihaza çevrilir), `transaction_status: "true"\|"false"`, `report_type: nfc_monthly_analysis` (ayın 1'i – son günü), `nfc_card_uids[]` |
+| `GET /reports/filter-options/` | `X-Company-Id` ile seçili şirkete daralır |
+| `GET /cards/<id>/balance-logs/?page=` | Yeni. `{count, page, num_pages, page_size:25, results:[{id, created_at, amount, balance_before, balance_after, source, source_label, operation, operation_label, description, user:{id,name}\|null, pos_device:{id,sn,pos_name}\|null}]}` |
+| `POST /card-quotas/` (kartsız) | Yeni mod: `{group, product_no, period, quantity, is_active, dagitim}` → 201 `{detail, created, skipped, cards}`; çakışmada 400 ve hiçbiri yazılmaz |
+| `GET /app/config/` | `card_scope_restricted: boolean` |
+| `GET /stock/skus/?q=` | En fazla 50 sonuç + `truncated` |
+| `GET /pos-devices/` | Satış yetkisi yoksa ciro alanları `null`, `sales_visible` |
+| Excel | `GET /pos-devices/export/` (yol düzeltildi), `/pos-devices/<sn>/export-products/`, `/cards/export/`, `/stock/export/overview/` — mobilde webdeki Excel butonlarının karşılığı |

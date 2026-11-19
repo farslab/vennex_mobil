@@ -13,6 +13,7 @@ import {
   AppSegmented,
   AppText,
   AppSheet,
+  CHILD_DISMISS_FALLBACK_MS,
   AppSelect,
   AppToastHost,
   getTheme,
@@ -241,6 +242,51 @@ describe("AppSheet iç içe", () => {
     );
     expect(flat(screen.getByTestId("outer-backdrop", { includeHiddenElements: true }).props.style).opacity).toBeUndefined();
     expect(flat(screen.getByTestId("inner-backdrop", { includeHiddenElements: true }).props.style).opacity).toBe(0.5);
+  });
+});
+
+describe("AppSheet iç içe kapanış (iOS görünmez pencere kilidi)", () => {
+  function Nested({ open }: { open: boolean }) {
+    return (
+      <AppSheet visible={open} onClose={() => {}} title="Form">
+        <AppText testID="form-body">form</AppText>
+        <AppSheet visible={open} onClose={() => {}} title="Onay">
+          <AppText>onay</AppText>
+        </AppSheet>
+      </AppSheet>
+    );
+  }
+
+  it("form ve onay aynı anda kapanınca form, onay tamamen kapanana kadar açık kalır", async () => {
+    jest.useFakeTimers();
+    const { rerender } = await render(<Nested open />);
+    expect(screen.getByTestId("form-body", { includeHiddenElements: true })).toBeOnTheScreen();
+
+    await rerender(<Nested open={false} />);
+    // Onay hâlâ kapanıyor (iOS'ta onDismiss bekleniyor) → form sayfası henüz kapanmaz
+    expect(screen.queryByTestId("form-body", { includeHiddenElements: true })).toBeOnTheScreen();
+
+    await act(async () => {
+      jest.advanceTimersByTime(CHILD_DISMISS_FALLBACK_MS + 50);
+    });
+    expect(screen.queryByTestId("form-body", { includeHiddenElements: true })).toBeNull();
+    jest.useRealTimers();
+  });
+
+  it("yalnız onay kapanırsa form açık kalır", async () => {
+    function OnlyChild({ child }: { child: boolean }) {
+      return (
+        <AppSheet visible onClose={() => {}} title="Form">
+          <AppText testID="form-body">form</AppText>
+          <AppSheet visible={child} onClose={() => {}} title="Onay">
+            <AppText testID="confirm-body">onay</AppText>
+          </AppSheet>
+        </AppSheet>
+      );
+    }
+    const { rerender } = await render(<OnlyChild child />);
+    await rerender(<OnlyChild child={false} />);
+    expect(screen.getByTestId("form-body", { includeHiddenElements: true })).toBeOnTheScreen();
   });
 });
 

@@ -50,10 +50,15 @@
 | OTA güncellemeleri (Xavia, POS ile ortak sunucu) | ✔ İstemci + yayın betiği; ilk yayın backend dalı canlıya alındıktan sonra. Bkz. [`OTA_AND_RELEASE.md`](OTA_AND_RELEASE.md) |
 | iOS gizlilik manifesti / şifreleme beyanı | ✔ |
 | Sunucu güdümlü modüller ve etiketler (`/app/config/`) | ✔ İstemci; backend dalı canlıya alınınca etkin (öncesinde yerel kurallar) |
+| Web paritesi (yetki, rakam, rapor/Excel, sayfalama) | ✔ İstemci; backend `feature/mobil-parite-performans` dalı (yerelde 168/168 test). **Yayın sırası: önce bu backend dalı canlıya, sonra mobil sürüm** (kart geçmişi ve grup istihkakı yeni uçları kullanıyor) |
+| Canlı veriyle doğrulama | ✔ Sunucu tarafında salt okuma (serpetco): 40 uç 200, Panel/cihaz/kart rakamları bağımsız toplamlarla aynı. Arayüzle canlı tur kullanıcı girişini bekliyor |
+| Büyük veri (400 cihaz, ~600 bin işlem, 20 bin kart) | ✔ Sayfalı uçlar sabit boyut; Panel en kötü ~0,6 sn; sanallaştırılmış listeler; sonsuz liste sayfa düşmesi düzeltildi |
+| Saat dilimi | ✔ Sunucu zamanları ve "bugün" Türkiye saatiyle (üç saat diliminde test) |
 
 ## Bilinen sınırlamalar
 
 - Uzaktan satış bağlantısı yalnız sayfa açıkken tutulur; sayfa açılmadan önce gelen müşteri seçimi gösterilmez (backend bekleyen isteği yeniden yollamıyor — web ile aynı davranış).
 - Push teslimi simülatörde doğrulanamadı; gerçek cihazda denenmeli.
-- Uçtan uca doğrulama **gerçek backend koduyla** (aynı commit + bu dal) yerelde, kurgusal verili izole veritabanında yapıldı. Canlı veritabanına karşı yapılmadı (canlı sunucu kuralı). Mağaza incelemesi öncesi canlıda ayrı bir demo şirketiyle salt okuma turu önerilir.
+- Uçtan uca doğrulama **gerçek backend koduyla** yerelde, kurgusal verili izole veritabanında yapıldı. Canlıda yalnız sunucu tarafında salt okuma doğrulaması yapıldı (serpetco); uygulama arayüzüyle canlı tur, şifreyi kullanıcı girdiğinde yapılacak.
+- Admin rolünün mobilde kart yönetimi yetkisi webden farklı (S35) — ürün kararı bekliyor.
 - Android cihaz/emülatörde çalıştırılmadı.

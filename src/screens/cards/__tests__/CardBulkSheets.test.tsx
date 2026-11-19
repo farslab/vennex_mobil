@@ -11,7 +11,6 @@ import { renderWithProviders } from "@/test/utils";
 import type { CardQuotaCreatePayload, PersonnelCard } from "@/types/cards";
 import { ApproveCardSheet } from "@/screens/cards/components/ApproveCardSheet";
 import { BulkGroupsSheet } from "@/screens/cards/components/BulkGroupsSheet";
-import { QuotaBatchSheet } from "@/screens/cards/components/QuotaBatchSheet";
 import { GroupFilterSheet } from "@/screens/cards/components/GroupFilterSheet";
 import { cardJson, FULL, loginAs } from "./fixtures";
 
@@ -183,102 +182,6 @@ describe("BulkGroupsSheet", () => {
     expect(await screen.findByText("Gruplar yüklenemedi.")).toBeOnTheScreen();
   });
 });
-
-/* --------------------------------------------------------- Gruba istihkak */
-
-describe("QuotaBatchSheet", () => {
-  const onClose = jest.fn();
-  const base: Omit<CardQuotaCreatePayload, "card"> = { group: 3, product_no: "*", period: "monthly", quantity: 2, is_active: true };
-  const summary = [
-    { label: "Grup", value: "Vardiya A" },
-    { label: "Kart sayısı", value: "3 kart" },
-  ];
-  const cards = [card(1), card(2), card(3)];
-
-  async function open(list: PersonnelCard[] = cards) {
-    const el = (visible: boolean) => <QuotaBatchSheet visible={visible} cards={list} base={base} summary={summary} onClose={onClose} />;
-    const r = await renderWithProviders(el(false));
-    await r.rerender(el(true));
-    return r;
-  }
-
-  const posted = () => mock.history.post.map((r) => JSON.parse(r.data) as CardQuotaCreatePayload);
-
-  it("başlatmadan önce özet ve istek sayısı gösterilir, istek atılmaz", async () => {
-    await open();
-    expect(screen.getByText("Gruba istihkak ata")).toBeOnTheScreen();
-    expect(screen.getByText("Vardiya A")).toBeOnTheScreen();
-    expect(screen.getAllByText("3 kart").length).toBeGreaterThan(0); // alt başlık + özet satırı
-    expect(screen.getByText("Başlat (3 istek)")).toBeOnTheScreen();
-    expect(mock.history.post).toHaveLength(0);
-  });
-
-  it("kart başına sırayla (eşzamansız değil) birer POST atar ve sonuçları gösterir", async () => {
-    let inFlight = 0;
-    let maxInFlight = 0;
-    mock.onPost("/card-quotas/").reply((config) => {
-      inFlight += 1;
-      maxInFlight = Math.max(maxInFlight, inFlight);
-      const body = JSON.parse(config.data) as CardQuotaCreatePayload;
-      return new Promise<[number, unknown]>((resolve) =>
-        setTimeout(() => {
-          inFlight -= 1;
-          resolve(body.card === 2 ? [200, { detail: "Zaten mevcut.", created_ids: [] }] : [201, { detail: "1 kota oluşturuldu.", created_ids: [body.card * 10] }]);
-        }, 10)
-      );
-    });
-    await open();
-    await fireEvent.press(screen.getByTestId("quota-batch-start"));
-    expect(await screen.findByTestId("quota-batch-close")).toBeOnTheScreen();
-
-    expect(posted()).toEqual([1, 2, 3].map((id) => ({ ...base, card: id })));
-    expect(maxInFlight).toBe(1);
-    expect(screen.getByText("Tamamlandı")).toBeOnTheScreen();
-    expect(screen.getByText("2 oluşturuldu · 1 zaten vardı")).toBeOnTheScreen();
-    expect(screen.getByText("3/3 kart işlendi")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Ad1 Soyad: Oluşturuldu")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Ad2 Soyad: Zaten vardı")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("quota-batch-close"));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("ilk hatada durur, kalan kartlar gönderilmez", async () => {
-    mock
-      .onPost("/card-quotas/")
-      .replyOnce(201, { detail: "ok", created_ids: [11] })
-      .onPost("/card-quotas/")
-      .replyOnce(400, { detail: "Kart bu gruba ait değil." });
-    await open();
-    await fireEvent.press(screen.getByTestId("quota-batch-start"));
-    expect(await screen.findByText("İşlem hatada durduruldu")).toBeOnTheScreen();
-    expect(mock.history.post).toHaveLength(2);
-    expect(screen.getByText("1 oluşturuldu · 0 zaten vardı · 1 gönderilmedi. Hata: Kart bu gruba ait değil.")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Ad2 Soyad: Hata")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Ad3 Soyad: Gönderilmedi")).toBeOnTheScreen();
-  });
-
-  it("Durdur: süren istek tamamlanır, sonrakiler gönderilmez", async () => {
-    mock.onPost("/card-quotas/").reply(delayed(201, { detail: "ok", created_ids: [1] }, 40));
-    await open();
-    await fireEvent.press(screen.getByTestId("quota-batch-start"));
-    await fireEvent.press(screen.getByTestId("quota-batch-stop"));
-    expect(await screen.findByTestId("quota-batch-close")).toBeOnTheScreen();
-    expect(mock.history.post).toHaveLength(1);
-    expect(screen.getByText("1 oluşturuldu · 0 zaten vardı · 2 gönderilmedi")).toBeOnTheScreen();
-  });
-
-  it("işlem sürerken sayfa kapatılamaz", async () => {
-    mock.onPost("/card-quotas/").reply(delayed(201, { detail: "ok", created_ids: [1] }, 20));
-    await open([card(1)]);
-    await fireEvent.press(screen.getByTestId("quota-batch-start"));
-    expect(screen.getByText("Gruba istihkak atanıyor")).toBeOnTheScreen();
-    for (const btn of screen.getAllByLabelText("Kapat")) await fireEvent.press(btn);
-    expect(onClose).not.toHaveBeenCalled();
-    expect(await screen.findByTestId("quota-batch-close")).toBeOnTheScreen();
-  });
-});
-
-/* ----------------------------------------------------------- Grup filtresi */
 
 describe("GroupFilterSheet", () => {
   const onClose = jest.fn();

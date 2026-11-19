@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { EXPORTS } from "@/api/exports";
+import { useExcelExport } from "@/hooks/useExcelExport";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
@@ -72,6 +74,7 @@ export function OverviewTab() {
     }
   }, [overview, skus]);
 
+  const excel = useExcelExport();
   const header = (
     <View style={styles.header}>
       <StatStrip
@@ -86,6 +89,7 @@ export function OverviewTab() {
         <AppChip label="Tümü" selected={level === "all"} onPress={() => setLevel("all")} />
         <AppChip label={`Tükenen (${counts.out})`} selected={level === "out"} onPress={() => setLevel("out")} />
         <AppChip label={`Negatif (${counts.negative})`} selected={level === "negative"} onPress={() => setLevel("negative")} />
+        <AppChip label={excel.exporting ? "Excel hazırlanıyor…" : "Excel"} icon="download" onPress={() => excel.run(EXPORTS.stockOverview)} />
       </View>
       <AppText variant="caption" color="textTertiary">
         Toplamlar tüm lokasyonları kapsar. Reçeteli ürünler bileşenlerinden izlendiği için listede yer almaz.

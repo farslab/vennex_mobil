@@ -339,6 +339,22 @@ export const stockApi = {
         })
         .then((r) => unwrapResults<unknown>(r.data).map(normalizeSku)),
 
+    /** Aramada sunucu en fazla 50 sonuç döner; `truncated` → daha fazlası var, arama daraltılmalı */
+    search: (params: StockSkuListParams = {}, signal?: AbortSignal): Promise<{ items: StockSku[]; truncated: boolean }> =>
+      apiClient
+        .get("/stock/skus/", {
+          params: {
+            q: params.q?.trim() || undefined,
+            stockable: params.stockable ? "true" : undefined,
+            active_only: params.active_only ? "true" : undefined,
+          },
+          signal,
+        })
+        .then((r) => ({
+          items: unwrapResults<unknown>(r.data).map(normalizeSku),
+          truncated: (r.data as { truncated?: unknown } | null)?.truncated === true,
+        })),
+
     get: (id: number, signal?: AbortSignal): Promise<StockSku> =>
       apiClient.get(`/stock/skus/${id}/`, { signal }).then((r) => normalizeSku(r.data)),
 

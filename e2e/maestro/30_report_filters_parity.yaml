@@ -1,0 +1,27 @@
+# E2E: rapor formu web ile aynı sözleşmeyi gönderir — gerçek backend'de oluşan işin filtreleri DB'den doğrulanır
+# Beklenen (ReportJob.filters): company_id = seçili şirket, transaction_status = "false", devices = bölgedeki cihazlar
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+- tapOn: "Profil"
+- scrollUntilVisible: { element: { id: "row-reports" }, centerElement: true }
+- tapOn: { id: "row-reports" }
+- extendedWaitUntil: { visible: { id: "reports-screen" }, timeout: 15000 }
+- tapOn: { id: "new-report" }
+- extendedWaitUntil: { visible: { id: "new-report-screen" }, timeout: 15000 }
+- assertVisible: { id: "report-type-pos_summary" }
+- assertVisible: { id: "report-type-pos_detail" }
+- tapOn: { id: "report-type-pos_detail" }
+- tapOn: "Son 7 gün"
+- scrollUntilVisible: { element: { id: "report-regions" }, centerElement: true }
+- tapOn: { id: "report-regions" }
+- tapOn: "Anadolu"
+- tapOn: "Uygula.*"
+- assertVisible: { id: "report-scope-hint" }
+- scrollUntilVisible: { element: { id: "report-tx-status" }, centerElement: true }
+- tapOn: "Başarısız"
+- takeScreenshot: rp_form_filled
+- tapOn: { id: "submit-report" }
+- extendedWaitUntil: { visible: { id: "report-job-.*" }, timeout: 15000 }
+- assertVisible: ".*Detay.*"
+- takeScreenshot: rp_job_queued

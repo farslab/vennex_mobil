@@ -102,7 +102,7 @@ describe("ReportsListScreen", () => {
     });
 
     await renderWithProviders(<ReportsListScreen />);
-    expect(await screen.findByText("Sırada")).toBeOnTheScreen();
+    expect(await screen.findByText("Sıraya alındı")).toBeOnTheScreen();
     expect(listGets(mock)).toHaveLength(1);
 
     const advance = async (ms: number) => {

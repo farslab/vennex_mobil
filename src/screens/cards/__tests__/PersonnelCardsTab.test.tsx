@@ -31,7 +31,7 @@ describe("Personel kartları sekmesi", () => {
     expect(await screen.findByText("Ad1 Soyad")).toBeOnTheScreen();
     expect(screen.getByText("Aktif (12)")).toBeOnTheScreen();
     expect(screen.getByText("Onay bekleyen (2)")).toBeOnTheScreen();
-    const urls = mock.history.get.map((r) => r.url);
+    const urls = mock.history.get.map((r) => r.url).filter((u) => u !== "/app/config/");
     expect(urls.every((u) => u === "/cards/")).toBe(true);
     expect(cardGets(mock)[0].params).toEqual({ status: "active", page: 1 });
   });
@@ -191,7 +191,8 @@ describe("Personel kartları sekmesi", () => {
     loginAs(["tech"], "tech");
     await renderWithProviders(<CardsScreen />);
     expect(screen.getByText("Personel kart yetkiniz yok")).toBeOnTheScreen();
-    expect(mock.history.get).toHaveLength(0);
+    // Kart verisi için hiç istek yok (yalnız uygulama geneli yapılandırma)
+    expect(mock.history.get.filter((r) => r.url !== "/app/config/")).toHaveLength(0);
   });
 
   it("toplu silme geri alınamaz uyarısı ve bakiye özeti gösterir", async () => {

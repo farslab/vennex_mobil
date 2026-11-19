@@ -9,7 +9,7 @@ import { apiClient } from "@/api/client";
 import { normalizeDeviceDetail, normalizeDeviceTransaction } from "@/api/devices";
 import { useToastStore } from "@/design-system";
 import { renderWithProviders } from "@/test/utils";
-import { toApiDate } from "@/utils/date";
+import { businessToday, toApiDate } from "@/utils/date";
 import { PosVendChannel, type ChannelState } from "@/realtime/posVendChannel";
 import { GeneralTab } from "@/screens/devices/detail/tabs/GeneralTab";
 import { StatsTab } from "@/screens/devices/detail/tabs/StatsTab";
@@ -58,9 +58,14 @@ const detail = (o: Record<string, unknown> = {}) =>
   });
 
 /** Yerel saatle ISO tarih → formatDateTime çıktısı saat diliminden bağımsız olur */
-const localIso = (y: number, m: number, d: number, h: number, mi: number) => new Date(y, m - 1, d, h, mi).toISOString();
+/** Türkiye duvar saatindeki an (UTC+3) */
+const localIso = (y: number, m: number, d: number, h: number, mi: number) => new Date(Date.UTC(y, m - 1, d, h - 3, mi)).toISOString();
 const pad = (n: number) => String(n).padStart(2, "0");
-const trDateTime = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/** Türkiye saatiyle (uygulama sunucu zamanlarını her zaman TR saatiyle gösterir) */
+const trDateTime = (d: Date) => {
+  const t = new Date(d.getTime() + 3 * 3600_000);
+  return `${pad(t.getUTCDate())}.${pad(t.getUTCMonth() + 1)}.${t.getUTCFullYear()} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}`;
+};
 
 type Reply = [number, unknown];
 function deferred() {
@@ -223,7 +228,7 @@ describe("GeneralTab", () => {
 /* ---------------------------------------------------------- İstatistikler */
 
 describe("StatsTab", () => {
-  const today = toApiDate(new Date());
+  const today = toApiDate(businessToday());
 
   it("doğru uçları doğru parametrelerle çağırır; KPI, değişim ve bugünkü işlemler eşlenir", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {
@@ -374,12 +379,12 @@ describe("CashTab", () => {
       by_pt_type: { "0": "100.25", "1": 250.5, "2": 0 },
     });
 
-    // yalnız view_sales: Nakit topla (manage_device_settings) gizli
+    // Web: satış yetkisi olan, cihaz ayarı yetkisi olmasa da nakit toplayabilir (`collect_cash`)
     await renderWithProviders(
       <CashTab sn={SN} detail={detail()} access={access({ manageSettings: false })} refreshing={false} onRefresh={noop} />
     );
     expect(await screen.findByText("Bu cihaz için ciro sayımı yapılmamış.")).toBeOnTheScreen();
-    expect(screen.queryByTestId("collect-cash-button")).toBeNull();
+    expect(screen.getByTestId("collect-cash-button")).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId("cash-notes"), "  akşam sayımı  ");
     await fireEvent.press(screen.getByTestId("count-revenue-button"));
@@ -450,11 +455,11 @@ describe("CashTab", () => {
     expect(mock.history.post).toHaveLength(1);
   });
 
-  it("view_sales yoksa geçmiş istenmez, Ciro say gizli ve toplanan tutar gösterilmez", async () => {
+  it("teknisyen, view_sales yoksa: geçmiş istenmez, Ciro say gizli, nakit toplar ama tutar gösterilmez (web)", async () => {
     mock.onPost(`${base}/collect-cash/`).reply(200, { detail: "Nakit toplama işlemi başarıyla kaydedildi.", amount_collected: 320 });
 
     await renderWithProviders(
-      <CashTab sn={SN} detail={detail()} access={access({ sales: false, manageSettings: true })} refreshing={false} onRefresh={noop} />
+      <CashTab sn={SN} detail={detail()} access={access({ sales: false, manageSettings: false, isTech: true })} refreshing={false} onRefresh={noop} />
     );
 
     expect(screen.queryByTestId("count-revenue-button")).toBeNull();

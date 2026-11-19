@@ -90,7 +90,8 @@ export function CashTab({
     ...(notes.trim() ? [{ label: "Not", value: notes.trim() }] : []),
   ];
 
-  const canCollect = access.manageSettings;
+  // Web (`pos_device_detail.html:2542`, `collect_cash`): satış yetkisi olan ya da teknisyen, cihaza erişimi varsa toplar
+  const canCollect = access.sales || access.isTech;
   const canCount = access.sales;
 
   return (

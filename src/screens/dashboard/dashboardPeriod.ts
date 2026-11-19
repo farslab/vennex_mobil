@@ -4,7 +4,7 @@
  * bitiş günü dahil (`services.py:144-147`).
  */
 import { PERIOD_LABELS, type ApiPeriod } from "@/types/common";
-import { daysBetweenInclusive, formatDate, parseUserDate, toApiDate } from "@/utils/date";
+import { businessToday, daysBetweenInclusive, formatDate, parseUserDate, toApiDate } from "@/utils/date";
 
 export const PERIOD_ORDER: ApiPeriod[] = [
   "today",
@@ -40,7 +40,7 @@ export type RangeValidation =
   | { ok: false; field: "start" | "end" | "range"; message: string };
 
 /** Kullanıcı girişini (GG.AA.YYYY) doğrular */
-export function validateCustomRange(startInput: string, endInput: string, today: Date = new Date()): RangeValidation {
+export function validateCustomRange(startInput: string, endInput: string, today: Date = businessToday()): RangeValidation {
   const start = parseUserDate(startInput);
   if (!start) return { ok: false, field: "start", message: "Geçerli bir başlangıç tarihi girin (GG.AA.YYYY)." };
   const end = parseUserDate(endInput);

@@ -1,0 +1,27 @@
+# E2E (yolculuk 17): teknisyen oluştur (Stok Yönetimi yetkisiyle) — yerel gerçek backend
+appId: tr.com.vennex
+---
+- runFlow: common/start_demo.yaml
+# 17) Teknisyen oluştur (Stok Yönetimi yetkisiyle)
+- tapOn: "Profil"
+- scrollUntilVisible: { element: { id: "row-users" }, centerElement: true }
+- tapOn: { id: "row-users" }
+- extendedWaitUntil: { visible: { id: "users-screen" }, timeout: 15000 }
+- tapOn: "Yeni teknisyen"
+- tapOn: { id: "user-username" }
+- inputText: "e2etek"
+# iOS simülatöründe parola AutoFill güvenli alana yazılanı yutuyor: önce düz metne çevir
+- tapOn: "Şifreyi göster"
+- tapOn: { id: "user-password" }
+- inputText: "Parola12345"
+- tapOn: { id: "user-first-name" }
+- inputText: "E2E"
+- tapOn: { id: "user-last-name" }
+- inputText: "Teknisyen"
+- scrollUntilVisible: { element: { id: "group-Stok Yönetimi" } }
+- tapOn: { id: "group-Stok Yönetimi" }
+- scrollUntilVisible: { element: { id: "user-form-submit" } }
+- tapOn: { id: "user-form-submit" }
+- extendedWaitUntil: { visible: { id: "users-screen" }, timeout: 15000 }
+- extendedWaitUntil: { visible: ".*e2etek.*", timeout: 15000 }
+- takeScreenshot: j17_tech_created
