@@ -116,8 +116,8 @@ export function PaymentBreakdownCard({
 /* ------------------------------------------------------ Failure reasons */
 
 const REASONS: { key: keyof DashboardSales["failures"]; label: string; color: WebBadgeColor }[] = [
-  { key: "timeout", label: "Zaman aşımı", color: "amber" },
-  { key: "bank", label: "Banka reddi", color: "purple" },
+  { key: "timeout", label: "Zaman aşımı", color: "sky" },
+  { key: "bank", label: "Banka reddi", color: "amber" },
   // Web: "Teknik İ." (Teknik İptal — POS Dağılımı)
   { key: "technical", label: "Teknik iptal", color: "red" },
   { key: "other", label: "Diğer", color: "gray" },
