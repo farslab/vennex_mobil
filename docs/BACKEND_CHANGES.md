@@ -242,3 +242,13 @@ Canlıya alma kaydı: sunucu temiz ve `origin` ile aynıydı (`23dee86`) → `gi
 İlk gerçek gönderim (kullanıcı, Nexus'tan, yalnız demo hesabına): 1 kullanıcı / 8 cihaz kaydı → 3 teslim, 5 başarısız (geçersiz kayıtlar temizlendi). Telefonda iki bildirim göründü: biri yeni uygulama (`tr.com.vennex`), biri aynı telefonda kurulu eski Flutter uygulaması (`com.vennex.mobile`). Eski uygulamanın Firebase kaydı silindi ama silme kalıcılaşana kadar eski token'lar teslim alabiliyor. Öneri (bekliyor): Mobil Push yalnız yeni uygulamanın kayıtlarını (`device_id` `vm-` ile başlar) hedeflesin.
 
 Bilinen eksik: otomatik olay push'ları (`push_device_offline` vb.) hiçbir yerden çağrılmıyor; "Ödeme hatası" gibi bildirimler yalnız uygulama içi listeye düşüyor.
+
+# Yedinci değişiklik — Genel Bakış Excel'i mobilde (2026-11-19) · **CANLIDA (`ff01c3f`)**
+
+| Dosya | Değişiklik |
+|---|---|
+| `dashboard_v2/views/overview.py` | `overview_excel` gövdesi `overview_excel_response(st)` olarak ayrıldı; `_overview_state(request, company=, location_ids=, period_params=)` ve `_get_period(request, params=None)` dışarıdan değer alabiliyor. Varsayılan davranış ve web çıktısı değişmedi. |
+| `vennex_mobile/views/overview.py`, `urls.py` | `GET overview/excel/?period&start_date&end_date&location_id` — şirket `X-Company-Id`; satış yetkisi yoksa 403 |
+| `vennex_mobile/test_web_parity.py` | `OverviewExcelParityTests` (3): mobil = web hücre hücre; konum filtresi; yetkisiz 403 |
+
+Canlıya alma kaydı: sunucu temiz ve `origin` ile aynıydı (`8740178`) → `git am` → `ff01c3f`; `manage.py check` temiz; yalnız web yeniden başlatıldı; logda hata yok. Kontrol (demo, salt okuma): bu ay ₺923,60 / 140 işlem (122/18), son 30 gün ₺4.939,60 / 191 (167/24), 13 POS cihazı; 5 sayfa. Telefonda indirme ve açma doğrulandı.

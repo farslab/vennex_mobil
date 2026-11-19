@@ -3,13 +3,14 @@
  * Veri: yalnız `GET /overview/dashboard/` bundle'ı (docs/API_CONTRACTS.md §2.4, §3.8).
  * Satış yetkisi yoksa (istemci `view_sales` veya backend `sales_visible=false`) hiçbir tutar gösterilmez.
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useLayoutEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   AppErrorState,
+  AppIconButton,
   AppNotice,
   AppScreen,
   AppText,
@@ -31,7 +32,10 @@ import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { FailureReasonsCard, PaymentBreakdownCard } from "@/components/dashboard/BreakdownCards";
 import { TechnicalErrorsCard, TopDevicesCard } from "@/components/dashboard/DeviceRankCards";
 import { RecentTransactionsCard } from "@/components/dashboard/RecentTransactionsCard";
-import { useDashboard } from "./useDashboard";
+import { TabHeader } from "@/navigation/TabHeader";
+import { EXPORTS } from "@/api/exports";
+import { useExcelExport } from "@/hooks/useExcelExport";
+import { buildDashboardParams, useDashboard } from "./useDashboard";
 
 /** Konumlar nadir değişir (backend cache 300 sn) */
 const LOCATIONS_STALE_MS = 5 * 60_000;
@@ -43,6 +47,38 @@ export default function DashboardScreen() {
   const user = useAuthStore((s) => s.user);
   const dash = useDashboard();
   const { data } = dash;
+
+  // Excel: web Genel Bakış'taki gibi ekrandaki dönem + konumla (aynı dosya); başlıkta zilin yanında
+  const excel = useExcelExport();
+  const canExport = canViewSales(user);
+  const { period, customRange, locationId } = dash.filters;
+  const { exporting, run: runExport } = excel;
+  useLayoutEffect(() => {
+    const p = buildDashboardParams({ period, customRange, locationId });
+    const query: Record<string, string | number> = { period: p.period };
+    if (p.location_id != null) query.location_id = p.location_id;
+    if (p.start_date) query.start_date = p.start_date;
+    if (p.end_date) query.end_date = p.end_date;
+    navigation.setOptions({
+      header: () => (
+        <TabHeader
+          title="Genel Bakış"
+          right={
+            canExport ? (
+              <AppIconButton
+                icon="excel"
+                label="Excel'e aktar"
+                tone="success"
+                loading={exporting}
+                onPress={() => runExport(EXPORTS.overview(query))}
+                testID="header-excel"
+              />
+            ) : null
+          }
+        />
+      ),
+    });
+  }, [navigation, canExport, period, customRange, locationId, exporting, runExport]);
 
   // Konum filtresi: bundle ile paralel değil, ilk panel verisi geldikten sonra bir kez çekilir
   const locationsQuery = useQuery({

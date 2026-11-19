@@ -4,6 +4,7 @@
  * - Cihaz ürünleri     GET /pos-devices/<sn>/export-products/ (web `export_pos_products`)
  * - Personel kartları  GET /cards/export/                     (web `export_nfc_cards`, kart yetkisi)
  * - Stok özeti         GET /stock/export/overview/            (web `stock_overview_excel`, stok yetkisi)
+ * - Genel Bakış        GET /overview/excel/?<ekran filtresi>  (web `overview_excel`, satış yetkisi)
  * Şirket kapsamı `X-Company-Id` ile (web: oturumdaki şirket).
  */
 import { Directory, File, Paths } from "expo-file-system";
@@ -18,6 +19,13 @@ export const EXPORTS = {
   deviceProducts: (sn: string) => ({ path: `/pos-devices/${encodeURIComponent(sn)}/export-products/`, name: `urunler_${sn}` }),
   cards: { path: "/cards/export/", name: "nfc_kartlar" },
   stockOverview: { path: "/stock/export/overview/", name: "stok_ozeti" },
+  /** Genel Bakış: ekrandaki dönem + konumla (web'deki dosyayla aynı) */
+  overview: (query: Record<string, string | number>) => ({
+    path: `/overview/excel/?${Object.entries(query)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join("&")}`,
+    name: "genel_bakis",
+  }),
 } as const;
 
 export interface ExportTarget {
@@ -65,7 +73,7 @@ export async function downloadExport(target: ExportTarget, signal?: AbortSignal)
     throw mapError(e);
   }
   const nativeName = file.name || "";
-  const generic = !nativeName || /^(download|export(-products)?|overview)(\.\w+)?$/i.test(nativeName);
+  const generic = !nativeName || /^(download|export(-products)?|overview|excel)(\.\w+)?$/i.test(nativeName);
   const fileName = generic ? ensureXlsxExtension(`${sanitizeFileName(target.name)}_${stamp()}`) : ensureXlsxExtension(nativeName);
   if (fileName !== nativeName) {
     try {

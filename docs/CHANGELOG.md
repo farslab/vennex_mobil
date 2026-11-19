@@ -13,6 +13,10 @@
 - Mağaza hazırlığı: iOS gizlilik manifesti, şifreleme beyanı, minimum Android izinleri, uygulama içi hesap silme.
 - Yerel mock sunucu (`mock-server/`) ve gerçek backend kodunun izole yerel kurulumu (`../backend-local`).
 
+### Sekizinci tur (2026-11-19) — Genel Bakış Excel'i
+- **Genel Bakış:** başlıkta zilin yanında yeşil Excel düğmesi (web dashboard v2 ile aynı ikon); ekrandaki dönem + konumla web'deki dosyanın aynısı (Özet, Bölge & Konum, Cihazlar, Ödeme Tipleri, Personel Grupları) → paylaşım menüsü. Yalnız satış yetkisiyle görünür.
+- **Backend (canlıda, `ff01c3f`):** web Excel üretimi ortak fonksiyona ayrıldı (`overview_excel_response`); mobil uç `GET /api/v1/vennexmobile/overview/excel/` (satış yetkisi yoksa 403). Test: aynı filtreyle mobil ve web dosyası hücre hücre aynı. Canlıda demo hesabıyla: bu ay ₺923,60 / 140 işlem, son 30 gün ₺4.939,60 — veritabanıyla aynı; telefonda indirme ve açma doğrulandı.
+
 ### Yedinci tur (2026-11-19) — push bildirimleri ve Nexus → Mobil Push
 - **Firebase/Apple kurulumu:** `tr.com.vennex` Bundle ID + Push Notifications (ASC API); Firebase `vennexmobile` projesine iOS + Android uygulamaları (CLI); APNs anahtarı Firebase'e yüklendi; EAS projesi `@arslanhan/vennex-mobile-app`, Firebase dosyaları EAS gizli dosya değişkenleri (production/preview/development).
 - **iOS push kaydı hatası (düzeltildi):** `getToken` APNs kaydından önce çağrılıyordu (`messaging/unregistered`); iPhone'larda push hiç kaydolmazdı. Önce `registerDeviceForRemoteMessages`. Gerçek iPhone'da uçtan uca doğrulandı.

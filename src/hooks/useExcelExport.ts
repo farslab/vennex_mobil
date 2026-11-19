@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import * as Sharing from "expo-sharing";
 import { toast } from "@/design-system";
@@ -22,10 +23,13 @@ export function useExcelExport() {
     },
     onError: (e) => toast.error(errorMessage(e, "Excel indirilemedi.")),
   });
-  return {
-    exporting: mutation.isPending,
-    run: (target: ExportTarget) => {
-      if (!mutation.isPending) mutation.mutate(target);
+  const { mutate, isPending } = mutation;
+  // Kararlı referans: başlık gibi effect bağımlılıklarında her çizimde yeniden kurulmasın
+  const run = useCallback(
+    (target: ExportTarget) => {
+      if (!isPending) mutate(target);
     },
-  };
+    [mutate, isPending]
+  );
+  return { exporting: isPending, run };
 }

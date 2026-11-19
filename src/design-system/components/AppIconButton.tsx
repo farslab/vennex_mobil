@@ -1,6 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { makeStyles } from "../theme";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { makeStyles, useTheme } from "../theme";
 import { AppIcon, type IconName } from "./AppIcon";
 import { AppText } from "./AppText";
 
@@ -11,28 +11,31 @@ export interface AppIconButtonProps {
   onPress: () => void;
   badge?: number;
   disabled?: boolean;
-  tone?: "default" | "primary" | "danger";
+  tone?: "default" | "primary" | "danger" | "success";
+  /** İşlem sürüyor: ikon yerine gösterge, dokunma kapalı */
+  loading?: boolean;
   /** "lg": öne çıkan header aksiyonu (daha büyük ikon, aynı 44pt dokunma alanı) */
   size?: "md" | "lg";
   testID?: string;
 }
 
 /** 44x44 dokunma alanlı ikon butonu (header aksiyonları, satır menüleri) */
-export function AppIconButton({ icon, label, onPress, badge, disabled, tone = "default", size = "md", testID }: AppIconButtonProps) {
+export function AppIconButton({ icon, label, onPress, badge, disabled, tone = "default", size = "md", loading, testID }: AppIconButtonProps) {
   const styles = useStyles();
-  const color = tone === "primary" ? "primary" : tone === "danger" ? "danger" : "text";
+  const { colors } = useTheme();
+  const color = tone === "primary" ? "primary" : tone === "danger" ? "danger" : tone === "success" ? "success" : "text";
   const badgeText = badge && badge > 99 ? "99+" : badge ? String(badge) : null;
   return (
     <Pressable
       testID={testID}
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={badgeText ? `${label}, ${badgeText} okunmamış` : label}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       style={({ pressed }) => [styles.root, pressed && styles.pressed, disabled && styles.disabled]}
     >
-      <AppIcon name={icon} size={size === "lg" ? 28 : 20} color={color} />
+      {loading ? <ActivityIndicator size="small" color={colors[color]} /> : <AppIcon name={icon} size={size === "lg" ? 28 : 20} color={color} />}
       {badgeText ? (
         <View style={styles.badge}>
           <AppText variant="caption" style={styles.badgeText}>

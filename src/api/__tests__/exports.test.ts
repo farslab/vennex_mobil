@@ -33,6 +33,13 @@ describe("Excel dışa aktarma (web Excel butonlarının karşılığı)", () =>
     expect(res.fileName).toBe("pos_cihazlari_20261119_101500.xlsx");
   });
 
+  it("Genel Bakış Excel'i ekran filtresini sorgu olarak taşır", () => {
+    expect(EXPORTS.overview({ period: "custom", start_date: "2026-11-01", end_date: "2026-11-19", location_id: 4 }).path).toBe(
+      "/overview/excel/?period=custom&start_date=2026-11-01&end_date=2026-11-19&location_id=4"
+    );
+    expect(EXPORTS.overview({ period: "today" }).name).toBe("genel_bakis");
+  });
+
   it("cihaz ürünleri ucu seri numarasını kodlar", () => {
     expect(EXPORTS.deviceProducts("PAV 1/2").path).toBe("/pos-devices/PAV%201%2F2/export-products/");
   });

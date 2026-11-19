@@ -11,9 +11,10 @@ import type { OverviewBundle } from "@/types/overview";
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 
 const mockNavigate = jest.fn();
+const mockSetOptions = jest.fn();
 jest.mock("@react-navigation/native", () => ({
   ...jest.requireActual("@react-navigation/native"),
-  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn(), setOptions: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn(), setOptions: mockSetOptions }),
   useFocusEffect: jest.fn(),
   useIsFocused: () => true,
 }));
@@ -212,4 +213,31 @@ describe("DashboardScreen", () => {
     await waitFor(() => expect(dashboardGets(mock)).toHaveLength(2));
     expect(dashboardGets(mock)[1].params).toMatchObject({ location_id: 7 });
   });
+
+  /** Son setOptions çağrısındaki başlığı çizip içindeki Excel düğmesini döndürür */
+  const headerExcel = () => {
+    const calls = mockSetOptions.mock.calls.filter((c) => "header" in (c[0] as object));
+    const header = (calls[calls.length - 1]?.[0] as { header: () => React.ReactElement }).header();
+    const right = (header.props as { right?: React.ReactElement<{ testID: string; label: string; icon: string }> | null }).right;
+    return right ?? null;
+  };
+
+  it("başlıkta Excel düğmesi: satış yetkisiyle görünür (web ile aynı ikon/etiket)", async () => {
+    mockSetOptions.mockReset();
+    mock.onGet("/overview/dashboard/").reply(200, salesBundle());
+    await renderWithProviders(<DashboardScreen />);
+    await screen.findByText("₺12.345,50");
+    const btn = headerExcel();
+    expect(btn?.props).toMatchObject({ testID: "header-excel", label: "Excel'e aktar", icon: "excel" });
+  });
+
+  it("satış yetkisi yoksa başlıkta Excel düğmesi yok", async () => {
+    mockSetOptions.mockReset();
+    useAuthStore.setState({ user: makeUser({ permissions: ["tech"], role: "tech" }) });
+    mock.onGet("/overview/dashboard/").reply(200, hiddenBundle);
+    await renderWithProviders(<DashboardScreen />);
+    await waitFor(() => expect(mockSetOptions).toHaveBeenCalled());
+    expect(headerExcel()).toBeNull();
+  });
 });
+
