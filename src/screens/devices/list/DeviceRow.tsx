@@ -24,7 +24,7 @@ const PERIODS = [
 
 /**
  * Cihaz kartı — web listesindeki tüm bilgi:
- * ad + durum · seri no / konum · doluluk (yüzde + adet) · dört dönemin cirosu ve işlem sayısı · en altta son satış.
+ * ad + durum · seri no / konum · doluluk (yüzde + adet) · dört dönemin cirosu ve işlem sayısı · sol altta son satış.
  */
 export const DeviceRow = memo(function DeviceRow({ device, onPress, showRevenue }: DeviceRowProps) {
   const styles = useStyles();
@@ -104,11 +104,8 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, showRevenue 
         </View>
       ) : null}
 
-      {/* Son satış süresi kartın en altında */}
+      {/* Son satış süresi kartın sol altında */}
       <View style={styles.footer}>
-        <AppText variant="caption" color="textTertiary">
-          Son satış
-        </AppText>
         <View testID={`device-last-sale-${device.sn}`}>
           <AppBadge size="sm" icon="clock" label={lastSale.label} colors={webBadgeColors(lastSale.color, isDark)} />
         </View>
@@ -135,7 +132,7 @@ const useStyles = makeStyles((t) =>
     pressed: { backgroundColor: t.colors.surfacePressed },
     line: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
     flex: { flex: 1, minWidth: 0 },
-    footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+    footer: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm, marginTop: 2 },
     fillRow: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
     // 2×2: yüksek cirolar (₺1.250.000,00) da sığsın
     periods: {
