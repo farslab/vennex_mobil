@@ -5,10 +5,12 @@
  *            Backend send yalnız normal mod `Product` yazar (stok modu slotlarına dokunmaz) → stok modunda gizli.
  *  - delete: `DELETE product-templates/{id}/`
  * Liste uçlarında `pos_odemetip` yok → cihaz seçici makine tipine göre süzemez (açıklama gösterilir).
+ * Zaten eşli cihazlar tikli ve kilitli gösterilir (yeniden atama ürünleri baştan kurup stoğu sıfırlar →
+ * yalnız YENİ seçilenler gönderilir). Liste ekranındaki özet eşli cihazları içermez → detaydan alınır.
  */
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppButton, AppConfirmSheet, AppNotice, AppSheet, AppText, makeStyles, toast } from "@/design-system";
 import { templatesApi } from "@/api/templates";
 import { errorMessage } from "@/api/client";
@@ -85,6 +87,15 @@ export function TemplateOps({
 
   const typeLabel = template ? machineTypeLabel(template.machine_type) : "";
 
+  // Eşli cihazlar: editör hedefte verir; liste özetinde yok → atama açılınca detaydan çekilir
+  const needsAssigned = op === "assign" && !!template && template.assigned_sns == null;
+  const detailQuery = useQuery({
+    queryKey: queryKeys.templates.detail(template?.id ?? 0),
+    queryFn: ({ signal }) => templatesApi.detail((template as TemplateOpTarget).id, signal),
+    enabled: needsAssigned,
+  });
+  const assignedSns = template?.assigned_sns ?? detailQuery.data?.assigned_devices.map((d) => d.sn) ?? [];
+
   return (
     <>
       <DevicePickerSheet
@@ -93,8 +104,9 @@ export function TemplateOps({
         title="POS cihazlarına ata"
         subtitle={template ? `${template.name} · ${typeLabel}` : undefined}
         notice={TYPE_NOTICE}
-        markedSns={template?.assigned_sns}
+        markedSns={assignedSns}
         markedLabel="Eşli"
+        markedLocked
         confirmLabel="Ata"
         loading={assign.isPending}
         onClose={onClose}

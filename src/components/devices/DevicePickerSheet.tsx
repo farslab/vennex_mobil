@@ -39,6 +39,8 @@ interface BaseProps {
   /** Zaten eşli/işaretli cihazlar (rozetle gösterilir) */
   markedSns?: string[];
   markedLabel?: string;
+  /** İşaretli cihazlar tikli ve kilitli görünür; seçime/gönderime katılmaz (ör. şablona zaten eşli) */
+  markedLocked?: boolean;
   confirmLabel: string;
   loading?: boolean;
 }
@@ -55,7 +57,18 @@ interface SingleProps extends BaseProps {
 export type DevicePickerSheetProps = MultiProps | SingleProps;
 
 export function DevicePickerSheet(props: DevicePickerSheetProps) {
-  const { visible, onClose, title, subtitle, notice, markedSns = [], markedLabel = "Eşli", confirmLabel, loading } = props;
+  const {
+    visible,
+    onClose,
+    title,
+    subtitle,
+    notice,
+    markedSns = [],
+    markedLabel = "Eşli",
+    markedLocked = false,
+    confirmLabel,
+    loading,
+  } = props;
   const styles = useStyles();
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -123,18 +136,21 @@ export function DevicePickerSheet(props: DevicePickerSheetProps) {
           ListEmptyComponent={<AppEmptyState compact icon="search" title="Cihaz bulunamadı" />}
           ListFooterComponent={<ListLoadMoreFooter loading={list.isFetchingMore} error={list.loadMoreError} onRetry={list.retryLoadMore} />}
           renderItem={({ item }) => {
-            const checked = selected.includes(item.sn);
-            const conn = connectivityInfo(item.online);
             const marked = markedSns.includes(item.sn);
+            const locked = markedLocked && marked;
+            const checked = locked || selected.includes(item.sn);
+            const conn = connectivityInfo(item.online);
             return (
               <Pressable
                 onPress={() => toggle(item.sn)}
+                disabled={locked}
                 accessibilityRole={props.multiple ? "checkbox" : "radio"}
-                accessibilityState={{ checked }}
-                accessibilityLabel={`${deviceTitle(item)}, ${item.sn}`}
+                accessibilityState={{ checked, disabled: locked }}
+                accessibilityLabel={`${deviceTitle(item)}, ${item.sn}${marked ? `, ${markedLabel}` : ""}`}
                 style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                testID={`device-pick-${item.sn}`}
               >
-                <View style={[styles.box, !props.multiple && styles.radio, checked && styles.boxOn]}>
+                <View style={[styles.box, !props.multiple && styles.radio, checked && styles.boxOn, locked && styles.boxLocked]}>
                   {checked ? <AppIcon name="check" size={14} color="onPrimary" /> : null}
                 </View>
                 <View style={styles.flex}>
@@ -159,6 +175,7 @@ export function DevicePickerSheet(props: DevicePickerSheetProps) {
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
+    boxLocked: { opacity: 0.5 },
     flex: { flex: 1 },
     list: { maxHeight: 400 },
     footer: { paddingVertical: t.spacing.md },

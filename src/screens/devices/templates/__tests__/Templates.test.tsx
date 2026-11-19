@@ -68,6 +68,31 @@ describe("ProductTemplatesScreen", () => {
     await waitFor(() => expect(mock.history.delete.map((r) => r.url)).toEqual(["/product-templates/1/"]));
   });
 
+  it("atama: eşli cihaz tikli ve kilitli görünür, yalnız yeni seçilen gönderilir", async () => {
+    const dev = (sn: string, name: string) => ({ sn, pos_name: name, stat: true, online: true, company_id: 10, location_name: "Kat 1" });
+    mock.onGet("/product-templates/").reply(200, { results: templates });
+    mock.onGet("/product-templates/1/").reply(200, {
+      id: 1, name: "Ofis Snack", description: null, machine_type: 0, items: [],
+      assigned_devices: [{ sn: "PAV1", pos_name: "Lobi" }], created_at: null, updated_at: null,
+    });
+    mock.onGet("/pos-devices/").reply(200, {
+      count: 2, page: 1, num_pages: 1, page_size: 25, results: [dev("PAV1", "Lobi"), dev("PAV2", "Kafe")],
+    });
+    mock.onPost("/product-templates/1/assign/").reply(200, { detail: "1 cihaza eşlendi.", assigned_count: 1, type_mismatch: [] });
+    await renderWithProviders(<ProductTemplatesScreen />);
+
+    await fireEvent.press(await screen.findByTestId("template-actions-1"));
+    await fireEvent.press(await screen.findByText("POS cihazlarına ata"));
+    await waitFor(() => expect(screen.getByTestId("device-pick-PAV1")).toHaveProp("accessibilityState", { checked: true, disabled: true }));
+    expect(screen.getByTestId("device-pick-PAV2")).toHaveProp("accessibilityState", { checked: false, disabled: false });
+
+    await fireEvent.press(screen.getByTestId("device-pick-PAV1")); // kilitli: değişmez
+    await fireEvent.press(screen.getByTestId("device-pick-PAV2"));
+    await fireEvent.press(screen.getByText("Ata (1)"));
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({ device_sns: ["PAV2"] });
+  });
+
   it("yetki yoksa oluşturma ve işlem menüsü gizlidir", async () => {
     useAuthStore.setState({ user: makeUser({ permissions: ["tech"] }) });
     mock.onGet("/product-templates/").reply(200, { results: templates });
