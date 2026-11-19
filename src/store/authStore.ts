@@ -1,7 +1,8 @@
 import { create } from "zustand";
+import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi } from "@/api/auth";
-import { registerCompanyProvider, registerUnauthorizedHandler } from "@/api/client";
+import { refreshSessionIfStale, registerCompanyProvider, registerUnauthorizedHandler } from "@/api/client";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { queryClient } from "@/store/queryClient";
 import { stopPush } from "@/push/pushService";
@@ -73,8 +74,15 @@ export const useAuthStore = create<AuthState>((set, get) => {
     // Uygulama açılışında: token varsa /auth/me/ ile doğrula, yoksa login ekranına düş
     bootstrap: async () => {
       // Yeniden kurulumda Keychain'de kalan eski oturumu açma
-      await tokenStorage.resetIfFreshInstall();
-      const access = await tokenStorage.getAccess();
+      let access: string | null;
+      try {
+        await tokenStorage.resetIfFreshInstall();
+        access = await tokenStorage.getAccess();
+      } catch (e) {
+        // Anahtar zinciri o an okunamadı (ör. açılış sırasında): oturumu silme, bağlantı ekranından tekrar denensin
+        set({ status: "offline", errorMessage: (e as Error)?.message || "Oturum bilgisi okunamadı." });
+        return;
+      }
       if (!access) {
         set({ status: "unauthenticated" });
         return;
@@ -83,6 +91,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
         const user = await authApi.me();
         const selectedCompanyId = await resolveCompanyId(user);
         set({ status: "authenticated", user, selectedCompanyId, errorMessage: null });
+        // Kayan oturum: 30 günlük süre son açılıştan itibaren işlesin
+        refreshSessionIfStale().catch(() => {});
       } catch (e) {
         const status = (e as { status?: number }).status;
         if (status === 401 || status === 403) {
@@ -196,3 +206,10 @@ registerUnauthorizedHandler(() => {
   useAuthStore.setState({ ...initialSession, status: "unauthenticated", errorMessage: "Oturumunuz sona erdi, lütfen tekrar giriş yapın." });
 });
 registerCompanyProvider(() => useAuthStore.getState().selectedCompanyId);
+
+// Kayan oturum: uygulama öne geldiğinde yenileme token'ı bir günden eskiyse sessizce tazelenir
+AppState.addEventListener("change", (next) => {
+  if (next === "active" && useAuthStore.getState().status === "authenticated") {
+    refreshSessionIfStale().catch(() => {});
+  }
+});

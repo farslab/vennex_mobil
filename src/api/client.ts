@@ -32,12 +32,23 @@ export function registerCompanyProvider(provider: () => number | null) {
   companyProvider = provider;
 }
 
-// --- Refresh reentrancy guard: eşzamanlı 401'lerde tek refresh isteği ---
-let refreshPromise: Promise<string | null> | null = null;
+// --- Token yenileme ---
+// Oturum YALNIZ sunucu yenileme token'ını gerçekten reddettiğinde (400/401) kapanır.
+// Ağ yok / zaman aşımı / sunucu hatası (5xx) → token'lar korunur, kullanıcı oturumdan atılmaz.
+type RefreshResult = { token: string } | { invalid: true } | { unavailable: ApiError };
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = await tokenStorage.getRefresh();
-  if (!refreshToken) return null;
+/** Eşzamanlı 401'lerde ve arka plan tazelemesinde tek yenileme isteği */
+let refreshPromise: Promise<RefreshResult> | null = null;
+
+async function refreshAccessToken(): Promise<RefreshResult> {
+  let refreshToken: string | null;
+  try {
+    refreshToken = await tokenStorage.getRefresh();
+  } catch (e) {
+    // Anahtar zinciri o an okunamadı: oturumu silme, sonra tekrar denenir
+    return { unavailable: toApiError(e) };
+  }
+  if (!refreshToken) return { invalid: true };
   try {
     const { data } = await apiClient.post<{ access: string; refresh?: string }>(
       "/auth/refresh/",
@@ -45,11 +56,64 @@ async function refreshAccessToken(): Promise<string | null> {
       { skipAuth: true }
     );
     await tokenStorage.setTokens(data.access, data.refresh ?? refreshToken);
-    return data.access;
+    return { token: data.access };
+  } catch (e) {
+    const status = (e as ApiError).status;
+    if (status === 400 || status === 401) {
+      await tokenStorage.clear().catch(() => {});
+      return { invalid: true };
+    }
+    return { unavailable: toApiError(e) };
+  }
+}
+
+function runRefresh(): Promise<RefreshResult> {
+  refreshPromise ??= refreshAccessToken().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+function toApiError(e: unknown): ApiError {
+  if (e instanceof Error) return e as ApiError;
+  const err = new Error("Sunucuya ulaşılamıyor. Bağlantınızı kontrol edin.") as ApiError;
+  err.isNetworkError = true;
+  return err;
+}
+
+/** JWT gövdesindeki `iat` (saniye); çözülemezse null */
+function tokenIssuedAt(token: string): number | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=");
+    const payload = JSON.parse(globalThis.atob(b64)) as { iat?: unknown };
+    return typeof payload.iat === "number" ? payload.iat : null;
   } catch {
-    await tokenStorage.clear();
     return null;
   }
+}
+
+/** Yenileme token'ı bundan eskiyse uygulama açılışında/öne gelişinde arka planda tazelenir */
+export const SESSION_SLIDE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Kayan oturum: yenileme token'ının ömrü (sunucuda 30 gün) son açılıştan itibaren işlesin.
+ * Uygulama açıldığında/öne geldiğinde token bir günden eskiyse sessizce yenilenir.
+ * Hata kullanıcıya gösterilmez ve oturumu kapatmaz (sunucu token'ı reddetmediği sürece).
+ */
+export async function refreshSessionIfStale(now: number = Date.now()): Promise<boolean> {
+  let refreshToken: string | null = null;
+  try {
+    refreshToken = await tokenStorage.getRefresh();
+  } catch {
+    return false;
+  }
+  if (!refreshToken) return false;
+  const iat = tokenIssuedAt(refreshToken);
+  if (iat != null && now - iat * 1000 < SESSION_SLIDE_AFTER_MS) return false;
+  const res = await runRefresh();
+  return "token" in res;
 }
 
 apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
@@ -70,16 +134,18 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 401 && original && !original._retry && !original.skipAuth) {
       original._retry = true;
-      refreshPromise ??= refreshAccessToken().finally(() => {
-        refreshPromise = null;
-      });
-      const newToken = await refreshPromise;
-      if (!newToken) {
-        onUnauthorized?.();
-        return Promise.reject(normalizeError(error));
+      const res = await runRefresh();
+      if ("token" in res) {
+        original.headers.Authorization = `Bearer ${res.token}`;
+        return apiClient(original);
       }
-      original.headers.Authorization = `Bearer ${newToken}`;
-      return apiClient(original);
+      if ("unavailable" in res) {
+        // Yenileme isteği sunucuya ulaşamadı / sunucu hatası: oturum geçerli olabilir → çıkış YOK.
+        // İstek bağlantı hatası olarak döner (ekranlar "tekrar dene" gösterir).
+        return Promise.reject(res.unavailable);
+      }
+      onUnauthorized?.();
+      return Promise.reject(normalizeError(error));
     }
 
     return Promise.reject(normalizeError(error));

@@ -1,6 +1,6 @@
 import MockAdapter from "axios-mock-adapter";
 import { AxiosError, AxiosHeaders } from "axios";
-import { apiClient, normalizeError, registerCompanyProvider, registerUnauthorizedHandler, API_PREFIX } from "@/api/client";
+import { apiClient, normalizeError, refreshSessionIfStale, registerCompanyProvider, registerUnauthorizedHandler, API_PREFIX } from "@/api/client";
 import { tokenStorage } from "@/utils/tokenStorage";
 import { API_BASE_URL } from "@/config/env";
 import { resetSecureStore } from "@/test/utils";
@@ -86,6 +86,72 @@ describe("apiClient", () => {
     });
     expect(await tokenStorage.getAccess()).toBeNull();
     expect(onUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it("refresh isteği ağ hatası verirse: token'lar korunur, çıkış yapılmaz, istek bağlantı hatasıyla döner", async () => {
+    await tokenStorage.setTokens("OLD", "REFRESH-1");
+    mock.onPost("/auth/refresh/").networkError();
+    mock.onGet("/cards/").reply(401, {});
+
+    await expect(apiClient.get("/cards/")).rejects.toMatchObject({ isNetworkError: true });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(await tokenStorage.getAccess()).toBe("OLD");
+    expect(await tokenStorage.getRefresh()).toBe("REFRESH-1");
+  });
+
+  it("refresh isteği zaman aşımı / 5xx verirse de çıkış yapılmaz", async () => {
+    await tokenStorage.setTokens("OLD", "REFRESH-1");
+    mock.onPost("/auth/refresh/").replyOnce(502, {}).onPost("/auth/refresh/").timeoutOnce();
+    mock.onGet("/cards/").reply(401, {});
+
+    await expect(apiClient.get("/cards/")).rejects.toMatchObject({ status: 502 });
+    await expect(apiClient.get("/cards/")).rejects.toBeTruthy();
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(await tokenStorage.getRefresh()).toBe("REFRESH-1");
+  });
+
+  it("refresh 400 (geçersiz/kara listede) → oturum kapanır", async () => {
+    await tokenStorage.setTokens("OLD", "REFRESH-1");
+    mock.onPost("/auth/refresh/").reply(400, { detail: "Token blacklisted" });
+    mock.onGet("/cards/").reply(401, {});
+
+    await expect(apiClient.get("/cards/")).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(await tokenStorage.getRefresh()).toBeNull();
+  });
+
+  describe("kayan oturum (refreshSessionIfStale)", () => {
+    const jwt = (iatSec: number) =>
+      `h.${Buffer.from(JSON.stringify({ token_type: "refresh", iat: iatSec })).toString("base64url")}.s`;
+    const now = Date.UTC(2026, 10, 19, 12, 0, 0);
+
+    it("yenileme token'ı bir günden yeniyse istek atmaz", async () => {
+      await tokenStorage.setTokens("A", jwt(now / 1000 - 3600));
+      expect(await refreshSessionIfStale(now)).toBe(false);
+      expect(mock.history.post).toHaveLength(0);
+    });
+
+    it("bir günden eskiyse arka planda tazeler (30 gün son açılıştan işler)", async () => {
+      await tokenStorage.setTokens("A", jwt(now / 1000 - 2 * 86400));
+      mock.onPost("/auth/refresh/").reply(200, { access: "A2", refresh: "R2" });
+      expect(await refreshSessionIfStale(now)).toBe(true);
+      expect(await tokenStorage.getAccess()).toBe("A2");
+      expect(await tokenStorage.getRefresh()).toBe("R2");
+    });
+
+    it("tazeleme ağ hatası verirse sessiz kalır, oturumu bozmaz", async () => {
+      const old = jwt(now / 1000 - 2 * 86400);
+      await tokenStorage.setTokens("A", old);
+      mock.onPost("/auth/refresh/").networkError();
+      expect(await refreshSessionIfStale(now)).toBe(false);
+      expect(await tokenStorage.getRefresh()).toBe(old);
+      expect(onUnauthorized).not.toHaveBeenCalled();
+    });
+
+    it("token yoksa hiçbir şey yapmaz", async () => {
+      expect(await refreshSessionIfStale(now)).toBe(false);
+      expect(mock.history.post).toHaveLength(0);
+    });
   });
 
   it("refresh token yoksa doğrudan unauthorized handler'ı çağırır", async () => {

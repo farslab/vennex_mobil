@@ -85,6 +85,60 @@ describe("authStore", () => {
     });
   });
 
+  describe("oturum kapanmamalı (bir kez giriş yeter)", () => {
+    it("giriş token'ı süresi dolmuş + internet yok: çıkış YOK, bağlantı ekranı; token'lar korunur", async () => {
+      await AsyncStorage.setItem("vennex.install.marker", "1");
+      await tokenStorage.setTokens("ESKI", "R");
+      mock.onGet("/auth/me/").reply(401, {});
+      mock.onPost("/auth/refresh/").networkError();
+
+      await useAuthStore.getState().bootstrap();
+
+      expect(useAuthStore.getState().status).toBe("offline");
+      expect(await tokenStorage.getAccess()).toBe("ESKI");
+      expect(await tokenStorage.getRefresh()).toBe("R");
+    });
+
+    it("giriş token'ı süresi dolmuş + sunucu geçici hata (503): çıkış YOK", async () => {
+      await AsyncStorage.setItem("vennex.install.marker", "1");
+      await tokenStorage.setTokens("ESKI", "R");
+      mock.onGet("/auth/me/").reply(401, {});
+      mock.onPost("/auth/refresh/").reply(503, {});
+
+      await useAuthStore.getState().bootstrap();
+
+      expect(useAuthStore.getState().status).toBe("offline");
+      expect(await tokenStorage.getRefresh()).toBe("R");
+    });
+
+    it("bağlantı gelince aynı oturum kendiliğinden devam eder (yeniden giriş gerekmez)", async () => {
+      await AsyncStorage.setItem("vennex.install.marker", "1");
+      await tokenStorage.setTokens("ESKI", "R");
+      mock.onGet("/auth/me/").replyOnce(401, {});
+      mock.onPost("/auth/refresh/").replyOnce(503, {});
+      await useAuthStore.getState().bootstrap();
+      expect(useAuthStore.getState().status).toBe("offline");
+
+      mock.onGet("/auth/me/").replyOnce(401, {}).onGet("/auth/me/").reply(200, makeUser());
+      mock.onPost("/auth/refresh/").reply(200, { access: "YENI", refresh: "R2" });
+      await useAuthStore.getState().bootstrap();
+      expect(useAuthStore.getState().status).toBe("authenticated");
+      expect(await tokenStorage.getAccess()).toBe("YENI");
+    });
+
+    it("anahtar zinciri okunamazsa oturum silinmez, bağlantı ekranı gösterilir", async () => {
+      await AsyncStorage.setItem("vennex.install.marker", "1");
+      await tokenStorage.setTokens("A", "R");
+      const spy = jest.spyOn(tokenStorage, "getAccess").mockRejectedValueOnce(new Error("Keychain kilitli"));
+
+      await useAuthStore.getState().bootstrap();
+
+      expect(useAuthStore.getState().status).toBe("offline");
+      spy.mockRestore();
+      expect(await tokenStorage.getRefresh()).toBe("R");
+    });
+  });
+
   describe("şirket seçimi", () => {
     const companies = [
       { id: 10, name: "A", cari_state: 0, has_personnel_card_device: true, uses_stock_mode: true },
