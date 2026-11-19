@@ -99,6 +99,14 @@ export function formatTime(value: string | Date | null | undefined): string {
   return `${pad(p.hh)}:${pad(p.mm)}`;
 }
 
+/** "dd.MM.yyyy HH:mm:ss" (Türkiye saati) — web işlem listesiyle aynı biçim */
+export function formatDateTimeSeconds(value: string | null | undefined): string {
+  const d = parseApiDate(value);
+  if (!d) return EMPTY_VALUE;
+  const p = trParts(d);
+  return `${pad(p.d)}.${pad(p.m)}.${p.y} ${pad(p.hh)}:${pad(p.mm)}:${pad(d.getUTCSeconds())}`;
+}
+
 /** "az önce", "5 dk önce", "3 sa önce", "2 gün önce", daha eskiyse tarih */
 export function formatRelative(value: string | Date | null | undefined, now: Date = new Date()): string {
   const d = value instanceof Date ? value : parseApiDate(value);

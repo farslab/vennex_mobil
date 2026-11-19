@@ -33,13 +33,14 @@ import {
   CANCEL_REASON_LABELS,
   DATE_PRESETS,
   PT_TYPE_OPTIONS,
-  cancelReasonLabel,
+  entryModeLabel,
   presetRange,
-  ptTypeLabel,
+  ptBadge,
+  txStatusLabel,
   type DatePreset,
 } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger } from "@/utils/number";
-import { businessToday, formatDate, formatTime, parseUserDate, toApiDate } from "@/utils/date";
+import { businessToday, formatDate, formatDateTimeSeconds, parseUserDate, toApiDate } from "@/utils/date";
 import type {
   CancelReasonFilter,
   PosTransaction,
@@ -111,11 +112,10 @@ export function SalesTab({ sn }: { sn: string }) {
     params.start_date === params.end_date
       ? formatDate(params.start_date ?? null)
       : `${formatDate(params.start_date ?? null)} – ${formatDate(params.end_date ?? null)}`;
-  const multiDay = params.start_date !== params.end_date;
 
   const renderItem = useCallback(
-    ({ item }: { item: PosTransaction }) => <TxRow tx={item} multiDay={multiDay} onPress={setSelected} />,
-    [multiDay]
+    ({ item }: { item: PosTransaction }) => <TxRow tx={item} onPress={setSelected} />,
+    []
   );
 
   const header = (
@@ -201,39 +201,76 @@ export function SalesTab({ sn }: { sn: string }) {
         onClose={() => setCustomOpen(false)}
         onApply={(start, end) => setFilters((f) => ({ ...f, preset: "custom", customStart: start, customEnd: end }))}
       />
-      <TransactionDetailSheet tx={selected} onClose={() => setSelected(null)} />
+      <TransactionDetailSheet
+        tx={selected}
+        onClose={() => setSelected(null)}
+        sn={sn}
+        receiptsEnabled={list.firstPage?.receipts_refund_enabled === true}
+      />
     </View>
   );
 }
 
-function TxRow({ tx, multiDay, onPress }: { tx: PosTransaction; multiDay: boolean; onPress: (t: PosTransaction) => void }) {
+/**
+ * İşlem kartı — web POS cihazı sayfasının mobil görünümüyle aynı bilgi ve sıra:
+ * kart no + ödeme tipi (+ okuma şekli) · durum / tarih-saat / ürün + ürün no · tutar / Detaylar (fiş + iade).
+ */
+function TxRow({ tx, onPress }: { tx: PosTransaction; onPress: (t: PosTransaction) => void }) {
   const styles = useStyles();
-  const name = tx.display_name ?? (tx.product_no != null ? `Ürün no ${tx.product_no}` : "Ürün bilgisi yok");
-  const when = multiDay ? `${formatDate(tx.pt_datetime)} ${formatTime(tx.pt_datetime)}` : formatTime(tx.pt_datetime);
+  const name = tx.display_name ?? "—";
+  const pt = ptBadge(tx.pt_type);
+  const entry = entryModeLabel(tx.pt_type, tx.entry_mode);
+  const statusLabel = txStatusLabel(tx.status, tx.pt_type, tx.iptalNo);
+  const when = formatDateTimeSeconds(tx.pt_datetime);
+  const showProductNo = tx.product_no != null && tx.product_no !== 65535;
   return (
     <Pressable
       onPress={() => onPress(tx)}
       accessibilityRole="button"
-      accessibilityLabel={`${name}, ${formatCurrency(tx.amount)}, ${tx.status ? "başarılı" : "başarısız"}, ${when}`}
-      style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
+      accessibilityLabel={`${name}, ${formatCurrency(tx.amount)}, ${statusLabel}, ${when}, ${pt.label}`}
+      style={({ pressed }) => [styles.txCard, pressed && styles.pressed]}
       testID={`tx-row-${tx.id}`}
     >
-      <View style={styles.flex}>
-        <AppText variant="calloutStrong" numberOfLines={1}>
-          {name}
-        </AppText>
-        <AppText variant="caption" color="textTertiary" numberOfLines={1}>
-          {when} · {ptTypeLabel(tx.pt_type)}
-          {tx.pt_pan ? ` · ${tx.pt_pan.slice(-4)}` : ""}
-          {!tx.status ? ` · ${cancelReasonLabel(tx.iptalNo)}` : ""}
-        </AppText>
+      <View style={styles.txTop}>
+        <View style={styles.txBadges}>
+          {tx.pt_pan ? (
+            <View style={[styles.panChip, tx.pt_type === 1 ? styles.panInfo : tx.pt_type === 5 ? styles.panSuccess : null]}>
+              <AppText variant="mono" style={styles.panText}>
+                {tx.pt_pan}
+              </AppText>
+            </View>
+          ) : null}
+          <AppBadge size="sm" tone={pt.tone} label={pt.label} />
+          {entry ? <AppBadge size="sm" tone="neutral" label={entry} /> : null}
+        </View>
+        <AppBadge size="sm" tone={tx.status ? "success" : "danger"} label={statusLabel} />
       </View>
-      <View style={styles.txRight}>
-        <AppText variant="numeric" color={tx.status ? "text" : "textTertiary"}>
+      <AppText variant="caption" color="textTertiary">
+        {when}
+      </AppText>
+      <View style={styles.txBottom}>
+        <View style={styles.flex}>
+          <AppText variant="calloutStrong" numberOfLines={2}>
+            {name}
+          </AppText>
+          {showProductNo ? (
+            <AppText variant="caption" color="textTertiary">
+              Ürün No {tx.product_no}
+            </AppText>
+          ) : null}
+        </View>
+        <AppText variant="numeric" style={styles.txAmount}>
           {formatCurrency(tx.amount)}
         </AppText>
-        {!tx.status ? <AppBadge size="sm" dot tone="danger" label="Başarısız" /> : null}
       </View>
+      {tx.rr_show ? (
+        <View style={styles.txRr}>
+          <AppText variant="calloutStrong" color="primary">
+            Detaylar
+          </AppText>
+          {tx.refund_label ? <AppBadge size="sm" tone="info" label={tx.refund_label} /> : null}
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -368,18 +405,23 @@ const useStyles = makeStyles((t) =>
     summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: t.spacing.sm },
     listTitle: { paddingHorizontal: t.layout.screenPadding, marginTop: t.spacing.sm },
     footer: { paddingVertical: t.spacing.lg },
-    txRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: t.spacing.md,
-      minHeight: 56,
+    txCard: {
+      gap: t.spacing.xs,
       paddingHorizontal: t.layout.screenPadding,
-      paddingVertical: t.spacing.sm,
+      paddingVertical: t.spacing.md,
       backgroundColor: t.colors.surface,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: t.colors.border,
     },
     pressed: { backgroundColor: t.colors.surfacePressed },
-    txRight: { alignItems: "flex-end", gap: 2 },
+    txTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.spacing.sm },
+    txBadges: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: t.spacing.xs, flex: 1 },
+    panChip: { borderRadius: t.radius.xs, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: t.colors.surfaceMuted },
+    panInfo: { backgroundColor: t.colors.infoSubtle },
+    panSuccess: { backgroundColor: t.colors.successSubtle },
+    panText: { fontSize: 12 },
+    txBottom: { flexDirection: "row", alignItems: "flex-end", gap: t.spacing.sm, marginTop: t.spacing.xs },
+    txAmount: { fontWeight: "700" },
+    txRr: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm, marginTop: t.spacing.xs },
   })
 );

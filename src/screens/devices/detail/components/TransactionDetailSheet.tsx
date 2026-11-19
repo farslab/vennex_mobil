@@ -6,8 +6,20 @@ import { cancelReasonLabel, ptTypeLabel } from "@/components/devices/deviceHelpe
 import { formatCurrency } from "@/utils/number";
 import { formatDateTime } from "@/utils/date";
 import type { PosTransaction } from "@/types/devices";
+import { TxReceiptRefund } from "./TxReceiptRefund";
 
-export function TransactionDetailSheet({ tx, onClose }: { tx: PosTransaction | null; onClose: () => void }) {
+export function TransactionDetailSheet({
+  tx,
+  onClose,
+  sn,
+  receiptsEnabled = false,
+}: {
+  tx: PosTransaction | null;
+  onClose: () => void;
+  /** Fiş + uzaktan iade için (yalnız vennexRN cihazlarda, web ile aynı) */
+  sn?: string;
+  receiptsEnabled?: boolean;
+}) {
   const styles = useStyles();
   return (
     <AppSheet visible={tx != null} onClose={onClose} title="İşlem detayı" testID="tx-detail">
@@ -27,6 +39,7 @@ export function TransactionDetailSheet({ tx, onClose }: { tx: PosTransaction | n
             <KeyValueRow label="Banka referansı" value={tx.bankRefNo} mono />
             <KeyValueRow label="İşlem no" value={tx.pt_id} mono last />
           </View>
+          {receiptsEnabled && sn ? <TxReceiptRefund key={tx.id} sn={sn} tx={tx} /> : null}
         </>
       ) : null}
     </AppSheet>

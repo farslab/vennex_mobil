@@ -237,6 +237,11 @@ export interface PosTransaction {
   pt_pan: string | null;
   bankRefNo: string | null;
   display_name: string | null;
+  /** Kart okuma: 7 Temassız, 1/5 Çip, 3 QR Kod, 90 Manyetik (web pt_badge.html) */
+  entry_mode: number | null;
+  /** Yalnız vennexRN: satırda "Detaylar" (fiş/iade) gösterilsin mi ve son iade isteği etiketi */
+  rr_show: boolean;
+  refund_label: string;
 }
 
 /** Tarih aralığına göre (durum/ödeme filtrelerinden ÖNCE) hesaplanır — views/pos_devices.py:490-496 */
@@ -249,6 +254,37 @@ export interface TransactionsSummary {
 
 export interface TransactionsResponse extends PageResponse<PosTransaction> {
   summary: TransactionsSummary | null;
+  /** Web ile aynı: dijital fiş + uzaktan iade yalnız vennexRN cihazlarda */
+  receipts_refund_enabled: boolean;
+}
+
+/** `GET pos-devices/{sn}/transactions/{id}/receipt/` — web `receipt_refund_state` ile aynı JSON */
+export interface TxReceipt {
+  kind: string;
+  label: string;
+  text: string;
+  created_at: string;
+}
+export interface TxRefundRequest {
+  id: string;
+  status: string;
+  label: string;
+  executed_label: string;
+  waiting_card: boolean;
+  card_seconds_left: number | null;
+  reject_reason: string | null;
+  error_code: string | null;
+  message: string | null;
+  created_at: string;
+  poll: boolean;
+}
+export interface TxReceiptState {
+  tx: { id: number; amount: string; status: boolean; iptal_no: number | null; datetime: string };
+  receipts: TxReceipt[];
+  refund: TxRefundRequest | null;
+  can_refund: boolean;
+  refund_block: string;
+  message?: string;
 }
 
 export type TxStatusFilter = "success" | "fail";

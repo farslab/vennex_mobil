@@ -59,7 +59,7 @@ const detail = (o: Record<string, unknown> = {}) =>
 
 /** Yerel saatle ISO tarih → formatDateTime çıktısı saat diliminden bağımsız olur */
 /** Türkiye duvar saatindeki an (UTC+3) */
-const localIso = (y: number, m: number, d: number, h: number, mi: number) => new Date(Date.UTC(y, m - 1, d, h - 3, mi)).toISOString();
+const localIso = (y: number, m: number, d: number, h: number, mi: number, s = 0) => new Date(Date.UTC(y, m - 1, d, h - 3, mi, s)).toISOString();
 const pad = (n: number) => String(n).padStart(2, "0");
 /** Türkiye saatiyle (uygulama sunucu zamanlarını her zaman TR saatiyle gösterir) */
 const trDateTime = (d: Date) => {
@@ -103,15 +103,15 @@ describe("GeneralTab", () => {
 
     await renderWithProviders(<GeneralTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
 
-    const today = await screen.findByTestId("summary-Bugün");
+    const today = await screen.findByTestId("summary-Bugün Ciro");
     await waitFor(() => expect(within(today).getByText("₺1.234,50")).toBeOnTheScreen());
     expect(within(today).getByText("1.234 işlem")).toBeOnTheScreen();
     // 0 geçerli bir değerdir: "—" değil ₺0,00
-    expect(within(screen.getByTestId("summary-Dün")).getByText("₺0,00")).toBeOnTheScreen();
-    expect(within(screen.getByTestId("summary-Dün")).getByText("0 işlem")).toBeOnTheScreen();
-    expect(within(screen.getByTestId("summary-Bu ay")).getByText("₺98.765,43")).toBeOnTheScreen();
-    expect(within(screen.getByTestId("summary-Bu ay")).getByText("5.000 işlem")).toBeOnTheScreen();
-    const lastMonth = screen.getByTestId("summary-Geçen ay");
+    expect(within(screen.getByTestId("summary-Dün Ciro")).getByText("₺0,00")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("summary-Dün Ciro")).getByText("0 işlem")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("summary-Bu Ay Ciro")).getByText("₺98.765,43")).toBeOnTheScreen();
+    expect(within(screen.getByTestId("summary-Bu Ay Ciro")).getByText("5.000 işlem")).toBeOnTheScreen();
+    const lastMonth = screen.getByTestId("summary-Geçen Ay Ciro");
     expect(within(lastMonth).getByText("—")).toBeOnTheScreen();
     expect(within(lastMonth).queryByText(/işlem/)).toBeNull();
 
@@ -149,8 +149,8 @@ describe("GeneralTab", () => {
     expect(screen.getByText("11 / 18 adet")).toBeOnTheScreen();
 
     expect(screen.getByText("Çevrimdışı")).toBeOnTheScreen();
-    expect(screen.getByText("Pasif")).toBeOnTheScreen();
-    expect(screen.getByText("Devre dışı")).toBeOnTheScreen();
+    expect(screen.getByText("Hayır")).toBeOnTheScreen(); // web: "Aktif: Hayır"
+    expect(screen.getByText("DISABLED")).toBeOnTheScreen(); // web: get_act_macstat_display
     expect(screen.getByText(`2 sa önce · ${trDateTime(seen)}`)).toBeOnTheScreen();
 
     expect(screen.getByText("2 / 3 açık")).toBeOnTheScreen();
@@ -197,8 +197,8 @@ describe("GeneralTab", () => {
     expect(await screen.findByText("Tüm ödeme yöntemleri kapalı.")).toBeOnTheScreen();
     expect(screen.getByText("0 / 2 açık")).toBeOnTheScreen();
     expect(screen.getByText("Bilinmiyor")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Makine durumu: —")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Son iletişim: —")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Makine Durumu: —")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Son Görülme: —")).toBeOnTheScreen();
   });
 
   it("özet ve ürün uçları hata verirse uyarı gösterir, sahte değer üretmez", async () => {
@@ -602,5 +602,101 @@ describe("TransactionDetailSheet", () => {
     await rerender(<TransactionDetailSheet tx={tx()} onClose={onClose} />);
     await fireEvent.press(screen.getAllByLabelText("Kapat")[0]);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ------------------------------------------------ Dijital fiş + uzaktan iade */
+
+describe("İşlem detayı · fiş ve uzaktan iade (web ile aynı)", () => {
+  const receiptUrl = `${base}/transactions/5/receipt/`;
+  const refundUrl = `${base}/transactions/5/refund/`;
+  const saleTx = normalizeDeviceTransaction({ id: 5, pt_id: "TX5", pt_datetime: localIso(2026, 11, 18, 8, 15), amount: "45.00", pt_type: 1, status: true });
+  const state = (o: Record<string, unknown> = {}) => ({
+    ok: true,
+    tx: { id: 5, amount: "45,00", status: true, iptal_no: null, datetime: "18.11.2026 08:15:00" },
+    receipts: [{ kind: "sale", label: "Satış fişi", text: "VENNEX OTOMAT\nTUTAR: 45,00 TL", created_at: "18.11.2026 08:15:02" }],
+    has_sale_receipt: true,
+    refund: null,
+    can_refund: true,
+    refund_block: "",
+    ...o,
+  });
+  const req = (o: Record<string, unknown> = {}) => ({
+    id: "r1", status: "sent", label: "İade sürüyor", mode: "auto", executed_mode: null, executed_label: "",
+    waiting_card: false, card_seconds_left: 0, reject_reason: null, error_code: null, message: null,
+    requested_by: "mobile:demo", created_at: "18.11.2026 08:20:00", poll: true, ...o,
+  });
+
+  it("vennexRN değilse fiş/iade bölümü yok ve istek atılmaz", async () => {
+    await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled={false} />);
+    expect(screen.queryByTestId("tx-receipt-refund")).toBeNull();
+    expect(mock.history.get.some((r) => r.url === receiptUrl)).toBe(false);
+  });
+
+  it("fiş metnini gösterir ve paylaşım menüsünü açar", async () => {
+    const { Share } = jest.requireActual<typeof import("react-native")>("react-native");
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    mock.onGet(receiptUrl).reply(200, state());
+    await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled />);
+    expect(await screen.findByText("Satış fişi")).toBeOnTheScreen();
+    expect(screen.getByText("VENNEX OTOMAT\nTUTAR: 45,00 TL")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("receipt-share-sale"));
+    expect(share).toHaveBeenCalledWith({ title: "Fiş · Satış fişi", message: "VENNEX OTOMAT\nTUTAR: 45,00 TL" });
+    share.mockRestore();
+  });
+
+  it("iade: onaydan sonra POST, sonuç web gibi sorgulanarak izlenir", async () => {
+    mock.onGet(receiptUrl).replyOnce(200, state());
+    mock.onPost(refundUrl).reply(200, { ...state({ refund: req(), can_refund: false, refund_block: "Bu işlem için açık bir iade isteği var." }), message: "İade isteği cihaza gönderildi." });
+    mock.onGet(receiptUrl).reply(200, state({ refund: req({ status: "ok", label: "Başarılı · Kartsız iade", poll: false }), can_refund: false, refund_block: "İşlem iade edilmiş." }));
+    await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled />);
+
+    await fireEvent.press(await screen.findByTestId("tx-refund"));
+    expect(mock.history.post).toHaveLength(0); // onay olmadan istek yok
+    expect(screen.getByText("Bu işlem geri alınamaz.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("confirm-sheet-confirm"));
+    await waitFor(() => expect(mock.history.post.map((r) => r.url)).toEqual([refundUrl]));
+    expect(await screen.findByText("İade sürüyor")).toBeOnTheScreen();
+    expect(await screen.findByText("Başarılı · Kartsız iade", {}, { timeout: 5000 })).toBeOnTheScreen();
+    expect(screen.getByTestId("tx-refund-block")).toHaveTextContent("İşlem iade edilmiş.");
+  }, 15000);
+
+  it("kart bekleniyorsa uyarı ve geri sayım; kural dışıysa sunucu mesajı", async () => {
+    mock.onGet(receiptUrl).reply(200, state({ refund: req({ status: "accepted", label: "Kart bekleniyor", waiting_card: true, card_seconds_left: 42, poll: false }), can_refund: false, refund_block: "Bu işlem için açık bir iade isteği var." }));
+    await renderWithProviders(<TransactionDetailSheet tx={saleTx} onClose={noop} sn={SN} receiptsEnabled />);
+    expect(await screen.findByText(/okutmalı.*42 sn/)).toBeOnTheScreen();
+    expect(screen.queryByTestId("tx-refund")).toBeNull();
+  });
+});
+
+/* --------------------------------------------- Satışlar · web mobil kartları */
+
+describe("SalesTab işlem kartı (web mobil görünümü)", () => {
+  it("kart no + ödeme tipi + okuma şekli, durum nedeni, saniyeli tarih, ürün no ve Detaylar", async () => {
+    const { SalesTab } = jest.requireActual<typeof import("@/screens/devices/detail/tabs/SalesTab")>("@/screens/devices/detail/tabs/SalesTab");
+    mock.onGet(`${base}/transactions/`).reply(200, {
+      count: 2,
+      page: 1,
+      num_pages: 1,
+      summary: { total: 2, success: 1, failed: 1, revenue: 35 },
+      receipts_refund_enabled: true,
+      results: [
+        { id: 1, pt_id: "A", pt_datetime: localIso(2026, 11, 19, 17, 31, 42), amount: "35.00", pt_type: 1, status: true, entry_mode: 7, product_no: 8708, pt_pan: "4074", display_name: "Sade Kahve", rr_show: true, refund_label: "" },
+        { id: 2, pt_id: "B", pt_datetime: localIso(2026, 11, 19, 17, 20, 5), amount: "20.00", pt_type: 1, status: false, iptalNo: 3, product_no: 65535, pt_pan: "1111", display_name: "Su", rr_show: true, refund_label: "İade başarısız" },
+      ],
+    });
+    await renderWithProviders(<SalesTab sn={SN} />);
+    const card = await screen.findByTestId("tx-row-1");
+    expect(within(card).getByText("4074")).toBeOnTheScreen();
+    expect(within(card).getByText("Kredi Kartı")).toBeOnTheScreen();
+    expect(within(card).getByText("Temassız")).toBeOnTheScreen();
+    expect(within(card).getByText("Başarılı")).toBeOnTheScreen();
+    expect(within(card).getByText("19.11.2026 17:31:42")).toBeOnTheScreen();
+    expect(within(card).getByText("Ürün No 8708")).toBeOnTheScreen();
+    expect(within(card).getByText("Detaylar")).toBeOnTheScreen();
+    const failed = screen.getByTestId("tx-row-2");
+    expect(within(failed).getByText("Teknik Hata")).toBeOnTheScreen();
+    expect(within(failed).queryByText(/Ürün No/)).toBeNull(); // 65535 gösterilmez (web)
+    expect(within(failed).getByText("İade başarısız")).toBeOnTheScreen();
   });
 });

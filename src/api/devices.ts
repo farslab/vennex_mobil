@@ -35,6 +35,7 @@ import type {
   StockSlotPayload,
   TransactionFilters,
   TransactionsResponse,
+  TxReceiptState,
 } from "@/types/devices";
 
 /* ------------------------------------------------------------ yardımcılar */
@@ -219,6 +220,9 @@ export function normalizeDeviceTransaction(v: unknown): PosTransaction {
     pt_pan: str(o.pt_pan) || null,
     bankRefNo: str(o.bankRefNo) || null,
     display_name: str(o.display_name) || null,
+    entry_mode: int(o.entry_mode),
+    rr_show: o.rr_show === true,
+    refund_label: str(o.refund_label) ?? "",
   };
 }
 
@@ -232,6 +236,7 @@ export function normalizeDeviceTransactions(v: unknown): TransactionsResponse {
       ? { total: int(s.total), success: int(s.success), failed: int(s.failed), revenue: toNumber(s.revenue) }
       : null,
     results,
+    receipts_refund_enabled: o.receipts_refund_enabled === true,
   };
 }
 
@@ -380,6 +385,18 @@ export const devicesApi = {
         signal,
       })
       .then((r) => normalizeDeviceTransactions(r.data)),
+
+  /** Dijital fiş + son uzaktan iade durumu (web `receipt_refund_state`); `refund.poll` iken 2–3 sn'de bir tekrar istenir */
+  txReceipt: (sn: string, txId: number, signal?: AbortSignal) =>
+    apiClient
+      .get<TxReceiptState>(`/pos-devices/${encodeURIComponent(sn)}/transactions/${txId}/receipt/`, { signal })
+      .then((r) => r.data),
+
+  /** Uzaktan iade başlat — yöntemi cihaz seçer (web ile aynı). Kural dışıysa 409 {detail} */
+  txRefund: (sn: string, txId: number) =>
+    apiClient
+      .post<TxReceiptState>(`/pos-devices/${encodeURIComponent(sn)}/transactions/${txId}/refund/`)
+      .then((r) => r.data),
 
   products: (sn: string, signal?: AbortSignal) =>
     apiClient
