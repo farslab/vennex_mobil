@@ -12,13 +12,15 @@ export interface AppBadgeProps {
   dot?: boolean;
   icon?: IconName;
   size?: "sm" | "md";
+  /** Tonu ezen özel renk (ör. web'deki ödeme tipi renkleri) */
+  colors?: { fg: string; bg: string };
 }
 
 /** Durum rozeti — renk tek başına bilgi taşımaz, her zaman metin içerir */
-export function AppBadge({ label, tone = "neutral", dot = false, icon, size = "md" }: AppBadgeProps) {
+export function AppBadge({ label, tone = "neutral", dot = false, icon, size = "md", colors: custom }: AppBadgeProps) {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { fg, bg } = toneColors(colors, tone);
+  const { fg, bg } = custom ?? toneColors(colors, tone);
   return (
     <View
       style={[styles.root, size === "sm" && styles.sm, { backgroundColor: bg }]}

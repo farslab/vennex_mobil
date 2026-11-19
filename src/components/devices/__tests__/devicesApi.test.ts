@@ -13,10 +13,10 @@ describe("devicesApi", () => {
   it("liste: page_size GÖNDERMEZ, boş/varsayılan parametreleri atar, boolean'ları string yapar", async () => {
     mock.onGet("/pos-devices/").reply(200, { count: 0, page: 1, num_pages: 1, results: [] });
 
-    await devicesApi.list({ page: 2, page_size: 50, q: "  kahve ", online: false, stat: 0, sort_by: "default", location_id: undefined });
+    await devicesApi.list({ page: 2, page_size: 50, q: "  kahve ", online: false, machine_type: 0, sort_by: "default", location_ids: [9, 3] });
 
     const params = mock.history.get[0].params;
-    expect(params).toEqual({ page: 2, q: "kahve", online: "false", stat: 0 });
+    expect(params).toEqual({ page: 2, q: "kahve", online: "false", machine_type: 0, location_ids: "3,9" });
     expect(params).not.toHaveProperty("page_size");
     expect(params).not.toHaveProperty("sort_by");
   });

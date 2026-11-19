@@ -1,31 +1,58 @@
+/**
+ * POS cihazı filtreleri — web POS cihazı listesiyle aynı alanlar ve adlar:
+ * Konum (bölge gruplu, çoktan seçmeli) · Durum · Makine Tipi · Sırala. Aktif/Pasif filtresi yok (web'de yok).
+ */
 import React, { useMemo, useState } from "react";
 import { useOnOpen } from "@/components/devices/useOnOpen";
 import { StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { AppButton, AppNotice, AppSegmented, AppSelect, AppSheet, AppText, makeStyles } from "@/design-system";
+import { AppButton, AppNotice, AppSelect, AppSheet, AppText, makeStyles } from "@/design-system";
 import { devicesApi } from "@/api/devices";
 import { queryKeys } from "@/api/queryKeys";
 import { DEVICE_SORT_OPTIONS } from "@/components/devices/deviceHelpers";
+import { LocationMultiSelect } from "@/components/dashboard/LocationMultiSelect";
 import type { DeviceSortBy } from "@/types/devices";
 
 export type ConnectivityFilter = "all" | "online" | "offline";
-export type StatFilter = "all" | "1" | "0";
+export type MachineTypeFilter = "all" | "0" | "1";
 
 export interface DeviceFilters {
   online: ConnectivityFilter;
-  stat: StatFilter;
-  locationId: number | null;
+  machineType: MachineTypeFilter;
+  /** Boş = tüm konumlar */
+  locationIds: number[];
   sortBy: DeviceSortBy;
 }
 
-export const DEFAULT_FILTERS: DeviceFilters = { online: "all", stat: "all", locationId: null, sortBy: "default" };
+export const DEFAULT_FILTERS: DeviceFilters = { online: "all", machineType: "all", locationIds: [], sortBy: "default" };
 
 /** Varsayılandan farklı filtre sayısı (sıralama hariç) */
 export function activeFilterCount(f: DeviceFilters): number {
-  return (f.online !== "all" ? 1 : 0) + (f.stat !== "all" ? 1 : 0) + (f.locationId != null ? 1 : 0);
+  return (f.online !== "all" ? 1 : 0) + (f.machineType !== "all" ? 1 : 0) + (f.locationIds.length ? 1 : 0);
 }
 
 export const deviceLocationOptionsKey = () => [...queryKeys.devices.all, "location-options"] as const;
+
+const STATUS_OPTIONS: { value: ConnectivityFilter; label: string }[] = [
+  { value: "all", label: "Tüm Cihazlar" },
+  { value: "online", label: "Çevrimiçi" },
+  { value: "offline", label: "Çevrimdışı" },
+];
+
+const MACHINE_TYPE_OPTIONS: { value: MachineTypeFilter; label: string }[] = [
+  { value: "all", label: "Tüm Tipler" },
+  { value: "0", label: "Snack" },
+  { value: "1", label: "Kahve" },
+];
+
+export function useDeviceLocationOptions(enabled: boolean) {
+  return useQuery({
+    queryKey: deviceLocationOptionsKey(),
+    queryFn: ({ signal }) => devicesApi.locationOptions(signal),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
 
 export function DeviceFiltersSheet({
   visible,
@@ -45,20 +72,7 @@ export function DeviceFiltersSheet({
 
   useOnOpen(visible, () => setDraft(value));
 
-  const locations = useQuery({
-    queryKey: deviceLocationOptionsKey(),
-    queryFn: ({ signal }) => devicesApi.locationOptions(signal),
-    enabled: visible,
-    staleTime: 5 * 60_000,
-  });
-
-  const locationOptions = useMemo(
-    () => [
-      { value: 0, label: "Tüm konumlar" },
-      ...(locations.data ?? []).map((l) => ({ value: l.id, label: l.name, description: l.region_name ?? undefined })),
-    ],
-    [locations.data]
-  );
+  const locations = useDeviceLocationOptions(visible);
 
   const sortOptions = useMemo(
     () => DEVICE_SORT_OPTIONS.filter((o) => canViewSales || !o.sales).map((o) => ({ value: o.value, label: o.label })),
@@ -73,7 +87,7 @@ export function DeviceFiltersSheet({
       testID="device-filters"
       footer={
         <>
-          <AppButton title="Sıfırla" variant="outline" onPress={() => setDraft(DEFAULT_FILTERS)} style={styles.flex} />
+          <AppButton title="Temizle" variant="outline" onPress={() => setDraft(DEFAULT_FILTERS)} style={styles.flex} />
           <AppButton
             testID="device-filters-apply"
             title="Uygula"
@@ -87,55 +101,43 @@ export function DeviceFiltersSheet({
       }
     >
       <View style={styles.group}>
-        <AppText variant="overline" color="textTertiary">
-          Bağlantı
+        <AppText variant="label" color="textSecondary">
+          Konum
         </AppText>
-        <AppSegmented<ConnectivityFilter>
-          testID="filter-online"
-          value={draft.online}
-          onChange={(online) => setDraft((d) => ({ ...d, online }))}
-          items={[
-            { key: "all", label: "Tümü" },
-            { key: "online", label: "Çevrimiçi" },
-            { key: "offline", label: "Çevrimdışı" },
-          ]}
-        />
+        {locations.isError ? (
+          <AppNotice tone="warning" message="Konum listesi yüklenemedi; konum filtresi kullanılamıyor." />
+        ) : (
+          <LocationMultiSelect
+            locations={locations.data ?? []}
+            value={draft.locationIds}
+            onChange={(locationIds) => setDraft((d) => ({ ...d, locationIds }))}
+            testID="filter-location"
+          />
+        )}
       </View>
-      <View style={styles.group}>
-        <AppText variant="overline" color="textTertiary">
-          Durum
-        </AppText>
-        <AppSegmented<StatFilter>
-          testID="filter-stat"
-          value={draft.stat}
-          onChange={(stat) => setDraft((d) => ({ ...d, stat }))}
-          items={[
-            { key: "all", label: "Tümü" },
-            { key: "1", label: "Aktif" },
-            { key: "0", label: "Pasif" },
-          ]}
-        />
-      </View>
-      <AppSelect<number>
-        label="Konum"
-        testID="filter-location"
-        options={locationOptions}
-        value={draft.locationId ?? 0}
-        loading={locations.isLoading}
-        onChange={(v) => setDraft((d) => ({ ...d, locationId: v === 0 ? null : v }))}
-        searchable
+      <AppSelect<ConnectivityFilter>
+        label="Durum"
+        testID="filter-online"
+        options={STATUS_OPTIONS}
+        value={draft.online}
+        searchable={false}
+        onChange={(online) => setDraft((d) => ({ ...d, online }))}
       />
-      {locations.isError ? <AppNotice tone="warning" message="Konum listesi yüklenemedi; konum filtresi kullanılamıyor." /> : null}
+      <AppSelect<MachineTypeFilter>
+        label="Makine Tipi"
+        testID="filter-machine-type"
+        options={MACHINE_TYPE_OPTIONS}
+        value={draft.machineType}
+        searchable={false}
+        onChange={(machineType) => setDraft((d) => ({ ...d, machineType }))}
+      />
       <AppSelect<DeviceSortBy>
-        label="Sıralama"
+        label="Sırala"
         testID="filter-sort"
         options={sortOptions}
         value={draft.sortBy}
         onChange={(sortBy) => setDraft((d) => ({ ...d, sortBy }))}
       />
-      <AppText variant="caption" color="textTertiary">
-        Makine tipine (Snack/Kahve) göre filtreleme POS cihazı listesinde desteklenmiyor.
-      </AppText>
     </AppSheet>
   );
 }
@@ -143,6 +145,6 @@ export function DeviceFiltersSheet({
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1 },
-    group: { gap: t.spacing.sm },
+    group: { gap: t.spacing.xs },
   })
 );

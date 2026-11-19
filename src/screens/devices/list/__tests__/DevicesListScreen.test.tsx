@@ -104,6 +104,13 @@ describe("DevicesListScreen", () => {
     expect(right.props).toMatchObject({ icon: "excel", testID: "header-excel" });
   });
 
+  it("doluluk bilgisi olmayan cihazda boş doluluk çubuğu gösterilmez", async () => {
+    mock.onGet("/pos-devices/").reply(200, page([row(1), row(2, { fill_rate: null })]));
+    await renderWithProviders(<DevicesListScreen />);
+    expect(await screen.findByTestId("device-fill-SN1")).toBeOnTheScreen();
+    expect(screen.queryByTestId("device-fill-SN2")).toBeNull();
+  });
+
   it("view_sales yoksa ciro gösterilmez ve ciro gizleme düğmesi yoktur", async () => {
     useAuthStore.setState({ user: makeUser({ permissions: ["tech"] }) });
     mock.onGet("/pos-devices/").reply(200, page([row(1)]));
@@ -136,22 +143,27 @@ describe("DevicesListScreen", () => {
     expect(screen.getByTestId("devices-search")).toBeOnTheScreen();
   });
 
-  it("filtreler sunucu parametresine çevrilir (online=false, stat=1, sort_by)", async () => {
+  it("filtreler sunucu parametresine çevrilir (online=false, machine_type=1, sort_by)", async () => {
     mock.onGet("/pos-devices/").reply(200, page([row(1)]));
     await renderWithProviders(<DevicesListScreen />);
     await screen.findByText("Otomat 1");
 
     await fireEvent.press(screen.getByTestId("devices-filter-button"));
-    await fireEvent.press(within(await screen.findByTestId("filter-online")).getByText("Çevrimdışı"));
-    await fireEvent.press(within(screen.getByTestId("filter-stat")).getByText("Aktif"));
+    await fireEvent.press(await screen.findByTestId("filter-online"));
+    const offline = await screen.findAllByText("Çevrimdışı"); // listedeki rozetler de aynı metni taşır
+    await fireEvent.press(offline[offline.length - 1]);
+    await fireEvent.press(screen.getByTestId("filter-machine-type"));
+    await fireEvent.press(await screen.findByText("Kahve"));
     await fireEvent.press(screen.getByTestId("filter-sort"));
-    await fireEvent.press(await screen.findByText("Doluluk · düşük → yüksek"));
+    await fireEvent.press(await screen.findByText("Doluluk (Düşük → Yüksek)"));
     await fireEvent.press(screen.getByTestId("device-filters-apply"));
 
     await waitFor(() =>
-      expect(listRequests(mock).some((r) => r.params.online === "false" && r.params.stat === 1 && r.params.sort_by === "fill_rate_asc")).toBe(true)
+      expect(
+        listRequests(mock).some((r) => r.params.online === "false" && r.params.machine_type === 1 && r.params.sort_by === "fill_rate_asc")
+      ).toBe(true)
     );
-    expect(listRequests(mock).every((r) => !("page_size" in r.params))).toBe(true);
+    expect(listRequests(mock).every((r) => !("page_size" in r.params) && !("stat" in r.params))).toBe(true);
   });
 
   it("listenin sonunda sonraki sayfayı (page=2) yükler", async () => {

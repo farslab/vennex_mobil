@@ -672,7 +672,7 @@ describe("İşlem detayı · fiş ve uzaktan iade (web ile aynı)", () => {
 /* --------------------------------------------- Satışlar · web mobil kartları */
 
 describe("SalesTab işlem kartı (web mobil görünümü)", () => {
-  it("kart no + ödeme tipi + okuma şekli, durum nedeni, saniyeli tarih, ürün no ve Detaylar", async () => {
+  it("kart no + ödeme tipi + okuma şekli, durum nedeni, saniyeli tarih, ürün no ve son iade durumu", async () => {
     const { SalesTab } = jest.requireActual<typeof import("@/screens/devices/detail/tabs/SalesTab")>("@/screens/devices/detail/tabs/SalesTab");
     mock.onGet(`${base}/transactions/`).reply(200, {
       count: 2,
@@ -693,7 +693,7 @@ describe("SalesTab işlem kartı (web mobil görünümü)", () => {
     expect(within(card).getByText("Başarılı")).toBeOnTheScreen();
     expect(within(card).getByText("19.11.2026 17:31:42")).toBeOnTheScreen();
     expect(within(card).getByText("Ürün No 8708")).toBeOnTheScreen();
-    expect(within(card).getByText("Detaylar")).toBeOnTheScreen();
+    expect(within(card).queryByText("Detaylar")).toBeNull(); // karta dokunmak detayı açar
     const failed = screen.getByTestId("tx-row-2");
     expect(within(failed).getByText("Teknik Hata")).toBeOnTheScreen();
     expect(within(failed).queryByText(/Ürün No/)).toBeNull(); // 65535 gösterilmez (web)

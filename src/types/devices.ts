@@ -81,10 +81,11 @@ export type DeviceSortBy = (typeof DEVICE_SORT_KEYS)[number];
 /** `GET pos-devices/` sorgu parametreleri. Sayfa boyutu sunucuda sabit 25 — `page_size` yok. */
 export interface DeviceListQuery {
   q?: string;
-  location_id?: number;
-  /** 1 = aktif, 0 = pasif */
-  stat?: 0 | 1;
+  /** Konumlar — web gibi çoklu; virgülle gönderilir (`location_ids=1,2`) */
+  location_ids?: number[];
   online?: boolean;
+  /** Makine tipi (web ile aynı): 0 Snack, 1 Kahve */
+  machine_type?: 0 | 1;
   sort_by?: DeviceSortBy;
 }
 

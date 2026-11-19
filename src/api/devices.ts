@@ -363,7 +363,14 @@ export const devicesApi = {
   list: ({ page = 1, page_size: _ignored, ...query }: DeviceListParams = {}, signal?: AbortSignal) =>
     apiClient
       .get<unknown>("/pos-devices/", {
-        params: cleanParams({ page, q: query.q?.trim(), location_id: query.location_id, stat: query.stat, online: query.online, sort_by: query.sort_by === "default" ? undefined : query.sort_by }),
+        params: cleanParams({
+          page,
+          q: query.q?.trim(),
+          location_ids: query.location_ids?.length ? [...query.location_ids].sort((a, b) => a - b).join(",") : undefined,
+          online: query.online,
+          machine_type: query.machine_type,
+          sort_by: query.sort_by === "default" ? undefined : query.sort_by,
+        }),
         signal,
       })
       .then((r) => normalizeDeviceList(r.data)),

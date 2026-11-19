@@ -33,7 +33,7 @@ import {
   CANCEL_REASON_LABELS,
   DATE_PRESETS,
   PT_TYPE_OPTIONS,
-  entryModeLabel,
+  entryModeBadge,
   presetRange,
   ptBadge,
   txStatusLabel,
@@ -49,6 +49,7 @@ import type {
   TxStatusFilter,
 } from "@/types/devices";
 import { TransactionDetailSheet } from "../components/TransactionDetailSheet";
+import { webBadgeColors } from "@/components/devices/webBadgeColors";
 import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 type StatusKey = "all" | TxStatusFilter;
@@ -213,13 +214,15 @@ export function SalesTab({ sn }: { sn: string }) {
 
 /**
  * İşlem kartı — web POS cihazı sayfasının mobil görünümüyle aynı bilgi ve sıra:
- * kart no + ödeme tipi (+ okuma şekli) · durum / tarih-saat / ürün + ürün no · tutar / Detaylar (fiş + iade).
+ * kart no + ödeme tipi (+ okuma şekli) · durum / tarih-saat / ürün + ürün no · tutar / son iade durumu.
+ * Karta dokununca detay (fiş + iade) açılır; ayrı "Detaylar" yazısı yok.
  */
 function TxRow({ tx, onPress }: { tx: PosTransaction; onPress: (t: PosTransaction) => void }) {
   const styles = useStyles();
   const name = tx.display_name ?? "—";
   const pt = ptBadge(tx.pt_type);
-  const entry = entryModeLabel(tx.pt_type, tx.entry_mode);
+  const entry = entryModeBadge(tx.pt_type, tx.entry_mode);
+  const { isDark } = useTheme();
   const statusLabel = txStatusLabel(tx.status, tx.pt_type, tx.iptalNo);
   const when = formatDateTimeSeconds(tx.pt_datetime);
   const showProductNo = tx.product_no != null && tx.product_no !== 65535;
@@ -240,8 +243,8 @@ function TxRow({ tx, onPress }: { tx: PosTransaction; onPress: (t: PosTransactio
               </AppText>
             </View>
           ) : null}
-          <AppBadge size="sm" tone={pt.tone} label={pt.label} />
-          {entry ? <AppBadge size="sm" tone="neutral" label={entry} /> : null}
+          <AppBadge size="sm" label={pt.label} colors={webBadgeColors(pt.color, isDark)} />
+          {entry ? <AppBadge size="sm" label={entry.label} colors={webBadgeColors(entry.color, isDark)} /> : null}
         </View>
         <AppBadge size="sm" tone={tx.status ? "success" : "danger"} label={statusLabel} />
       </View>
@@ -263,12 +266,9 @@ function TxRow({ tx, onPress }: { tx: PosTransaction; onPress: (t: PosTransactio
           {formatCurrency(tx.amount)}
         </AppText>
       </View>
-      {tx.rr_show ? (
+      {tx.refund_label ? (
         <View style={styles.txRr}>
-          <AppText variant="calloutStrong" color="primary">
-            Detaylar
-          </AppText>
-          {tx.refund_label ? <AppBadge size="sm" tone="info" label={tx.refund_label} /> : null}
+          <AppBadge size="sm" tone="info" label={tx.refund_label} />
         </View>
       ) : null}
     </Pressable>

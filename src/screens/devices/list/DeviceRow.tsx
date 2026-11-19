@@ -29,7 +29,7 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
     conn.label,
     machineAlert(device.online, device.act_macstat) ? `makine ${machineAlert(device.online, device.act_macstat)}` : null,
     device.stat ? null : "Pasif",
-    `Doluluk ${fill.label}`,
+    fill.pct != null ? `Doluluk ${fill.label}` : null,
     `Son iletişim ${lastSeen}`,
     revenue ? `${revenue.label} ciro ${formatCurrency(revenueValue)}` : null,
   ]
@@ -72,14 +72,17 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
       <View style={[styles.line, styles.meta]}>
         <ConnectivityBadge online={device.online} macstat={device.act_macstat} testID={`device-conn-${device.sn}`} />
         {!device.stat ? <AppBadge size="sm" tone="neutral" label="Pasif" /> : null}
-        <View style={styles.fill}>
-          <View style={styles.fillBar}>
-            <FillBar pct={fill.pct} tone={fill.tone} />
+        {/* Doluluk yoksa (ürün/stok girilmemiş) boş çubuk ve "—" gösterilmez */}
+        {fill.pct != null ? (
+          <View style={styles.fill} testID={`device-fill-${device.sn}`}>
+            <View style={styles.fillBar}>
+              <FillBar pct={fill.pct} tone={fill.tone} />
+            </View>
+            <AppText variant="numericSm" color="textSecondary">
+              {fill.label}
+            </AppText>
           </View>
-          <AppText variant="numericSm" color="textSecondary">
-            {fill.label}
-          </AppText>
-        </View>
+        ) : null}
         <View style={styles.spacer} />
         <AppIcon name="activity" size={12} color="textTertiary" />
         <AppText variant="caption" color="textTertiary" numberOfLines={1}>

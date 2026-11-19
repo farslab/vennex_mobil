@@ -9,6 +9,7 @@
 import { businessToday } from "@/utils/date";
 import type { StatusTone } from "@/design-system";
 import { toNumber } from "@/utils/number";
+import type { WebBadgeColor } from "./webBadgeColors";
 import type {
   DeviceCommandKey,
   DeviceSortBy,
@@ -186,20 +187,21 @@ export function slotLabel(p: Pick<PosProduct, "urun_no" | "is_wildcard">): strin
 
 /* ---------------------------------------------------- Liste sıralaması */
 
+/** Web POS cihazı listesindeki "Sırala" seçenekleri ve adları */
 export const DEVICE_SORT_OPTIONS: { value: DeviceSortBy; label: string; sales?: boolean }[] = [
-  { value: "default", label: "Varsayılan (özel sıra)" },
-  { value: "last_transaction_desc", label: "Son işlem · yeni → eski" },
-  { value: "last_transaction_asc", label: "Son işlem · eski → yeni" },
-  { value: "fill_rate_asc", label: "Doluluk · düşük → yüksek" },
-  { value: "fill_rate_desc", label: "Doluluk · yüksek → düşük" },
-  { value: "today_revenue_desc", label: "Bugün ciro · yüksek → düşük", sales: true },
-  { value: "today_revenue_asc", label: "Bugün ciro · düşük → yüksek", sales: true },
-  { value: "yesterday_revenue_desc", label: "Dün ciro · yüksek → düşük", sales: true },
-  { value: "yesterday_revenue_asc", label: "Dün ciro · düşük → yüksek", sales: true },
-  { value: "this_month_revenue_desc", label: "Bu ay ciro · yüksek → düşük", sales: true },
-  { value: "this_month_revenue_asc", label: "Bu ay ciro · düşük → yüksek", sales: true },
-  { value: "last_month_revenue_desc", label: "Geçen ay ciro · yüksek → düşük", sales: true },
-  { value: "last_month_revenue_asc", label: "Geçen ay ciro · düşük → yüksek", sales: true },
+  { value: "default", label: "Varsayılan" },
+  { value: "last_transaction_desc", label: "Son İşlem (Yeni → Eski)" },
+  { value: "last_transaction_asc", label: "Son İşlem (Eski → Yeni)" },
+  { value: "today_revenue_desc", label: "Bugün Ciro (Yüksek → Düşük)", sales: true },
+  { value: "today_revenue_asc", label: "Bugün Ciro (Düşük → Yüksek)", sales: true },
+  { value: "yesterday_revenue_desc", label: "Dün Ciro (Yüksek → Düşük)", sales: true },
+  { value: "yesterday_revenue_asc", label: "Dün Ciro (Düşük → Yüksek)", sales: true },
+  { value: "this_month_revenue_desc", label: "Bu Ay Ciro (Yüksek → Düşük)", sales: true },
+  { value: "this_month_revenue_asc", label: "Bu Ay Ciro (Düşük → Yüksek)", sales: true },
+  { value: "last_month_revenue_desc", label: "Geçen Ay Ciro (Yüksek → Düşük)", sales: true },
+  { value: "last_month_revenue_asc", label: "Geçen Ay Ciro (Düşük → Yüksek)", sales: true },
+  { value: "fill_rate_desc", label: "Doluluk (Yüksek → Düşük)" },
+  { value: "fill_rate_asc", label: "Doluluk (Düşük → Yüksek)" },
 ];
 
 export type RevenueColumn = "today_revenue" | "yesterday_revenue" | "this_month_revenue" | "last_month_revenue";
@@ -356,35 +358,35 @@ export function presetRange(preset: Exclude<DatePreset, "custom">, now: Date = b
 
 /* ------------------------------------ İşlem kartı rozetleri (web pt_badge.html) */
 
-const PT_BADGE: Record<number, { label: string; tone: StatusTone }> = {
-  0: { label: "Nakit", tone: "neutral" },
-  1: { label: "Kredi Kartı", tone: "info" },
-  2: { label: "İstanbulKart", tone: "warning" },
-  3: { label: "Multinet", tone: "info" },
-  4: { label: "Metropol", tone: "info" },
-  5: { label: "Personel Kart", tone: "success" },
-  6: { label: "Setcard", tone: "info" },
-  7: { label: "Ticket", tone: "info" },
-  8: { label: "Pluxee", tone: "info" },
-  9: { label: "VennexSelf", tone: "info" },
-  10: { label: "TokenFlex", tone: "warning" },
+const PT_BADGE: Record<number, { label: string; color: WebBadgeColor }> = {
+  0: { label: "Nakit", color: "gray" },
+  1: { label: "Kredi Kartı", color: "blue" },
+  2: { label: "İstanbulKart", color: "orange" },
+  3: { label: "Multinet", color: "purple" },
+  4: { label: "Metropol", color: "pink" },
+  5: { label: "Personel Kart", color: "emerald" },
+  6: { label: "Setcard", color: "teal" },
+  7: { label: "Ticket", color: "rose" },
+  8: { label: "Pluxee", color: "indigo" },
+  9: { label: "VennexSelf", color: "cyan" },
+  10: { label: "TokenFlex", color: "amber" },
 };
 
-/** Web işlem listesindeki ödeme tipi rozeti */
-export function ptBadge(ptType: unknown): { label: string; tone: StatusTone } {
+/** Web işlem listesindeki ödeme tipi rozeti — her tip ayrı renk */
+export function ptBadge(ptType: unknown): { label: string; color: WebBadgeColor } {
   const n = toNumber(ptType);
-  if (n == null) return { label: "—", tone: "neutral" };
-  return PT_BADGE[n] ?? { label: ptTypeLabel(n), tone: "neutral" };
+  if (n == null) return { label: "—", color: "gray" };
+  return PT_BADGE[n] ?? { label: ptTypeLabel(n), color: "gray" };
 }
 
-/** Kredi kartında okuma şekli rozeti (web: Temassız / Çip / QR Kod / Manyetik) */
-export function entryModeLabel(ptType: unknown, entryMode: unknown): string | null {
+/** Kredi kartında okuma şekli rozeti (web: Temassız mor / Çip yeşil / QR Kod mavi / Manyetik turuncu) */
+export function entryModeBadge(ptType: unknown, entryMode: unknown): { label: string; color: WebBadgeColor } | null {
   if (toNumber(ptType) !== 1) return null;
   const e = toNumber(entryMode);
-  if (e === 7) return "Temassız";
-  if (e === 5 || e === 1) return "Çip";
-  if (e === 3) return "QR Kod";
-  if (e === 90) return "Manyetik";
+  if (e === 7) return { label: "Temassız", color: "purple" };
+  if (e === 5 || e === 1) return { label: "Çip", color: "green" };
+  if (e === 3) return { label: "QR Kod", color: "sky" };
+  if (e === 90) return { label: "Manyetik", color: "orange" };
   return null;
 }
 

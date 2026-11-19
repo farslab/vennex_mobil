@@ -137,7 +137,9 @@ export function GeneralTab({
                 </AppText>
               ) : null}
             </View>
-            <FillBar pct={fill.pct} tone={fill.tone} height={8} accessibilityLabel={`Doluluk ${fill.label}`} />
+            {fill.pct != null ? (
+              <FillBar pct={fill.pct} tone={fill.tone} height={8} accessibilityLabel={`Doluluk ${fill.label}`} />
+            ) : null}
           </View>
         )}
       </AppCard>

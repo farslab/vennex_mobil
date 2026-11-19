@@ -46,8 +46,8 @@ export function toDeviceQuery(q: string, f: DeviceFilters): DeviceListQuery {
   return {
     q: q || undefined,
     online: f.online === "all" ? undefined : f.online === "online",
-    stat: f.stat === "all" ? undefined : f.stat === "1" ? 1 : 0,
-    location_id: f.locationId ?? undefined,
+    machine_type: f.machineType === "all" ? undefined : f.machineType === "1" ? 1 : 0,
+    location_ids: f.locationIds.length ? f.locationIds : undefined,
     sort_by: f.sortBy === "default" ? undefined : f.sortBy,
   };
 }
@@ -131,14 +131,18 @@ export default function DevicesListScreen() {
       label: effectiveFilters.online === "online" ? "Çevrimiçi" : "Çevrimdışı",
       clear: () => setFilters((f) => ({ ...f, online: "all" })),
     });
-  if (effectiveFilters.stat !== "all")
+  if (effectiveFilters.machineType !== "all")
     activeChips.push({
-      key: "stat",
-      label: effectiveFilters.stat === "1" ? "Aktif" : "Pasif",
-      clear: () => setFilters((f) => ({ ...f, stat: "all" })),
+      key: "machine",
+      label: effectiveFilters.machineType === "1" ? "Kahve" : "Snack",
+      clear: () => setFilters((f) => ({ ...f, machineType: "all" })),
     });
-  if (effectiveFilters.locationId != null)
-    activeChips.push({ key: "loc", label: "Konum filtresi", clear: () => setFilters((f) => ({ ...f, locationId: null })) });
+  if (effectiveFilters.locationIds.length)
+    activeChips.push({
+      key: "loc",
+      label: `${effectiveFilters.locationIds.length} konum`,
+      clear: () => setFilters((f) => ({ ...f, locationIds: [] })),
+    });
 
   const listEmpty = list.isLoading ? (
     <AppListSkeleton rows={8} />
