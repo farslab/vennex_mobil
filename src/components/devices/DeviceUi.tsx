@@ -1,7 +1,8 @@
 /** Cihaz modülü küçük ortak görsel parçalar — yalnız design-system token'ları */
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { AppText, makeStyles, toneColors, useTheme, type StatusTone } from "@/design-system";
+import { AppBadge, AppIcon, AppText, makeStyles, toneColors, useTheme, type StatusTone } from "@/design-system";
+import { connectivityInfo, machineAlert } from "./deviceHelpers";
 
 /** İnce doluluk çubuğu — yüzde yoksa boş iz çizer (değer uydurmaz) */
 export function FillBar({
@@ -117,3 +118,37 @@ const useStyles = makeStyles((t) =>
     },
   })
 );
+
+/**
+ * Bağlantı rozeti — web ile aynı: çevrimiçi cihazın makinesi DISABLED/INACTIVE ise
+ * rozetin yanında kırmızı ünlem (pos_device_rows.html).
+ */
+export function ConnectivityBadge({
+  online,
+  macstat,
+  size = "sm",
+  testID,
+}: {
+  online: boolean | null | undefined;
+  macstat?: unknown;
+  size?: "sm" | "md";
+  testID?: string;
+}) {
+  const conn = connectivityInfo(online);
+  const alert = machineAlert(online, macstat);
+  return (
+    <View
+      style={badgeStyles.row}
+      accessible
+      accessibilityLabel={alert ? `${conn.label}, makine ${alert}` : conn.label}
+      testID={testID}
+    >
+      {alert ? <AppIcon name="alert-triangle" size={size === "sm" ? 13 : 15} color="danger" /> : null}
+      <AppBadge size={size} dot tone={conn.tone} label={conn.label} />
+    </View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 4 },
+});

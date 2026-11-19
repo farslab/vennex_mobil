@@ -6,7 +6,7 @@
  * - Doluluk liste satırındaki `fill_rate`'ten — satır başına /products/ isteği YOK
  */
 import { EXPORTS } from "@/api/exports";
-import { useExcelExport } from "@/hooks/useExcelExport";
+import { useHeaderExcel } from "@/navigation/useHeaderExcel";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -62,7 +62,8 @@ export default function DevicesListScreen() {
   // (`dashboard_v2/views/product_templates.py:62`) — yetkisize 403 dönen bir giriş gösterilmez
   const canOrder = true;
   const canTemplates = canManageDeviceSettings(user);
-  const excel = useExcelExport();
+  // Excel: Genel Bakış gibi başlıkta, bildirim zilinin yanında
+  useHeaderExcel("POS Cihazları", EXPORTS.devices);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
@@ -184,7 +185,6 @@ export default function DevicesListScreen() {
             <AppChip label="Ürün şablonları" icon="layers" onPress={() => navigation.navigate("ProductTemplates")} />
           ) : null}
           {canOrder ? <AppChip label="Özel sıralama" icon="list" onPress={() => setOrderOpen(true)} /> : null}
-          <AppChip label={excel.exporting ? "Excel hazırlanıyor…" : "Excel"} icon="download" onPress={() => excel.run(EXPORTS.devices)} />
           {activeChips.map((c) => (
             <AppChip key={c.key} label={c.label} icon="x" selected onPress={c.clear} />
           ))}

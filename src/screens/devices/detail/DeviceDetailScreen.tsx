@@ -19,7 +19,8 @@ import {
 } from "@/design-system";
 import { errorMessage, type ApiError } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
-import { connectivityInfo, machineTypeLabel } from "@/components/devices/deviceHelpers";
+import { machineTypeLabel } from "@/components/devices/deviceHelpers";
+import { ConnectivityBadge } from "@/components/devices/DeviceUi";
 import type { RootScreenProps } from "@/navigation/types";
 import { useDeviceAccess, useDeviceDetail } from "./useDeviceQueries";
 import { GeneralTab } from "./tabs/GeneralTab";
@@ -119,7 +120,6 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
     );
   }
 
-  const conn = connectivityInfo(detail.is_online);
   const typeLabel = machineTypeLabel(detail.pos_odemetip);
 
   return (
@@ -129,7 +129,7 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
           <AppText variant="mono" color="textTertiary" selectable>
             {detail.sn}
           </AppText>
-          <AppBadge size="sm" dot tone={conn.tone} label={conn.label} />
+          <ConnectivityBadge online={detail.is_online} macstat={detail.act_macstat} />
           {!detail.stat ? <AppBadge size="sm" tone="neutral" label="Pasif" /> : null}
           {typeLabel !== "—" ? <AppBadge size="sm" tone="info" label={typeLabel} /> : null}
         </View>

@@ -11,10 +11,9 @@ import {
   useTheme,
 } from "@/design-system";
 import { errorMessage } from "@/api/client";
-import { FillBar, KeyValueRow, MetricCell } from "@/components/devices/DeviceUi";
+import { ConnectivityBadge, FillBar, KeyValueRow, MetricCell } from "@/components/devices/DeviceUi";
 import {
   PAYMENT_METHOD_LABELS,
-  connectivityInfo,
   deviceFillInfo,
   machineStatusInfo,
   machineTypeLabel,
@@ -44,7 +43,6 @@ export function GeneralTab({
   const summary = useDeviceSummary(sn, access.sales);
   const products = useDeviceProducts(sn);
 
-  const conn = connectivityInfo(detail.is_online);
   const macStatus = machineStatusInfo(detail.act_macstat);
   const fill = deviceFillInfo(products.data?.fill);
   const methods = detail.payment_methods ?? {};
@@ -53,10 +51,10 @@ export function GeneralTab({
 
   const periods = summary.data
     ? ([
-        ["Bugün", summary.data.today],
-        ["Dün", summary.data.yesterday],
-        ["Bu ay", summary.data.this_month],
-        ["Geçen ay", summary.data.last_month],
+        ["Bugün Ciro", summary.data.today],
+        ["Dün Ciro", summary.data.yesterday],
+        ["Bu Ay Ciro", summary.data.this_month],
+        ["Geçen Ay Ciro", summary.data.last_month],
       ] as const)
     : null;
 
@@ -68,18 +66,18 @@ export function GeneralTab({
       testID="tab-general"
     >
       <AppCard title="Durum">
-        <KeyValueRow label="Bağlantı" right={<AppBadge dot tone={conn.tone} label={conn.label} />} />
+        <KeyValueRow label="Bağlantı" right={<ConnectivityBadge online={detail.is_online} macstat={detail.act_macstat} size="md" />} />
         <KeyValueRow
-          label="Cihaz durumu"
-          right={<AppBadge tone={detail.stat ? "success" : "neutral"} label={detail.stat ? "Aktif" : "Pasif"} />}
+          label="Aktif"
+          right={<AppBadge tone={detail.stat ? "success" : "neutral"} label={detail.stat ? "Evet" : "Hayır"} />}
         />
         <KeyValueRow
-          label="Makine durumu"
+          label="Makine Durumu"
           right={macStatus ? <AppBadge tone={macStatus.tone} label={macStatus.label} /> : undefined}
           value={macStatus ? undefined : "—"}
         />
         <KeyValueRow
-          label="Son iletişim"
+          label="Son Görülme"
           value={detail.last_seen ? `${formatRelative(detail.last_seen)} · ${formatDateTime(detail.last_seen)}` : "—"}
           last
         />

@@ -97,14 +97,22 @@ export function cancelReasonLabel(iptalNo: unknown): string {
 
 /* ------------------------------------------------------- Makine durumu */
 
+/** Web ile aynı adlar (`get_act_macstat_display`) ve renkler (pos_device_detail.html) */
 const MACHINE_STATUS: Record<number, { label: string; tone: StatusTone }> = {
-  0: { label: "Başlatılıyor", tone: "info" },
-  1: { label: "Etkin", tone: "success" },
-  2: { label: "Boşta", tone: "neutral" },
-  3: { label: "Satışta", tone: "info" },
-  4: { label: "Devre dışı", tone: "warning" },
-  5: { label: "Pasif", tone: "neutral" },
+  0: { label: "START", tone: "neutral" },
+  1: { label: "ENABLE", tone: "success" },
+  2: { label: "IDLE", tone: "success" },
+  3: { label: "VEND", tone: "warning" },
+  4: { label: "DISABLED", tone: "danger" },
+  5: { label: "INACTIVE", tone: "danger" },
 };
+
+/** Web listesindeki kırmızı ünlem: çevrimiçi cihazın makinesi DISABLED/INACTIVE (pos_device_rows.html) */
+export function machineAlert(online: boolean | null | undefined, macstat: unknown): string | null {
+  const n = toNumber(macstat);
+  if (!online || (n !== 4 && n !== 5)) return null;
+  return MACHINE_STATUS[n].label;
+}
 
 export function machineStatusInfo(value: unknown): { label: string; tone: StatusTone } | null {
   const n = toNumber(value);
@@ -343,4 +351,50 @@ export function presetRange(preset: Exclude<DatePreset, "custom">, now: Date = b
     case "this_month":
       return { start: new Date(today.getFullYear(), today.getMonth(), 1), end: today };
   }
+}
+
+
+/* ------------------------------------ İşlem kartı rozetleri (web pt_badge.html) */
+
+const PT_BADGE: Record<number, { label: string; tone: StatusTone }> = {
+  0: { label: "Nakit", tone: "neutral" },
+  1: { label: "Kredi Kartı", tone: "info" },
+  2: { label: "İstanbulKart", tone: "warning" },
+  3: { label: "Multinet", tone: "info" },
+  4: { label: "Metropol", tone: "info" },
+  5: { label: "Personel Kart", tone: "success" },
+  6: { label: "Setcard", tone: "info" },
+  7: { label: "Ticket", tone: "info" },
+  8: { label: "Pluxee", tone: "info" },
+  9: { label: "VennexSelf", tone: "info" },
+  10: { label: "TokenFlex", tone: "warning" },
+};
+
+/** Web işlem listesindeki ödeme tipi rozeti */
+export function ptBadge(ptType: unknown): { label: string; tone: StatusTone } {
+  const n = toNumber(ptType);
+  if (n == null) return { label: "—", tone: "neutral" };
+  return PT_BADGE[n] ?? { label: ptTypeLabel(n), tone: "neutral" };
+}
+
+/** Kredi kartında okuma şekli rozeti (web: Temassız / Çip / QR Kod / Manyetik) */
+export function entryModeLabel(ptType: unknown, entryMode: unknown): string | null {
+  if (toNumber(ptType) !== 1) return null;
+  const e = toNumber(entryMode);
+  if (e === 7) return "Temassız";
+  if (e === 5 || e === 1) return "Çip";
+  if (e === 3) return "QR Kod";
+  if (e === 90) return "Manyetik";
+  return null;
+}
+
+/** Web işlem kartındaki durum etiketi: başarısız kredi kartında nedeni yazılır */
+export function txStatusLabel(status: boolean, ptType: unknown, iptalNo: unknown): string {
+  if (status) return "Başarılı";
+  if (toNumber(ptType) !== 1) return "Başarısız";
+  const n = toNumber(iptalNo);
+  if (n === 1) return "Zaman Aşımı";
+  if (n === 2) return "Banka Reddi";
+  if (n === 3) return "Teknik Hata";
+  return "Başarısız";
 }

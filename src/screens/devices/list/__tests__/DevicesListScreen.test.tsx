@@ -7,9 +7,10 @@ import { makeUser, renderWithProviders } from "@/test/utils";
 import DevicesListScreen from "@/screens/devices/list/DevicesListScreen";
 
 const mockNavigate = jest.fn();
+const mockSetOptions = jest.fn();
 jest.mock("@react-navigation/native", () => ({
   ...jest.requireActual("@react-navigation/native"),
-  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn(), setOptions: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate, goBack: jest.fn(), setOptions: mockSetOptions }),
   useFocusEffect: jest.fn(),
   useIsFocused: () => true,
 }));
@@ -73,6 +74,34 @@ describe("DevicesListScreen", () => {
     expect(screen.getAllByText("₺1.234,50").length).toBe(3);
     expect(mock.history.get.some((r) => (r.url ?? "").includes("/products/"))).toBe(false);
     expect(listRequests(mock)[0].params).toEqual({ page: 1 });
+  });
+
+  it("web gibi: çevrimiçi cihazın makinesi DISABLED/INACTIVE ise bağlantı rozetinde ünlem", async () => {
+    mock.onGet("/pos-devices/").reply(
+      200,
+      page([
+        row(2, { act_macstat: 4 }), // çevrimiçi + DISABLED → ünlem
+        row(4, { act_macstat: 1 }), // çevrimiçi + ENABLE → yok
+        row(3, { act_macstat: 5 }), // çevrimdışı → yok (web de yalnız çevrimiçide gösterir)
+      ])
+    );
+    await renderWithProviders(<DevicesListScreen />);
+    expect(await screen.findByTestId("device-conn-SN2")).toHaveProp("accessibilityLabel", "Çevrimiçi, makine DISABLED");
+    expect(screen.getByTestId("device-conn-SN4")).toHaveProp("accessibilityLabel", "Çevrimiçi");
+    expect(screen.getByTestId("device-conn-SN3")).toHaveProp("accessibilityLabel", "Çevrimdışı");
+  });
+
+  it("Excel düğmesi Genel Bakış gibi başlıkta (bildirim zilinin yanında), sayfa içinde değil", async () => {
+    mockSetOptions.mockReset();
+    mock.onGet("/pos-devices/").reply(200, page([row(1)]));
+    await renderWithProviders(<DevicesListScreen />);
+    await screen.findByText("Otomat 1");
+    expect(screen.queryByText("Excel")).toBeNull();
+    const calls = mockSetOptions.mock.calls.filter((c) => "header" in (c[0] as object));
+    const header = (calls[calls.length - 1][0] as { header: () => React.ReactElement }).header();
+    const right = (header.props as { title: string; right: React.ReactElement<{ icon: string; testID: string }> }).right;
+    expect((header.props as { title: string }).title).toBe("POS Cihazları");
+    expect(right.props).toMatchObject({ icon: "excel", testID: "header-excel" });
   });
 
   it("view_sales yoksa ciro gösterilmez ve ciro gizleme düğmesi yoktur", async () => {

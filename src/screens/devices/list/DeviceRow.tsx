@@ -1,8 +1,8 @@
 import React, { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppBadge, AppIcon, AppText, makeStyles } from "@/design-system";
-import { FillBar } from "@/components/devices/DeviceUi";
-import { connectivityInfo, deviceTitle, fillInfo, type RevenueColumn } from "@/components/devices/deviceHelpers";
+import { ConnectivityBadge, FillBar } from "@/components/devices/DeviceUi";
+import { connectivityInfo, deviceTitle, fillInfo, machineAlert, type RevenueColumn } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger } from "@/utils/number";
 import { formatRelative } from "@/utils/date";
 import type { PosDeviceListItem } from "@/types/devices";
@@ -27,6 +27,7 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
   const a11y = [
     title,
     conn.label,
+    machineAlert(device.online, device.act_macstat) ? `makine ${machineAlert(device.online, device.act_macstat)}` : null,
     device.stat ? null : "Pasif",
     `Doluluk ${fill.label}`,
     `Son iletişim ${lastSeen}`,
@@ -69,7 +70,7 @@ export const DeviceRow = memo(function DeviceRow({ device, onPress, revenue }: D
       </View>
 
       <View style={[styles.line, styles.meta]}>
-        <AppBadge size="sm" dot tone={conn.tone} label={conn.label} />
+        <ConnectivityBadge online={device.online} macstat={device.act_macstat} testID={`device-conn-${device.sn}`} />
         {!device.stat ? <AppBadge size="sm" tone="neutral" label="Pasif" /> : null}
         <View style={styles.fill}>
           <View style={styles.fillBar}>
