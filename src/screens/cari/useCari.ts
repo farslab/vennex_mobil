@@ -33,35 +33,38 @@ export function openCariPayment(paymentPath: string | undefined) {
 export function useCari() {
   const user = useAuthStore((s) => s.user);
   const owner = isOwner(user);
+  // Web: şerit, tutar ve ödeme uyarısı teknisyen dışındaki herkese (sahip, admin) — `role != 'tech'`
+  const nonTech = !!user && user.role !== "tech";
   const config = useAppConfig();
   const cari = config.data?.cari;
   const enabled = cari?.enabled === true;
   const state = enabled ? (cari?.state ?? 0) : 0;
   const locked = cari?.locked === true;
 
-  // Tutar yalnız sahibe gösterilir (web: teknisyene şerit/tutar yok); sunucu uç IsOwner
+  // Tutar teknisyene gösterilmez (web ile aynı); sunucu ucu IsNotTech
   const summary = useQuery({
     queryKey: queryKeys.account.cariSummary(),
     queryFn: ({ signal }) => accountApi.cariSummary(signal),
-    enabled: owner && enabled && state >= 1,
+    enabled: nonTech && enabled && state >= 1,
     staleTime: 5 * 60_000,
   });
   const balance = summary.data ? Number(summary.data.all_total) || 0 : null;
 
   return {
     owner,
+    nonTech,
     enabled,
     state,
     locked,
     balance,
     paymentPath: cari?.payment_path,
-    /** Web: sahip + durum 1–3 + tutar > 0 */
-    showBanner: owner && enabled && state >= 1 && state <= 3 && (balance ?? 0) > 0,
-    /** Web: sahip + durum 3 + tutar > 0, yalnız genel bakışta */
-    showPopup: owner && enabled && state === 3 && (balance ?? 0) > 0,
+    /** Web: teknisyen dışı + durum 1–3 + tutar > 0 */
+    showBanner: nonTech && enabled && state >= 1 && state <= 3 && (balance ?? 0) > 0,
+    /** Web: teknisyen dışı + durum 3 + tutar > 0, yalnız genel bakışta */
+    showPopup: nonTech && enabled && state === 3 && (balance ?? 0) > 0,
     refetch: () => {
       config.refetch();
-      if (owner && enabled) summary.refetch();
+      if (nonTech && enabled) summary.refetch();
     },
     refreshing: config.isRefetching,
   };

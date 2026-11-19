@@ -36,14 +36,14 @@ export function CariLockedScreen() {
             <AppIcon name="lock" size={28} color="danger" />
           </View>
           <AppText variant="title" style={styles.centerText} accessibilityRole="header">
-            {cari.owner ? "Hesabınız Kilitlendi" : "Hesap Kısıtlanmıştır"}
+            {cari.nonTech ? "Hesabınız Kilitlendi" : "Hesap Kısıtlanmıştır"}
           </AppText>
           <AppText variant="body" color="textSecondary" style={styles.centerText}>
-            {cari.owner
+            {cari.nonTech
               ? `${CARI_LOCKED_MESSAGE} Ödeme yapıldığında erişim kendiliğinden açılır.`
               : "Bu konuda yardım almak için lütfen yöneticinizle iletişime geçin."}
           </AppText>
-          {cari.owner && cari.balance != null && cari.balance > 0 ? (
+          {cari.nonTech && cari.balance != null && cari.balance > 0 ? (
             <AppText variant="title" color="danger" testID="cari-locked-balance">
               {formatCurrency(cari.balance)}
             </AppText>
@@ -53,7 +53,7 @@ export function CariLockedScreen() {
 
       <View style={styles.actions}>
         <AppButton
-          title={cari.owner ? "Ödeme Yap (web)" : "Cari Ödeme Yap"}
+          title={cari.nonTech ? "Ödeme Yap (web)" : "Cari Ödeme Yap"}
           icon="external-link"
           onPress={() => openCariPayment(cari.paymentPath)}
           fullWidth

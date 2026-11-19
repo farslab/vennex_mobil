@@ -401,7 +401,7 @@ function OnlineRing({
             transform={`rotate(${-90 + 360 * share} ${RING / 2} ${RING / 2})`}
           />
         ) : null}
-        {known ? (
+        {known && share > 0 ? (
           <Circle
             cx={RING / 2}
             cy={RING / 2}
