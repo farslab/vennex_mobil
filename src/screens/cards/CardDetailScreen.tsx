@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { usePagedList } from "@/hooks/usePagedList";
+import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 import {
   AppBadge,
   AppButton,
@@ -101,7 +102,12 @@ export default function CardDetailScreen({ route, navigation }: Props) {
   const pending = !card.is_active;
 
   return (
-    <AppScreen refreshing={refreshing} onRefresh={refresh} testID="card-detail">
+    <AppScreen
+      refreshing={refreshing}
+      onRefresh={refresh}
+      onEndReached={logs.hasMore && !logs.loadMoreError ? logs.loadMore : undefined}
+      testID="card-detail"
+    >
       <AppCard>
         <View style={styles.heroTop}>
           <View style={styles.flex}>
@@ -180,22 +186,9 @@ export default function CardDetailScreen({ route, navigation }: Props) {
             {logs.items.map((l, i) => (
               <BalanceLogRow key={l.id} log={l} last={i === logs.items.length - 1} />
             ))}
-            {logs.hasMore ? (
-              <View style={styles.more}>
-                {logs.loadMoreError ? (
-                  <AppText variant="caption" color="textSecondary" testID="logs-more-error">
-                    Devamı yüklenemedi: {errorMessage(logs.loadMoreError)}
-                  </AppText>
-                ) : null}
-                <AppButton
-                  title={logs.loadMoreError ? "Tekrar dene" : "Daha fazla göster"}
-                  variant="ghost"
-                  size="sm"
-                  loading={logs.isFetchingMore}
-                  onPress={logs.loadMoreError ? logs.retryLoadMore : logs.loadMore}
-                  testID="logs-more"
-                />
-              </View>
+            {/* Sonsuz kaydırma: sona yaklaşınca sonraki sayfa kendiliğinden gelir; hata olursa tekrar dene */}
+            {logs.hasMore || logs.isFetchingMore || logs.loadMoreError ? (
+              <ListLoadMoreFooter loading={logs.isFetchingMore} error={logs.loadMoreError} onRetry={logs.retryLoadMore} />
             ) : null}
           </AppCard>
         ) : (

@@ -56,7 +56,7 @@ describe("CardDetailScreen", () => {
     expect(mock.history.get.some((r) => r.url === "/cards/5/transactions/")).toBe(false);
   });
 
-  it("'Daha fazla göster' sonraki sayfayı ister; toplam sayı sunucudan", async () => {
+  it("sonsuz kaydırma: sona yaklaşınca sonraki sayfa kendiliğinden gelir; toplam sayı sunucudan", async () => {
     mock.onGet("/cards/5/").reply(200, cardJson(5));
     mock.onGet("/cards/5/balance-logs/").reply((config) => {
       const page = config.params.page;
@@ -65,8 +65,17 @@ describe("CardDetailScreen", () => {
     });
     await renderWithProviders(<CardDetailScreen {...props(5)} />);
     expect(await screen.findByText("25 / 60 hareket")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("logs-more"));
+    expect(screen.queryByText("Daha fazla göster")).toBeNull(); // düğme yok
+    await fireEvent.scroll(screen.getByTestId("card-detail-scroll"), {
+      nativeEvent: { contentOffset: { y: 2000 }, contentSize: { height: 2400, width: 400 }, layoutMeasurement: { height: 800, width: 400 } },
+    });
     await waitFor(() => expect(screen.getByText("50 / 60 hareket")).toBeOnTheScreen());
+    // en üstteyken (sona uzak) ek istek atılmaz
+    const before = mock.history.get.filter((r) => r.url === "/cards/5/balance-logs/").length;
+    await fireEvent.scroll(screen.getByTestId("card-detail-scroll"), {
+      nativeEvent: { contentOffset: { y: 0 }, contentSize: { height: 4000, width: 400 }, layoutMeasurement: { height: 800, width: 400 } },
+    });
+    expect(mock.history.get.filter((r) => r.url === "/cards/5/balance-logs/").length).toBe(before);
   });
 
   it("tek kart bakiye işlemi toplu uca tek id ile gider", async () => {

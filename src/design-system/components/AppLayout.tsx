@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -25,8 +25,16 @@ export interface AppScreenProps {
   /** Altta sabit aksiyon çubuğu */
   footer?: React.ReactNode;
   keyboardShouldPersistTaps?: ScrollViewProps["keyboardShouldPersistTaps"];
+  /**
+   * Sonsuz kaydırma: içeriğin sonuna `END_REACHED_THRESHOLD` kadar yaklaşınca (ya da içerik ekrana
+   * sığıyorsa) çağrılır. Çağıran taraf yükleme sürerken / sayfa bitince yok saymalıdır (usePagedList.loadMore).
+   */
+  onEndReached?: () => void;
   testID?: string;
 }
+
+/** Sona bu kadar (pt) kala sonraki sayfa istenir */
+export const END_REACHED_THRESHOLD = 400;
 
 /** Ekran iskeleti — header'ı navigator verir; bu bileşen zemin, padding ve pull-to-refresh sağlar */
 export function AppScreen({
@@ -37,17 +45,37 @@ export function AppScreen({
   contentStyle,
   footer,
   keyboardShouldPersistTaps = "handled",
+  onEndReached,
   testID,
 }: AppScreenProps) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const layoutHeight = useRef(0);
   return (
     <View style={styles.root} testID={testID}>
       {scroll ? (
         <ScrollView
+          testID={testID ? `${testID}-scroll` : undefined}
           contentContainerStyle={[styles.content, contentStyle]}
           keyboardShouldPersistTaps={keyboardShouldPersistTaps}
           keyboardDismissMode="on-drag"
+          scrollEventThrottle={onEndReached ? 100 : undefined}
+          onLayout={onEndReached ? (e) => (layoutHeight.current = e.nativeEvent.layout.height) : undefined}
+          onScroll={
+            onEndReached
+              ? ({ nativeEvent: n }) => {
+                  if (n.layoutMeasurement.height + n.contentOffset.y >= n.contentSize.height - END_REACHED_THRESHOLD) onEndReached();
+                }
+              : undefined
+          }
+          onContentSizeChange={
+            onEndReached
+              ? (_w, h) => {
+                  // İçerik ekrana sığıyorsa kaydırma olmaz → doğrudan iste
+                  if (layoutHeight.current > 0 && h <= layoutHeight.current + END_REACHED_THRESHOLD) onEndReached();
+                }
+              : undefined
+          }
           refreshControl={
             onRefresh ? (
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />

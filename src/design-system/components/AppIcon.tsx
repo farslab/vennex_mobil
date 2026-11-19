@@ -66,10 +66,12 @@ function ExcelIcon({ size, color, accessibilityLabel }: { size: number; color: s
     <Svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      // Dosya çizimi 24 ızgarada dar kalıyordu (zil simgesine göre küçük görünüyordu):
+      // görünüm kutusu kırpılarak ~%20 büyütüldü; kutu boyutu aynı → hizalama değişmez.
+      viewBox="2 1.5 20 20"
       fill="none"
       stroke={color}
-      strokeWidth={1.8}
+      strokeWidth={1.7}
       strokeLinecap="round"
       strokeLinejoin="round"
       accessibilityElementsHidden={!accessibilityLabel}
