@@ -20,9 +20,7 @@ import { centeredScreenLayout } from "./CenteredScreen";
 import { linking } from "./linking";
 import { flushPendingNavigation, navigationRef } from "./navigationRef";
 import { startPush, stopPushListeners } from "@/push/pushService";
-import { CariBanner } from "@/screens/cari/CariBanner";
 import { CariLockedScreen } from "@/screens/cari/CariLockedScreen";
-import { CariOverduePopup } from "@/screens/cari/CariOverduePopup";
 
 import LoginScreen from "@/screens/auth/LoginScreen";
 import TwoFactorScreen from "@/screens/auth/TwoFactorScreen";
@@ -86,13 +84,7 @@ function AppTabs() {
       initialRouteName="Dashboard"
       screenLayout={centeredScreenLayout}
       screenOptions={({ route }) => ({
-        header: () => (
-          <>
-            <TabHeader title={TAB_META[route.name].title} logo={route.name === "Dashboard"} />
-            <CariBanner />
-            {route.name === "Dashboard" ? <CariOverduePopup /> : null}
-          </>
-        ),
+        header: () => <TabHeader title={TAB_META[route.name].title} logo={route.name === "Dashboard"} />,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textTertiary,
         // "POS Cihazları" dar telefonlarda sığsın: tek satır, gerekirse hafif küçülür (kesilmez)

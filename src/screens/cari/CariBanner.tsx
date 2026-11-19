@@ -52,7 +52,7 @@ const useStyles = makeStyles((t) =>
       alignItems: "center",
       gap: t.spacing.sm,
       marginHorizontal: t.layout.screenPadding,
-      marginBottom: t.spacing.sm,
+      marginTop: t.spacing.sm,
       paddingHorizontal: t.spacing.md,
       paddingVertical: t.spacing.sm,
       borderRadius: t.radius.sm,

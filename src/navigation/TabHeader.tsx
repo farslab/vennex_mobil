@@ -8,6 +8,8 @@ import { CompanySwitcher } from "@/components/CompanySwitcher";
 import { VennexLogo } from "@/components/brand/VennexLogo";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import type { RootStackParamList } from "./types";
+import { CariBanner } from "@/screens/cari/CariBanner";
+import { CariOverduePopup } from "@/screens/cari/CariOverduePopup";
 
 /**
  * Sekme kök ekranlarının başlığı: büyük başlık + şirket seçici + bildirim zili.
@@ -46,6 +48,12 @@ export function TabHeader({ title, right, logo = false }: { title: string; right
           />
         </View>
       </View>
+      {/* Cari borç şeridi (web snackbar) — her sekmenin başlığında; ekranlar başlığı yeniden kursa da görünür */}
+      <View style={styles.banner}>
+        <CariBanner />
+      </View>
+      {/* Kritik gecikme uyarısı yalnız genel bakışta (logolu başlık) — web: yalnız ana sayfa */}
+      {logo ? <CariOverduePopup /> : null}
     </View>
   );
 }
@@ -69,5 +77,6 @@ const useStyles = makeStyles((t) =>
     titleBlock: { flex: 1, gap: 2 },
     logo: { paddingVertical: 4, alignSelf: "flex-start" },
     actions: { flexDirection: "row", alignItems: "center", marginRight: -t.spacing.sm },
+    banner: { marginHorizontal: -t.layout.screenPadding },
   })
 );
