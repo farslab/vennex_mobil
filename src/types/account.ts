@@ -8,6 +8,15 @@ export interface DetailResponse {
   detail?: string;
 }
 
+/** POST /auth/delete/ yanıtı (hesap silme talebi kaydı) */
+export interface AccountDeletionRequest {
+  id: number;
+  status: string;
+  status_display: string;
+  created_at: string;
+  detail?: string;
+}
+
 /** PATCH auth/me/ — `serializers/auth.py::ProfileUpdateSerializer` (kısmi) */
 export interface ProfileUpdatePayload {
   first_name?: string;

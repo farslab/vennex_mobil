@@ -1,6 +1,8 @@
 import { apiClient } from "./client";
 import type { AuthUser, LoginResponse, NotificationPreferences } from "@/types/auth";
+import { clientPlatform, nativeAppVersion } from "./appConfig";
 import type {
+  AccountDeletionRequest,
   DetailResponse,
   ProfileUpdatePayload,
   TwoFactorSetup,
@@ -55,12 +57,19 @@ export const authApi = {
 
 
 
-  /** 200 {detail}; parola hatalıysa 400 {password:["Parola hatalı."]} */
-  deactivate: (password: string) =>
-    apiClient.post<DetailResponse>("/auth/deactivate/", { password }).then(() => undefined),
-
-  /** 204 — kullanıcı KALICI silinir; parola hatalıysa 400 {password:[…]} */
-  deleteAccount: (password: string) => apiClient.post("/auth/delete/", { password }).then(() => undefined),
+  /**
+   * Hesap silme TALEBİ — hesap silinmez, oturum açık kalır; Nexus'a "Hesap silme talebi" kaydı düşer.
+   * 201 yeni talep · 200 açık talep zaten var (`already: true`) · 400 {password:["Parola hatalı."]}.
+   * (Hesap dondurma ucu backend'den kaldırıldı.)
+   */
+  requestAccountDeletion: (password: string) =>
+    apiClient
+      .post<AccountDeletionRequest>("/auth/delete/", {
+        password,
+        platform: clientPlatform() ?? undefined,
+        app_version: nativeAppVersion(),
+      })
+      .then((r): AccountDeletionRequest & { already: boolean } => ({ ...r.data, already: r.status === 200 })),
 
   // 2FA kurulum akışı: status → setup → enable{otp} / disable{password}
   get2FAStatus: (signal?: AbortSignal) =>

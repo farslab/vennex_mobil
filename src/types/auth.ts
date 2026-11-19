@@ -33,13 +33,10 @@ export interface LoginResponse {
   detail?: string;
 }
 
+/** Kullanıcının kapatabildiği push türleri (vadesi geçmiş fatura zorunludur, tercih değildir) */
 export interface NotificationPreferences {
-  device_offline: boolean;
-  transaction_alerts: boolean;
-  stock_low: boolean;
-  card_pending: boolean;
+  technical_errors: boolean;
   report_ready: boolean;
-  cari_overdue: boolean;
   updated_at?: string | null;
 }
 

@@ -38,7 +38,7 @@ describe("resolveNotificationTarget", () => {
   const tech = makeUser({ role: "tech", permissions: ["tech"] });
 
   it("cihaz event'leri sn varsa cihaz detayına eşlenir", () => {
-    for (const event of ["device.offline", "transaction.new", "stock.low"]) {
+    for (const event of ["device.technical_error", "device.offline", "transaction.new", "stock.low"]) {
       expect(resolveNotificationTarget({ data: { event, sn: "PAV1" } }, tech)).toEqual({
         name: "DeviceDetail",
         params: { sn: "PAV1" },

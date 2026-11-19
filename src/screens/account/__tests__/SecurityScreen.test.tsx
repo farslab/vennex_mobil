@@ -102,25 +102,29 @@ describe("SecurityScreen", () => {
     expect(screen.getByText("ABCD EFGH")).toBeOnTheScreen();
   });
 
-  it("hesap silme: parola onayı → POST delete → çıkış", async () => {
-    mock.onPost("/auth/delete/").reply(204);
+  it("hesap silme talebi: parola onayı → POST delete → talep alındı, çıkış YAPILMAZ", async () => {
+    mock.onPost("/auth/delete/").reply(201, { id: 1, status: "new", status_display: "Yeni", created_at: "2026-11-19T10:00:00Z" });
     await renderWithProviders(<SecurityScreen />, { queryClient: makeClient() });
 
+    expect(screen.queryByTestId("row-deactivate")).toBeNull();
+    expect(screen.queryByText("Hesabı dondur")).toBeNull();
     await fireEvent.press(await screen.findByTestId("row-delete-account"));
-    expect(screen.getByText("Bu işlem geri alınamaz.")).toBeOnTheScreen();
+    expect(screen.queryByText("Bu işlem geri alınamaz.")).toBeNull();
     await fireEvent.changeText(screen.getByTestId("password-confirm-input"), "parolam123");
     await fireEvent.press(screen.getByTestId("password-confirm-submit"));
 
-    await waitFor(() => expect(mockLogout).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mock.history.post).toHaveLength(1));
     expect(mock.history.post[0].url).toBe("/auth/delete/");
-    expect(JSON.parse(mock.history.post[0].data)).toEqual({ password: "parolam123" });
+    expect(JSON.parse(mock.history.post[0].data)).toMatchObject({ password: "parolam123" });
+    await waitFor(() => expect(screen.queryByTestId("password-confirm-input")).toBeNull());
+    expect(mockLogout).not.toHaveBeenCalled();
   });
 
-  it("hesap dondurmada hatalı parola alan hatası olarak gösterilir, çıkış yapılmaz", async () => {
-    mock.onPost("/auth/deactivate/").reply(400, { password: ["Parola hatalı."] });
+  it("silme talebinde hatalı parola alan hatası olarak gösterilir, çıkış yapılmaz", async () => {
+    mock.onPost("/auth/delete/").reply(400, { password: ["Parola hatalı."] });
     await renderWithProviders(<SecurityScreen />, { queryClient: makeClient() });
 
-    await fireEvent.press(await screen.findByTestId("row-deactivate"));
+    await fireEvent.press(await screen.findByTestId("row-delete-account"));
     await fireEvent.press(screen.getByTestId("password-confirm-submit"));
     expect(screen.getByText("Devam etmek için parolanızı girin.")).toBeOnTheScreen();
     expect(mock.history.post).toHaveLength(0);

@@ -33,20 +33,20 @@ describe("authApi — hesap uçları", () => {
     expect(JSON.parse(mock.history.patch[0].data)).toEqual({ first_name: "Yeni", phone: null });
   });
 
-  it("deactivate (200) ve delete (204) parola ile çağrılır", async () => {
-    mock.onPost("/auth/deactivate/").reply(200, { detail: "Hesap pasifleştirildi." });
-    mock.onPost("/auth/delete/").reply(204);
-    await authApi.deactivate("parolam123");
-    await authApi.deleteAccount("parolam123");
-    expect(mock.history.post.map((r) => [r.url, JSON.parse(r.data)])).toEqual([
-      ["/auth/deactivate/", { password: "parolam123" }],
-      ["/auth/delete/", { password: "parolam123" }],
-    ]);
+  it("hesap silme talebi: parola + platform/sürüm gönderilir; 201 yeni, 200 zaten var", async () => {
+    const body = { id: 7, status: "new", status_display: "Yeni", created_at: "2026-11-19T10:00:00Z" };
+    mock.onPost("/auth/delete/").replyOnce(201, body).onPost("/auth/delete/").replyOnce(200, body);
+    await expect(authApi.requestAccountDeletion("parolam123")).resolves.toMatchObject({ id: 7, already: false });
+    await expect(authApi.requestAccountDeletion("parolam123")).resolves.toMatchObject({ id: 7, already: true });
+    expect(mock.history.post[0].url).toBe("/auth/delete/");
+    expect(JSON.parse(mock.history.post[0].data)).toMatchObject({ password: "parolam123" });
+    expect(mock.history.post.some((r) => r.url === "/auth/deactivate/")).toBe(false);
+    expect("deactivate" in authApi).toBe(false);
   });
 
-  it("delete hatalı parolada alan hatası verir", async () => {
+  it("silme talebi hatalı parolada alan hatası verir", async () => {
     mock.onPost("/auth/delete/").reply(400, { password: ["Parola hatalı."] });
-    await expect(authApi.deleteAccount("yanlis")).rejects.toMatchObject({ fieldErrors: { password: "Parola hatalı." } });
+    await expect(authApi.requestAccountDeletion("yanlis")).rejects.toMatchObject({ fieldErrors: { password: "Parola hatalı." } });
   });
 
   it("2FA setup → enable → disable gövdeleri", async () => {
@@ -62,9 +62,9 @@ describe("authApi — hesap uçları", () => {
   });
 
   it("bildirim tercihleri kısmi PATCH", async () => {
-    mock.onPatch("/me/notification-preferences/").reply(200, { stock_low: false });
-    await authApi.updateNotificationPreferences({ stock_low: false });
-    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ stock_low: false });
+    mock.onPatch("/me/notification-preferences/").reply(200, { technical_errors: false });
+    await authApi.updateNotificationPreferences({ technical_errors: false });
+    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ technical_errors: false });
   });
 });
 

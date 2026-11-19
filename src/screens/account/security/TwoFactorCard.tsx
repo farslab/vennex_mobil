@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Linking, Share, StyleSheet, View } from "react-native";
+import { Linking, Platform, Share, StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AppBadge,
@@ -99,7 +99,7 @@ export function TwoFactorCard() {
     try {
       await Linking.openURL(setup.otpauth_url);
     } catch {
-      toast.error("Bu cihazda doğrulama uygulaması bulunamadı. Anahtarı elle girin.");
+      toast.error("Bu cihazda doğrulama uygulaması bulunamadı. Google Authenticator gibi bir uygulama yükleyip anahtarı elle girin.");
     }
   };
 
@@ -128,7 +128,8 @@ export function TwoFactorCard() {
       <View style={styles.flex}>
         <AppText variant="cardTitle">Doğrulama uygulaması</AppText>
         <AppText variant="caption" color="textTertiary">
-          Girişte şifrenize ek olarak tek kullanımlık kod istenir.
+          Girişte şifrenize ek olarak, Google Authenticator gibi bir doğrulama uygulamasındaki tek kullanımlık kod
+          istenir.
         </AppText>
       </View>
       {statusQuery.data ? (
@@ -186,8 +187,9 @@ export function TwoFactorCard() {
             </AppText>
             <AppText variant="bodyStrong">Doğrulama uygulamanıza ekleyin</AppText>
             <AppText variant="callout" color="textSecondary">
-              Google Authenticator, Microsoft Authenticator veya benzeri bir uygulamada yeni hesap ekleyin. Bu cihazdaysa
-              doğrudan açabilir, değilse anahtarı elle girebilirsiniz.
+              Google Authenticator, Microsoft Authenticator
+              {Platform.OS === "ios" ? ", iPhone Parolalar" : ""} veya benzeri bir doğrulama uygulamasında yeni hesap
+              ekleyin. Bu cihazdaysa doğrudan açabilir, değilse anahtarı elle girebilirsiniz.
             </AppText>
             {setup.otpauth_url ? (
               <AppButton

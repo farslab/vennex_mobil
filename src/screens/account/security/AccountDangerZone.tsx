@@ -6,52 +6,25 @@ import { useAuthStore } from "@/store/authStore";
 import { PasswordConfirmSheet } from "@/components/account/PasswordConfirmSheet";
 import { splitApiError } from "@/components/account/formErrors";
 
-type Action = "deactivate" | "delete";
-
-const COPY: Record<
-  Action,
-  { title: string; message: string; confirmLabel: string; operation: string; success: string; irreversible: boolean }
-> = {
-  deactivate: {
-    title: "Hesabı dondur",
-    message:
-      "Hesabınız pasifleştirilir ve tüm oturumlarınız kapatılır. Verileriniz silinmez; hesabı yeniden açmak için Vennex destek ekibiyle iletişime geçmeniz gerekir.",
-    confirmLabel: "Hesabı dondur",
-    operation: "Hesabı pasifleştir",
-    success: "Hesabınız donduruldu.",
-    irreversible: false,
-  },
-  delete: {
-    title: "Hesabı kalıcı olarak sil",
-    message:
-      "Hesabınız ve hesabınıza bağlı kişisel verileriniz kalıcı olarak silinir, tüm oturumlarınız kapatılır. Bu işlemden sonra aynı hesapla giriş yapamazsınız.",
-    confirmLabel: "Kalıcı olarak sil",
-    operation: "Hesabı kalıcı sil",
-    success: "Hesabınız silindi.",
-    irreversible: true,
-  },
-};
-
 /**
- * Hesap dondurma (POST auth/deactivate/ → 200) ve silme (POST auth/delete/ → 204).
- * İkisi de `{password}` ister; hatalıysa `{password:["Parola hatalı."]}`. Başarıda oturum kapatılır.
+ * Hesap silme TALEBİ (POST auth/delete/ → 201 yeni · 200 zaten açık talep var).
+ * Hesap uygulamadan silinmez: talep Nexus'a düşer, silme işlemini Vennex ekibi yapar.
+ * Oturum açık kalır. Hesap dondurma seçeneği kaldırıldı.
  */
 export function AccountDangerZone() {
   const username = useAuthStore((s) => s.user?.username ?? "");
-  const logout = useAuthStore((s) => s.logout);
-  const [action, setAction] = useState<Action | null>(null);
+  const [open, setOpen] = useState(false);
   const [errors, setErrors] = useState<{ password: string | null; general: string | null }>({
     password: null,
     general: null,
   });
 
   const mutation = useMutation({
-    mutationFn: ({ kind, password }: { kind: Action; password: string }) =>
-      kind === "delete" ? authApi.deleteAccount(password) : authApi.deactivate(password),
-    onSuccess: async (_data, { kind }) => {
-      setAction(null);
-      toast.success(COPY[kind].success);
-      await logout();
+    mutationFn: (password: string) => authApi.requestAccountDeletion(password),
+    onSuccess: (res) => {
+      setOpen(false);
+      if (res.already) toast.info("Hesap silme talebiniz zaten alındı; ekibimiz inceliyor.");
+      else toast.success("Hesap silme talebiniz alındı. Ekibimiz inceleyip sizinle iletişime geçecek.");
     },
     onError: (error) => {
       const { fieldErrors, general } = splitApiError(error, ["password"] as const);
@@ -59,55 +32,41 @@ export function AccountDangerZone() {
     },
   });
 
-  const open = (kind: Action) => {
-    setErrors({ password: null, general: null });
-    setAction(kind);
-  };
-
-  const copy = action ? COPY[action] : null;
-
   return (
     <>
       <AppCard padded={false} testID="danger-zone">
         <AppListRow
-          icon="pause-circle"
-          iconTone="danger"
-          title="Hesabı dondur"
-          subtitle="Hesap pasifleşir, verileriniz saklanır."
-          onPress={() => open("deactivate")}
-          testID="row-deactivate"
-        />
-        <AppListRow
           icon="trash-2"
           destructive
-          title="Hesabı kalıcı olarak sil"
-          subtitle="Geri alınamaz; tüm oturumlar kapatılır."
-          onPress={() => open("delete")}
+          title="Hesap silme talebi"
+          subtitle="Talebiniz Vennex ekibine iletilir."
+          onPress={() => {
+            setErrors({ password: null, general: null });
+            setOpen(true);
+          }}
           last
           testID="row-delete-account"
         />
       </AppCard>
 
       <PasswordConfirmSheet
-        visible={!!copy}
-        title={copy?.title ?? ""}
-        message={copy?.message}
-        summary={copy ? [
+        visible={open}
+        title="Hesap silme talebi"
+        message="Hesabınızın ve hesabınıza bağlı kişisel verilerinizin silinmesi için Vennex ekibine talep gönderilir. Ekibimiz talebi inceleyip sizinle iletişime geçer; işlem tamamlanana kadar hesabınızı kullanmaya devam edebilirsiniz."
+        summary={[
           { label: "Hesap", value: username },
-          { label: "İşlem", value: copy.operation },
-        ] : undefined}
-        confirmLabel={copy?.confirmLabel ?? "Onayla"}
+          { label: "İşlem", value: "Hesap silme talebi" },
+        ]}
+        confirmLabel="Talebi gönder"
         destructive
-        irreversible={copy?.irreversible}
         loading={mutation.isPending}
         passwordError={errors.password}
         error={errors.general}
         onConfirm={(password) => {
-          if (!action) return;
           setErrors({ password: null, general: null });
-          mutation.mutate({ kind: action, password });
+          mutation.mutate(password);
         }}
-        onCancel={() => setAction(null)}
+        onCancel={() => setOpen(false)}
         testID="account-action-sheet"
       />
     </>

@@ -24,7 +24,7 @@ describe("LoginScreen", () => {
     await render(<LoginScreen />);
     await fireEvent.press(screen.getByTestId("login-submit"));
 
-    expect(screen.getByText("Kullanıcı adı veya e-posta gerekli.")).toBeOnTheScreen();
+    expect(screen.getByText("Kullanıcı adı gerekli.")).toBeOnTheScreen();
     expect(screen.getByText("Şifre gerekli.")).toBeOnTheScreen();
     expect(login).not.toHaveBeenCalled();
   });

@@ -19,7 +19,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (loading) return;
     const next = {
-      username: username.trim() ? undefined : "Kullanıcı adı veya e-posta gerekli.",
+      username: username.trim() ? undefined : "Kullanıcı adı gerekli.",
       password: password ? undefined : "Şifre gerekli.",
     };
     setFieldErrors(next);
@@ -51,7 +51,7 @@ export default function LoginScreen() {
     >
       {banner ? <AppNotice tone="danger" message={banner} /> : null}
       <AppInput
-        label="Kullanıcı adı veya e-posta"
+        label="Kullanıcı adı"
         placeholder="kullanici.adi"
         icon="user"
         autoCapitalize="none"

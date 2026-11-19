@@ -18,12 +18,8 @@ function makeClient() {
 jest.mock("@expo/vector-icons", () => ({ Feather: () => null }));
 
 const prefs: NotificationPreferences = {
-  device_offline: true,
-  transaction_alerts: false,
-  stock_low: true,
-  card_pending: true,
+  technical_errors: true,
   report_ready: true,
-  cari_overdue: true,
   updated_at: "2026-11-18T10:00:00Z",
 };
 
@@ -37,18 +33,18 @@ describe("NotificationSettingsScreen", () => {
   afterEach(() => mock.restore());
 
   it("iyimser günceller ve yalnız değişen anahtarı PATCH eder", async () => {
-    mock.onPatch("/me/notification-preferences/").reply(200, { ...prefs, stock_low: false });
+    mock.onPatch("/me/notification-preferences/").reply(200, { ...prefs, report_ready: false });
     const { queryClient } = await renderWithProviders(<NotificationSettingsScreen />, { queryClient: makeClient() });
 
-    const toggle = await screen.findByTestId("pref-stock_low");
+    const toggle = await screen.findByTestId("pref-report_ready");
     expect(toggle.props.value).toBe(true);
     await fireEvent(toggle, "valueChange", false);
 
-    await waitFor(() => expect(screen.getByTestId("pref-stock_low").props.value).toBe(false));
+    await waitFor(() => expect(screen.getByTestId("pref-report_ready").props.value).toBe(false));
     await waitFor(() => expect(mock.history.patch).toHaveLength(1));
-    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ stock_low: false });
+    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ report_ready: false });
     await waitFor(() =>
-      expect(queryClient.getQueryData<NotificationPreferences>(queryKeys.notifications.preferences())?.stock_low).toBe(false)
+      expect(queryClient.getQueryData<NotificationPreferences>(queryKeys.notifications.preferences())?.report_ready).toBe(false)
     );
   });
 
@@ -62,24 +58,26 @@ describe("NotificationSettingsScreen", () => {
     );
     await renderWithProviders(<NotificationSettingsScreen />, { queryClient: makeClient() });
 
-    await fireEvent(await screen.findByTestId("pref-device_offline"), "valueChange", false);
+    await fireEvent(await screen.findByTestId("pref-technical_errors"), "valueChange", false);
     // istek sürerken iyimser değer
-    await waitFor(() => expect(screen.getByTestId("pref-device_offline").props.value).toBe(false));
+    await waitFor(() => expect(screen.getByTestId("pref-technical_errors").props.value).toBe(false));
     await waitFor(() => expect(release).not.toBeNull());
     await act(async () => {
       release?.();
     });
 
-    await waitFor(() => expect(screen.getByTestId("pref-device_offline").props.value).toBe(true));
+    await waitFor(() => expect(screen.getByTestId("pref-technical_errors").props.value).toBe(true));
     expect(mock.history.patch).toHaveLength(1);
   });
 
-  it("sahibe gitmeyen push türlerini teknisyene göstermez", async () => {
-    useAuthStore.setState({ user: makeUser({ role: "tech" }) });
+  it("yalnız teknik hata ve rapor hazır tercihlerini gösterir", async () => {
     await renderWithProviders(<NotificationSettingsScreen />, { queryClient: makeClient() });
-    expect(await screen.findByTestId("pref-device_offline")).toBeOnTheScreen();
-    expect(screen.queryByTestId("pref-cari_overdue")).toBeNull();
-    expect(screen.queryByTestId("pref-transaction_alerts")).toBeNull();
+    expect(await screen.findByTestId("pref-technical_errors")).toBeOnTheScreen();
+    expect(screen.getByTestId("pref-report_ready")).toBeOnTheScreen();
+    for (const hidden of ["device_offline", "stock_low", "transaction_alerts", "card_pending", "cari_overdue"]) {
+      expect(screen.queryByTestId(`pref-${hidden}`)).toBeNull();
+    }
+    expect(screen.queryByText("Yeni işlemler")).toBeNull();
   });
 
   it("yükleme hatasında tekrar dene sunar", async () => {

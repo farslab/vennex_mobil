@@ -39,6 +39,7 @@ export function resolveNotificationTarget(
   const data = item.data;
   if (!data) return null;
   switch (notificationEvent(item)) {
+    case "device.technical_error":
     case "device.offline":
     case "transaction.new":
     case "stock.low": {
@@ -74,6 +75,8 @@ function webUrlTarget(data: Record<string, unknown>): NotificationTarget | null 
 
 export function notificationIcon(item: Pick<NotificationItem, "data">): IconName {
   switch (notificationEvent(item)) {
+    case "device.technical_error":
+      return "alert-triangle";
     case "device.offline":
       return "wifi-off";
     case "transaction.new":

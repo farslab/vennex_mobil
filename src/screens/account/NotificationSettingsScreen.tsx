@@ -32,38 +32,26 @@ interface PrefMeta {
   ownerOnly?: boolean;
 }
 
-/** Push olayları ve alıcıları: backend `vennex_mobile/tasks.py` */
+/**
+ * Kullanıcının kapatabildiği push olayları (backend `vennex_mobile/tasks.py`).
+ * Bilerek yok: cihaz çevrimdışı (gece kapanan / uzun süre kapalı cihazlar sürekli bildirim üretir),
+ * her satış (çok fazla bildirim), onay bekleyen kart ve düşük stok (gereksiz), vadesi geçen fatura (tercihe bağlı
+ * değil; şirket sahibine her zaman gönderilir). Kapatılan tür yalnız push'u durdurur; web bildirimi oluşur.
+ */
 const GROUPS: { title: string; items: PrefMeta[] }[] = [
   {
     title: "POS Cihazları",
     items: [
-      { key: "device_offline", label: "POS cihazı çevrimdışı", description: "Bir POS cihazı bağlantıyı kaybettiğinde" },
-      { key: "stock_low", label: "Düşük stok", description: "Bir slotta ürün azaldığında" },
       {
-        key: "transaction_alerts",
-        label: "Yeni işlemler",
-        description: "POS cihazlarınızda yeni satış gerçekleştiğinde",
-        ownerOnly: true,
+        key: "technical_errors",
+        label: "Teknik hata",
+        description: "Bir POS cihazının son 10 işleminden 4'ü teknik hata veya zaman aşımıyla sonuçlandığında",
       },
     ],
   },
   {
-    title: "Kartlar ve raporlar",
-    items: [
-      { key: "card_pending", label: "Onay bekleyen kart", description: "Yeni personel kartı onay beklediğinde" },
-      { key: "report_ready", label: "Rapor hazır", description: "Talep ettiğiniz rapor oluşturulduğunda" },
-    ],
-  },
-  {
-    title: "Finans",
-    items: [
-      {
-        key: "cari_overdue",
-        label: "Vadesi geçen fatura",
-        description: "Cari hesabınızda gecikmiş fatura oluştuğunda",
-        ownerOnly: true,
-      },
-    ],
+    title: "Raporlar",
+    items: [{ key: "report_ready", label: "Rapor hazır", description: "Talep ettiğiniz rapor oluşturulduğunda" }],
   },
 ];
 

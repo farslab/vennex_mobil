@@ -252,3 +252,21 @@ Bilinen eksik: otomatik olay push'ları (`push_device_offline` vb.) hiçbir yerd
 | `vennex_mobile/test_web_parity.py` | `OverviewExcelParityTests` (3): mobil = web hücre hücre; konum filtresi; yetkisiz 403 |
 
 Canlıya alma kaydı: sunucu temiz ve `origin` ile aynıydı (`8740178`) → `git am` → `ff01c3f`; `manage.py check` temiz; yalnız web yeniden başlatıldı; logda hata yok. Kontrol (demo, salt okuma): bu ay ₺923,60 / 140 işlem (122/18), son 30 gün ₺4.939,60 / 191 (167/24), 13 POS cihazı; 5 sayfa. Telefonda indirme ve açma doğrulandı.
+
+# Sekizinci değişiklik — Hesap silme talebi ve olay bildirimleri (2026-11-19) · **CANLIDA (`6004066`), serpetco pilotu**
+
+| Dosya | Değişiklik |
+|---|---|
+| `vennex_mobile/urls.py`, `views/auth.py`, `serializers/auth.py` | `auth/deactivate/` kaldırıldı (404). `DeleteAccountView`, `AccountActionSerializer` kaldırıldı |
+| `vennex_mobile/views/feedback.py` | `POST auth/delete/` → `AccountDeletionRequestView`: hesabı silmez; parola (kaydetmeyen `check_password`) doğrulanınca yalnız `MobileFeedback(category=account_deletion, source=app)` açar. Açık talep varsa 200 (yenisi yok), saatte 5. Kullanıcının `GET feedback/` geçmişinde görünmez |
+| `theme/templates/nexus/pages/mobile_feedback_detail.html` | Uygulamadan gelen silme talebi için yönetici notu |
+| `vennex_mobile/event_notifications.py` (yeni) | Olay bildirimleri: web `Notification` + tercihe bağlı push (`notification_id`). Teknik hata (son 10 işlemin ≥4'ü iptalNo 1/3, 24 sa, uzaktan iadeler hariç; olay başına 1, 6 sa bekleme; cihaz başına 5 dk'da en fazla 1 kontrol), rapor hazır, vadesi geçmiş fatura (zorunlu; yeni geciken gündüz 3 saatte bir, hatırlatma pazartesi 10:00). İlk görüş sessiz kaydedilir. `MOBILE_EVENT_NOTIFY_COMPANY_IDS` ile pilot |
+| `api/tasks.py` | Satış kaydı sonrası (iptalNo 1/3, yalnız bellek içi süzme) ve iptal yolunda teknik hata kontrolü kuyruğa alınır (hata satış kaydını bozmaz) |
+| `core/celery.py` | `vennex_mobile.event_notifications.*` → `reports` kuyruğu (satış işçisi etkilenmez; canlıda `celery-reports` yeniden başlatılmalı) |
+| `reporting/tasks.py` | `mark_success` sonrası rapor hazır bildirimi |
+| `core/settings.py` | Beat: `vm-new-overdue-invoices` (9/12/15/18:40), `vm-remind-overdue-invoices` (pazartesi 10:00) |
+| `vennex_mobile/tasks.py` | Çevrimdışı, her satış, onay bekleyen kart, düşük stok ve eski rapor/cari push görevleri kaldırıldı |
+| `vennex_mobile/models.py` + `migrations/0012_bildirim_teknik_hata.py` | `UserNotificationPreferences.technical_errors` (yeni alan); eski alanlar duruyor, API yalnız `technical_errors`, `report_ready` döner |
+| Testler | `test_feedback.py` (+7), `test_event_notifications.py` (13) |
+
+Canlıya alma kaydı: sunucuda izlenen dosyalarda değişiklik yoktu (yalnız başka oturumun izlenmeyen dosyaları) → `git am` → `6004066`; `manage.py check` temiz; `migrate vennex_mobile 0012` OK; web, celery, celery-reports, celery-beat yeniden başlatıldı. İki işçide de `event_notifications` görevleri kayıtlı; loglarda hata yok. `auth/deactivate/` 404, `auth/delete/` (oturumsuz) 401; `live_readonly_check.py` 200 dışı 0. Pilot `MOBILE_EVENT_NOTIFY_COMPANY_IDS = [1]` (serpetco); serpetco cihazlarında son 24 saatte işlem yok, eşikte cihaz yok. GitHub'a henüz gönderilmedi (sunucu `origin`'in 3 commit önünde).
