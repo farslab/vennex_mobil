@@ -99,15 +99,6 @@ describe("devicesApi", () => {
     expect(res.sales_visible).toBeUndefined();
   });
 
-  it("özel sıralama: device_orders gövdesi ve reset ucu", async () => {
-    mock.onPost("/pos-devices/sort/").reply(200, { detail: "Sıralama güncellendi." });
-    mock.onPost("/pos-devices/sort/reset/").reply(200, { detail: "Sıralama sıfırlandı." });
-    await devicesApi.updateSortOrders([{ sn: "A", sort_order: 1 }, { sn: "B", sort_order: 2 }]);
-    await devicesApi.resetSortOrders();
-    expect(JSON.parse(mock.history.post[0].data)).toEqual({ device_orders: [{ sn: "A", sort_order: 1 }, { sn: "B", sort_order: 2 }] });
-    expect(mock.history.post[1].url).toBe("/pos-devices/sort/reset/");
-  });
-
   it("nakit toplama: not yoksa boş gövde; tutar number", async () => {
     mock.onPost("/pos-devices/X/collect-cash/").reply(200, { detail: "ok", amount_collected: 150.25 });
     const res = await devicesApi.collectCash("X", "   ");

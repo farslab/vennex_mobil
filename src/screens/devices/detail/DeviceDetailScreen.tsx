@@ -8,20 +8,13 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } fro
 import { StyleSheet, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  AppBadge,
   AppConfirmSheet,
   AppErrorState,
-  AppIconButton,
-  AppSegmented,
   AppSkeleton,
-  AppText,
   makeStyles,
-  type SegmentItem,
 } from "@/design-system";
 import { errorMessage, type ApiError } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
-import { machineTypeLabel } from "@/components/devices/deviceHelpers";
-import { ConnectivityBadge } from "@/components/devices/DeviceUi";
 import type { RootScreenProps } from "@/navigation/types";
 import { useDeviceAccess, useDeviceDetail } from "./useDeviceQueries";
 import { GeneralTab } from "./tabs/GeneralTab";
@@ -30,6 +23,16 @@ import { StockTab } from "./tabs/StockTab";
 import { StatsTab } from "./tabs/StatsTab";
 import { SettingsTab } from "./tabs/SettingsTab";
 import { RemoteSaleSheet } from "./components/RemoteSaleSheet";
+import { DeviceTabBar, type DeviceTabItem, type DeviceTabStyle } from "./components/DeviceTabBar";
+import { DeviceHeader, type DeviceHeaderStyle } from "./components/DeviceHeader";
+
+/**
+ * Başlık ve sekme görünümü (deneme sürüyor). Beğenilen adaylar:
+ * "card" + "icons", "compact" + "dark", "compact" + "icons".
+ * Şu an deneniyor: "card" + "segment".
+ */
+const HEADER_STYLE: DeviceHeaderStyle = "card";
+const TAB_STYLE: DeviceTabStyle = "segment";
 
 export type DeviceTabKey = "general" | "sales" | "stock" | "stats" | "settings";
 
@@ -52,25 +55,23 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
   useEffect(() => {
     navigation.setOptions({ title });
   }, [navigation, title]);
+  const inactive = detail ? !detail.stat : false;
+  // Yerel başlık gizli: geri, ad, seri no ve uzaktan satış ekranın kendi başlığında (DeviceHeader)
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
-  // Uzaktan satış: yetki varsa başlığın sağ üstünde büyük ikon
+  // Uzaktan satış: yetki varsa başlığın sağ üstünde
   const canRemoteVend = !!detail && access.remoteVend;
   const openRemote = useCallback(() => setRemoteOpen(true), []);
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: canRemoteVend
-        ? () => (
-            <AppIconButton icon="radio" label="Uzaktan satış" onPress={openRemote} tone="primary" size="lg" testID="open-remote-sale" />
-          )
-        : undefined,
-    });
-  }, [navigation, canRemoteVend, openRemote]);
+  const goBack = useCallback(() => navigation.goBack(), [navigation]);
 
-  const tabs = useMemo<SegmentItem<DeviceTabKey>[]>(() => {
-    const list: SegmentItem<DeviceTabKey>[] = [{ key: "general", label: "Genel" }];
+  const tabs = useMemo<DeviceTabItem[]>(() => {
+    const list: DeviceTabItem[] = [{ key: "general", label: "Genel" }];
     if (access.sales) list.push({ key: "sales", label: "Satışlar" });
     list.push({ key: "stock", label: "Stok" });
-    if (access.sales) list.push({ key: "stats", label: "İstatistikler" });
+    // Beş sekme tek satıra eşit sığsın: "İstatistikler" → "İstatistik"
+    if (access.sales) list.push({ key: "stats", label: "İstatistik" });
     // Web: Ayarlar sekmesi yalnız cihaz ayarı yetkisiyle görünür (`pos_device_detail.html:53,59`)
     if (access.manageSettings) list.push({ key: "settings", label: "Ayarlar" });
     return list;
@@ -110,10 +111,7 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
   if (detailQuery.isLoading) {
     return (
       <View style={styles.root} testID="device-detail-loading">
-        <View style={styles.header}>
-          <AppSkeleton width="55%" height={20} />
-          <AppSkeleton width="35%" height={12} />
-        </View>
+        <DeviceHeader variant={HEADER_STYLE} title={title} sn={sn} onBack={goBack} />
         <View style={styles.body}>
           <AppSkeleton height={120} radius={12} />
           <AppSkeleton height={160} radius={12} />
@@ -126,6 +124,7 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
     const status = (detailQuery.error as ApiError | null)?.status;
     return (
       <View style={styles.root}>
+        <DeviceHeader variant={HEADER_STYLE} title={title} sn={sn} onBack={goBack} />
         <AppErrorState
           title={status === 404 ? "Cihaz bulunamadı" : "Cihaz yüklenemedi"}
           message={status === 404 ? "Bu cihaz mevcut değil veya erişim yetkiniz yok." : errorMessage(detailQuery.error)}
@@ -136,23 +135,20 @@ export default function DeviceDetailScreen({ route, navigation }: RootScreenProp
     );
   }
 
-  const typeLabel = machineTypeLabel(detail.pos_odemetip);
-
   return (
     <View style={styles.root} testID="device-detail">
-      <View style={styles.header}>
-        <View style={styles.meta}>
-          <AppText variant="mono" color="textTertiary" selectable>
-            {detail.sn}
-          </AppText>
-          <ConnectivityBadge online={detail.is_online} macstat={detail.act_macstat} />
-          {!detail.stat ? <AppBadge size="sm" tone="neutral" label="Pasif" /> : null}
-          {typeLabel !== "—" ? <AppBadge size="sm" tone="info" label={typeLabel} /> : null}
-        </View>
-      </View>
-      <View style={styles.tabs}>
-        <AppSegmented<DeviceTabKey> variant="tabs" items={tabs} value={activeTab} onChange={changeTab} testID="device-tabs" />
-      </View>
+      <DeviceHeader
+        variant={HEADER_STYLE}
+        title={title}
+        sn={detail.sn}
+        location={detail.location?.name}
+        inactive={inactive}
+        online={detail.is_online}
+        onBack={goBack}
+        onRemoteSale={canRemoteVend ? openRemote : undefined}
+      >
+        <DeviceTabBar variant={TAB_STYLE} items={tabs} value={activeTab} onChange={changeTab} testID="device-tabs" />
+      </DeviceHeader>
       <View style={styles.flex}>
         {activeTab === "general" ? <GeneralTab sn={sn} detail={detail} access={access} refreshing={refreshing} onRefresh={refreshAll} /> : null}
         {activeTab === "sales" ? <SalesTab sn={sn} /> : null}
@@ -185,15 +181,6 @@ const useStyles = makeStyles((t) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: t.colors.background },
     flex: { flex: 1 },
-    header: {
-      backgroundColor: t.colors.surface,
-      paddingHorizontal: t.layout.screenPadding,
-      paddingTop: t.spacing.md,
-      paddingBottom: t.spacing.sm,
-      gap: t.spacing.xs,
-    },
-    meta: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: t.spacing.sm },
-    tabs: { backgroundColor: t.colors.surface },
     body: { padding: t.layout.screenPadding, gap: t.spacing.md },
   })
 );

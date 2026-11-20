@@ -74,7 +74,7 @@ describe("DevicesListScreen", () => {
     expect(screen.getByTestId("devices-count-offline")).toHaveTextContent("9");
     expect(screen.queryByText("9 çevrimdışı")).toBeNull();
     expect(screen.getAllByText("%72 · 36 / 50").length).toBe(3); // web: yüzde + adet
-    expect(screen.getAllByText("₺1.234,50").length).toBe(3); // Bugün
+    expect(screen.getAllByText(/^₺1\.234,50/).length).toBe(3); // Bugün (tutar + işlem sayısı tek metinde)
     expect(screen.getAllByText("₺5.000,00").length).toBe(3); // Bu Ay (dört dönem birlikte)
     expect(mock.history.get.some((r) => (r.url ?? "").includes("/products/"))).toBe(false);
     expect(listRequests(mock)[0].params).toEqual({ page: 1 });
@@ -151,10 +151,10 @@ describe("DevicesListScreen", () => {
     await renderWithProviders(<DevicesListScreen />);
 
     expect(await screen.findByText("Otomat 1")).toBeOnTheScreen();
-    expect(screen.queryByText("₺1.234,50")).toBeNull();
+    expect(screen.queryByText(/₺1\.234,50/)).toBeNull();
     expect(screen.queryByTestId("devices-toggle-revenue")).toBeNull();
-    // Web: özel sıralama herkese açık; ürün şablonları cihaz ayarı yetkisi ister (yoksa 403 olurdu)
-    expect(screen.getByText("Özel sıralama")).toBeOnTheScreen();
+    // Kısayollar listede yok: ürün şablonları Menü'de, özel sıralama kaldırıldı
+    expect(screen.queryByText("Özel sıralama")).toBeNull();
     expect(screen.queryByText("Ürün şablonları")).toBeNull();
   });
 
@@ -213,15 +213,12 @@ describe("DevicesListScreen", () => {
     expect(listRequests(mock).map((r) => r.params.page)).toEqual([1, 2]);
   });
 
-  it("satıra basınca cihaz detayına, çipe basınca şablonlara gider", async () => {
+  it("satıra basınca cihaz detayına gider", async () => {
     mock.onGet("/pos-devices/").reply(200, page([row(1)]));
     await renderWithProviders(<DevicesListScreen />);
 
     await fireEvent.press(await screen.findByTestId("device-row-SN1"));
     expect(mockNavigate).toHaveBeenCalledWith("DeviceDetail", { sn: "SN1", name: "Otomat 1" });
-
-    await fireEvent.press(screen.getByText("Ürün şablonları"));
-    expect(mockNavigate).toHaveBeenCalledWith("ProductTemplates");
   });
 
   it("hata durumunda tekrar dene gösterir; boş listede boş durum", async () => {
@@ -232,24 +229,5 @@ describe("DevicesListScreen", () => {
     expect(await screen.findByText("Sunucu hatası")).toBeOnTheScreen();
     await fireEvent.press(screen.getByText("Tekrar dene"));
     expect(await screen.findByText("Henüz POS cihazı yok")).toBeOnTheScreen();
-  });
-
-  it("özel sıralama: aşağı taşı + kaydet → POST pos-devices/sort/", async () => {
-    mock.onGet("/pos-devices/").reply(200, page([row(1), row(2)], { count: 2, total_count: 2, num_pages: 1 }));
-    mock.onPost("/pos-devices/sort/").reply(200, { detail: "Sıralama güncellendi." });
-    await renderWithProviders(<DevicesListScreen />);
-    await screen.findByText("Otomat 1");
-
-    await fireEvent.press(screen.getByText("Özel sıralama"));
-    await fireEvent.press(await screen.findByTestId("order-down-SN1"));
-    await fireEvent.press(screen.getByTestId("device-order-save"));
-
-    await waitFor(() => expect(mock.history.post).toHaveLength(1));
-    expect(JSON.parse(mock.history.post[0].data)).toEqual({
-      device_orders: [
-        { sn: "SN2", sort_order: 1 },
-        { sn: "SN1", sort_order: 2 },
-      ],
-    });
   });
 });

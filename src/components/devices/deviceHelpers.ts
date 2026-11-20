@@ -214,13 +214,14 @@ export function deviceTitle(d: Pick<PosDeviceListItem, "pos_name" | "sn">): stri
 
 /* ------------------------------------------- Ödeme yöntemleri / ayarlar */
 
+/** Web ayarlar formu ile aynı ad ve sıra (`settings_payment_fields`); "İade" web'de Durum & Bildirimler'de */
 export const PAYMENT_METHOD_LABELS: { key: PaymentMethodKey; label: string }[] = [
+  { key: "magnetic", label: "Manyetik" },
+  { key: "chip", label: "Çip" },
   { key: "contactless", label: "Temassız" },
-  { key: "chip", label: "Çipli kart" },
-  { key: "magnetic", label: "Manyetik kart" },
-  { key: "qrcode", label: "QR kod" },
-  { key: "personel_card", label: "Personel kart" },
-  { key: "vennex_wallet", label: "Vennex Cüzdan" },
+  { key: "qrcode", label: "QR Kod" },
+  { key: "personel_card", label: "Personel Kart" },
+  { key: "vennex_wallet", label: "Vennex Wallet" },
   { key: "istanbul_kart", label: "İstanbulKart" },
   { key: "metropol", label: "Metropol" },
   { key: "multinet", label: "Multinet" },
@@ -231,11 +232,16 @@ export const PAYMENT_METHOD_LABELS: { key: PaymentMethodKey; label: string }[] =
   { key: "refund", label: "İade" },
 ];
 
+/**
+ * Web ayarlar formu "Yapılandırma" onay kutuları (aynı ad ve sıra). `auto_select` web formunda yok,
+ * mobilde de gösterilmez.
+ */
 export const DEVICE_TOGGLE_LABELS: { key: DeviceToggleKey; label: string; description: string }[] = [
   { key: "audio", label: "Ses", description: "Cihaz sesli uyarıları" },
-  { key: "auto_select", label: "Otomatik seçim", description: "Ürün seçimini otomatik algıla" },
-  { key: "login_button", label: "Giriş butonu", description: "Ekranda giriş butonunu göster" },
-  { key: "cancel_button", label: "İptal butonu", description: "Ekranda iptal butonunu göster" },
+  { key: "login_button", label: "Başlat butonu", description: "Ekranda başlat butonunu göster" },
+  { key: "cancel_button", label: "Vazgeç butonu", description: "Ekranda vazgeç butonunu göster" },
+  { key: "free_mode", label: "Ücretsiz vend", description: "Ödeme almadan ürün verir" },
+  { key: "language_selector", label: "Dil seçici", description: "Ekranda dil seçimini göster" },
 ];
 
 export const DEVICE_COMMANDS: {

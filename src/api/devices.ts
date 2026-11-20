@@ -38,6 +38,7 @@ import type {
   TxReceiptState,
   DeviceStats,
   DeviceStatsParams,
+  MachineTypeOption,
 } from "@/types/devices";
 
 /* ------------------------------------------------------------ yardımcılar */
@@ -163,6 +164,7 @@ export function normalizeDeviceDetail(v: unknown): PosDeviceDetail {
   return {
     sn: str(o.sn) ?? "",
     pos_name: str(o.pos_name),
+    pos_text: str(o.pos_text),
     stat: bool(o.stat),
     is_online: boolOrNull(o.is_online),
     last_seen: str(o.last_seen),
@@ -478,6 +480,18 @@ export const devicesApi = {
         name: str(r.data?.name) ?? "",
       })),
 
+  /** Makine tipi seçenekleri (web "Makine Tipi" listesi) — yalnız select_machine_type; aksi 403 */
+  machineTypes: (signal?: AbortSignal) =>
+    apiClient.get<unknown>("/machine-types/", { signal }).then((r): MachineTypeOption[] =>
+      unwrapResults(asObj(r.data) as { results?: unknown[] })
+        .map((x) => {
+          const o = asObj(x);
+          const id = int(o.id);
+          return id != null ? { id, name: str(o.name) ?? "" } : null;
+        })
+        .filter((x): x is MachineTypeOption => x != null)
+    ),
+
   /** Yalnız yazılabilir alanlar (§3.11). Yanıt `_warnings` içerebilir (yetkisiz alanlar sessizce atlanır). */
   updateSettings: (sn: string, patch: DeviceSettingsPatch) =>
     apiClient
@@ -514,16 +528,6 @@ export const devicesApi = {
     apiClient
       .get<unknown>(`/pos-devices/${encodeURIComponent(sn)}/revenue-counts/`, { params: { limit }, signal })
       .then((r) => ({ results: unwrapResults(asObj(r.data) as { results?: unknown[] }).map(normalizeRevenueCount) })),
-
-  /** `POST pos-devices/sort/` — `{device_orders:[{sn, sort_order}]}`; erişilemeyen sn → 403 */
-  updateSortOrders: (deviceOrders: { sn: string; sort_order: number }[]) =>
-    apiClient
-      .post<Raw>("/pos-devices/sort/", { device_orders: deviceOrders })
-      .then((r): DetailMessage => ({ detail: str(r.data?.detail) ?? "" })),
-
-  /** `POST pos-devices/sort/reset/` — tüm sort_order = 0 */
-  resetSortOrders: () =>
-    apiClient.post<Raw>("/pos-devices/sort/reset/", {}).then((r): DetailMessage => ({ detail: str(r.data?.detail) ?? "" })),
 
   /** SKU seçici — `GET stock/skus/` (CanManageStock). Bileşen (ingredient) türleri slota konamaz → elenir. */
   skus: (q?: string, signal?: AbortSignal) =>

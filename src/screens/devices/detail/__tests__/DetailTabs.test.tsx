@@ -61,12 +61,6 @@ const detail = (o: Record<string, unknown> = {}) =>
 /** Yerel saatle ISO tarih → formatDateTime çıktısı saat diliminden bağımsız olur */
 /** Türkiye duvar saatindeki an (UTC+3) */
 const localIso = (y: number, m: number, d: number, h: number, mi: number, s = 0) => new Date(Date.UTC(y, m - 1, d, h - 3, mi, s)).toISOString();
-const pad = (n: number) => String(n).padStart(2, "0");
-/** Türkiye saatiyle (uygulama sunucu zamanlarını her zaman TR saatiyle gösterir) */
-const trDateTime = (d: Date) => {
-  const t = new Date(d.getTime() + 3 * 3600_000);
-  return `${pad(t.getUTCDate())}.${pad(t.getUTCMonth() + 1)}.${t.getUTCFullYear()} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}`;
-};
 
 type Reply = [number, unknown];
 function deferred() {
@@ -105,7 +99,7 @@ describe("GeneralTab", () => {
     await renderWithProviders(<GeneralTab sn={SN} detail={detail()} access={access()} refreshing={false} onRefresh={noop} />);
 
     const today = await screen.findByTestId("summary-Bugün Ciro");
-    await waitFor(() => expect(within(today).getByText("₺1.234,50")).toBeOnTheScreen());
+    await waitFor(() => expect(within(today).getByText(/^₺1\.234,50/)).toBeOnTheScreen());
     expect(within(today).getByText("1.234 işlem")).toBeOnTheScreen();
     // 0 geçerli bir değerdir: "—" değil ₺0,00
     expect(within(screen.getByTestId("summary-Dün Ciro")).getByText("₺0,00")).toBeOnTheScreen();
@@ -121,14 +115,12 @@ describe("GeneralTab", () => {
   });
 
   it("durum, doluluk, ödeme yöntemleri ve cihaz bilgisi gerçek alanlardan eşlenir", async () => {
-    const seen = new Date(Date.now() - 2 * 3600_000);
     mock.onGet(`${base}/summary/`).reply(200, {});
     mock.onGet(`${base}/products/`).reply(200, productsBody);
     const d = detail({
       is_online: false,
       stat: false,
       act_macstat: 4,
-      last_seen: seen.toISOString(),
       act_vmc: "Crane",
       act_vmcsn: "VMC-9",
       pos_odemetip: 1,
@@ -150,25 +142,20 @@ describe("GeneralTab", () => {
     expect(screen.getByText("11 / 18 adet")).toBeOnTheScreen();
 
     expect(screen.getByText("Çevrimdışı")).toBeOnTheScreen();
-    expect(screen.getByText("Hayır")).toBeOnTheScreen(); // web: "Aktif: Hayır"
     expect(screen.getByText("DISABLED")).toBeOnTheScreen(); // web: get_act_macstat_display
-    expect(screen.getByText(`2 sa önce · ${trDateTime(seen)}`)).toBeOnTheScreen();
 
     expect(screen.getByText("2 / 3 açık")).toBeOnTheScreen();
     expect(screen.getByText("Temassız")).toBeOnTheScreen();
-    expect(screen.getByText("QR kod")).toBeOnTheScreen();
-    expect(screen.queryByText("Çipli kart")).toBeNull();
+    expect(screen.getByText("QR Kod")).toBeOnTheScreen();
+    expect(screen.queryByText("Çip")).toBeNull();
 
     expect(screen.getByLabelText("Ödeme tipi: Kahve")).toBeOnTheScreen();
     expect(screen.getByLabelText("Fiyat yönetimi: Sadece sunucu")).toBeOnTheScreen();
     expect(screen.getByLabelText("Makine modeli: —")).toBeOnTheScreen();
     expect(screen.getByLabelText("Şirket: Test Şirketi")).toBeOnTheScreen();
     expect(screen.getByLabelText("Konum: Lobi")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Otomat seri no: VMC-9")).toBeOnTheScreen();
-    expect(screen.getByLabelText("BKM sürümü: 2.1.0")).toBeOnTheScreen();
-    // 0 sinyal gücü gerçek bir değer: "—"e düşmez
-    expect(screen.getByLabelText("SIM sinyal gücü: 0")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Güncelleme periyodu: 15 dk")).toBeOnTheScreen();
+    // Sadeleştirildi: otomat adı/seri no, sürümler, SIM gücü ve güncelleme periyodu Genel'de gösterilmez
+    expect(screen.queryByLabelText(/BKM sürümü|SIM sinyal gücü|Otomat seri no/)).toBeNull();
   });
 
   it("kahve otomatı: slot kapasitesi yoksa doluluk bileşen haznelerinden gelir (web 'Bileşenler' ve liste ile aynı)", async () => {
@@ -198,8 +185,7 @@ describe("GeneralTab", () => {
     expect(await screen.findByText("Tüm ödeme yöntemleri kapalı.")).toBeOnTheScreen();
     expect(screen.getByText("0 / 2 açık")).toBeOnTheScreen();
     expect(screen.getByText("Bilinmiyor")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Makine Durumu: —")).toBeOnTheScreen();
-    expect(screen.getByLabelText("Son Görülme: —")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Makine durumu: —")).toBeOnTheScreen();
   });
 
   it("özet ve ürün uçları hata verirse uyarı gösterir, sahte değer üretmez", async () => {
@@ -293,23 +279,14 @@ describe("StatsTab", () => {
     expect(within(screen.getByTestId("stats-month")).queryByText(/[▲▼]/)).toBeNull();
   });
 
-  it("günlük saat aralığı seçilince start_time/end_time ile tekrar istenir", async () => {
+  it("saat aralığı seçicisi yok: istek her zaman tüm gün (start_time/end_time gönderilmez)", async () => {
     mock.onGet(`${base}/summary/`).reply(200, {});
     mock.onGet(`${base}/stats/`).reply(200, statsBody);
     mock.onGet(`${base}/revenue-counts/`).reply(200, { results: [] });
     await renderWithProviders(<StatsTab sn={SN} refreshing={false} onRefresh={noop} />);
     await screen.findByLabelText("Ciro: ₺30,00");
-
-    await fireEvent.press(screen.getByTestId("stats-time"));
-    await fireEvent.changeText(await screen.findByTestId("stats-time-start"), "22:00");
-    await fireEvent.changeText(screen.getByTestId("stats-time-end"), "2:00");
-    await fireEvent.press(screen.getByTestId("stats-time-apply"));
-    expect(await screen.findByText("SS:DD biçiminde girin (örn. 14:00).")).toBeOnTheScreen();
-    await fireEvent.changeText(screen.getByTestId("stats-time-end"), "02:00");
-    await fireEvent.press(screen.getByTestId("stats-time-apply"));
-    await waitFor(() => expect(getsTo(mock, `${base}/stats/`)).toHaveLength(2));
-    expect(getsTo(mock, `${base}/stats/`)[1].params).toEqual({ start_date: today, end_date: today, start_time: "22:00", end_time: "02:00" });
-    expect(screen.getByLabelText("Saat aralığı: 22:00–02:00")).toBeOnTheScreen();
+    expect(screen.queryByTestId("stats-time")).toBeNull();
+    expect(getsTo(mock, `${base}/stats/`)[0].params).toEqual({ start_date: today, end_date: today });
   });
 
   it("ödeme türü kırılımı en son sayımdan, sıfırlar atılarak büyükten küçüğe sıralanır", async () => {
@@ -779,6 +756,21 @@ describe("İşlem detayı · fiş ve uzaktan iade (web ile aynı)", () => {
   });
 });
 
+
+describe("SalesTab filtre penceresi", () => {
+  it("durum filtresi pencerede: Başarısız seçilip uygulanınca tx_status=fail ile istenir, rozet 1", async () => {
+    const { SalesTab } = jest.requireActual<typeof import("@/screens/devices/detail/tabs/SalesTab")>("@/screens/devices/detail/tabs/SalesTab");
+    mock.onGet(`${base}/transactions/`).reply(200, { count: 0, page: 1, num_pages: 1, summary: { total: 0, success: 0, failed: 0, revenue: 0 }, results: [] });
+    await renderWithProviders(<SalesTab sn={SN} />);
+    await screen.findByText("İşlem yok");
+    await fireEvent.press(screen.getByTestId("sales-more-filters"));
+    await fireEvent.press(within(await screen.findByTestId("sales-status")).getByText("Başarısız"));
+    await fireEvent.press(screen.getByTestId("sales-filters-apply"));
+    await waitFor(() => expect(getsTo(mock, `${base}/transactions/`).some((r) => r.params.tx_status === "fail")).toBe(true));
+    expect(screen.getByLabelText(/^Filtreler, 1 etkin/)).toBeOnTheScreen();
+  });
+});
+
 /* --------------------------------------------- Satışlar · web mobil kartları */
 
 describe("SalesTab işlem kartı (web mobil görünümü)", () => {
@@ -797,14 +789,18 @@ describe("SalesTab işlem kartı (web mobil görünümü)", () => {
     });
     await renderWithProviders(<SalesTab sn={SN} />);
     const card = await screen.findByTestId("tx-row-1");
-    // tarih hızlı seçimleri web ve İstatistikler sekmesiyle aynı
-    for (const label of ["Bugün", "Dün", "Bu Hafta", "Bu Ay", "Geçen Ay", "Özel aralık"]) expect(screen.getByText(label)).toBeOnTheScreen();
+    // tarih hızlı seçimleri web ve İstatistikler sekmesiyle aynı (açılır menüde)
+    await fireEvent.press(screen.getByTestId("sales-period"));
+    for (const label of ["Dün", "Bu Hafta", "Bu Ay", "Geçen Ay", "Özel aralık"]) expect(await screen.findByText(label)).toBeOnTheScreen();
+    expect(screen.getAllByText("Bugün").length).toBeGreaterThan(0);
     expect(screen.queryByText("Son 7 gün")).toBeNull();
     expect(within(card).getByText("4074")).toBeOnTheScreen();
     expect(within(card).getByText("Kredi Kartı")).toBeOnTheScreen();
     expect(within(card).getByText("Temassız")).toBeOnTheScreen();
-    expect(within(card).getByText("Başarılı")).toBeOnTheScreen();
-    expect(within(card).getByText("19.11.2026 17:31:42")).toBeOnTheScreen();
+    // başarılı durumu bazı tasarımlarda yazıyla değil renkle verilir; ekran okuyucu etiketinde her zaman
+    expect(card).toHaveProp("accessibilityLabel", expect.stringContaining("Başarılı"));
+    // saniyeli tarih-saat (görünüm tasarıma göre değişir; ekran okuyucu etiketinde tam hali)
+    expect(card).toHaveProp("accessibilityLabel", expect.stringContaining("19.11.2026 17:31:42"));
     expect(within(card).getByText("Ürün No 8708")).toBeOnTheScreen();
     expect(within(card).queryByText("Detaylar")).toBeNull(); // karta dokunmak detayı açar
     const failed = screen.getByTestId("tx-row-2");

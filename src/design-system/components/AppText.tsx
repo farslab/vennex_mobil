@@ -63,8 +63,10 @@ export function AppText({
   const isNumeric = variant.startsWith("metric") || variant.startsWith("numeric");
   const upper = UPPERCASE_VARIANTS.has(variant);
   // Son kalınlık (varyant → weight → style) yazı tipi dosyasını seçer
-  const effectiveWeight =
-    (StyleSheet.flatten(style) as TextStyle | undefined)?.fontWeight ?? weight ?? theme.typography[variant].fontWeight;
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  const effectiveWeight = flat?.fontWeight ?? weight ?? theme.typography[variant].fontWeight;
+  // Çağıran açıkça yazı tipi verdiyse (ör. fişte eşit genişlikli Menlo) uygulama yazı tipi onu ezmez
+  const explicitFamily = !!flat?.fontFamily;
   return (
     <Text
       {...rest}
@@ -78,7 +80,7 @@ export function AppText({
         align ? { textAlign: align } : null,
         weight ? { fontWeight: weight } : null,
         style,
-        fontStyle(effectiveWeight),
+        explicitFamily ? null : fontStyle(effectiveWeight),
       ]}
     >
       {upper ? upperChildren(children) : children}

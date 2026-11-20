@@ -6,7 +6,7 @@
  * Yalnız vennexRN cihazlarda (`receipts_refund_enabled`) gösterilir. Fiş paylaşımı: işletim sisteminin paylaş menüsü.
  */
 import React, { useEffect, useRef, useState } from "react";
-import { Share, StyleSheet, View } from "react-native";
+import { Platform, Share, StyleSheet, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AppBadge,
@@ -245,7 +245,15 @@ const useStyles = makeStyles((t) =>
       borderRadius: t.radius.sm,
       padding: t.spacing.md,
     },
-    // Fiş kağıdı her temada beyaz/siyah (web: beyaz zemin, monospace)
-    paperText: { color: "#111111", fontFamily: "Menlo", fontSize: 11, lineHeight: 15 },
+    // Fiş kağıdı her temada beyaz/siyah; web ile aynı: eşit genişlikli yazı (sütunlar boşlukla hizalı), sola dayalı
+    paperText: {
+      color: "#111111",
+      fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+      fontWeight: "400",
+      fontSize: 11,
+      lineHeight: 15,
+      letterSpacing: 0,
+      fontVariant: [],
+    },
   })
 );

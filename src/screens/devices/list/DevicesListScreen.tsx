@@ -29,14 +29,13 @@ import { queryKeys } from "@/api/queryKeys";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAuthStore } from "@/store/authStore";
-import { canManageDeviceSettings, canViewSales } from "@/auth/permissions";
+import { canViewSales } from "@/auth/permissions";
 import { DEVICE_SORT_OPTIONS } from "@/components/devices/deviceHelpers";
 import { formatInteger } from "@/utils/number";
 import type { RootStackParamList } from "@/navigation/types";
 import type { DeviceListQuery, PosDeviceListItem, PosDeviceListResponse } from "@/types/devices";
 import { DeviceRow } from "./DeviceRow";
 import { DEFAULT_FILTERS, DeviceFiltersSheet, activeFilterCount, type DeviceFilters } from "./DeviceFiltersSheet";
-import { DeviceOrderSheet } from "./DeviceOrderSheet";
 import { ListLoadMoreFooter } from "@/components/ListLoadMoreFooter";
 
 const HIDE_REVENUE_KEY = "vennex.devices.hideRevenue";
@@ -55,13 +54,11 @@ export function toDeviceQuery(q: string, f: DeviceFilters): DeviceListQuery {
 export default function DevicesListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const user = useAuthStore((s) => s.user);
   const salesAllowed = canViewSales(user);
   // Web: özel sıralama herkese açık (`pos_device_list.html:89`); ürün şablonları cihaz ayarı yetkisi ister
   // (`dashboard_v2/views/product_templates.py:62`) — yetkisize 403 dönen bir giriş gösterilmez
-  const canOrder = true;
-  const canTemplates = canManageDeviceSettings(user);
   // Excel: Genel Bakış gibi başlıkta, bildirim zilinin yanında
   useHeaderExcel("POS Cihazları", EXPORTS.devices);
 
@@ -69,7 +66,6 @@ export default function DevicesListScreen() {
   const debouncedSearch = useDebouncedValue(search.trim(), 350);
   const [filters, setFilters] = useState<DeviceFilters>(DEFAULT_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [orderOpen, setOrderOpen] = useState(false);
   const [hideRevenue, setHideRevenue] = useState(false);
 
   useEffect(() => {
@@ -178,15 +174,18 @@ export default function DevicesListScreen() {
   return (
     <View style={styles.root} testID="devices-list-screen">
       <View style={styles.toolbar}>
-        <View style={styles.searchRow}>
+        {/* Arama + filtre tek yuvarlak çubukta (Genel Bakış filtre çubuğu gibi) */}
+        <View style={[styles.searchBar, isDark ? styles.barDark : styles.barLight]}>
           <View style={styles.flex}>
             <AppSearchField
               value={search}
               onChangeText={setSearch}
               placeholder="POS cihazı adı veya seri numarası"
+              variant="bare"
               testID="devices-search"
             />
           </View>
+          <View style={styles.barDivider} />
           <AppIconButton
             icon="sliders"
             label={filterCount ? `Filtreler, ${filterCount} etkin` : "Filtrele ve sırala"}
@@ -196,19 +195,9 @@ export default function DevicesListScreen() {
           />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {canTemplates ? (
-            <AppChip label="Ürün şablonları" icon="layers" onPress={() => navigation.navigate("ProductTemplates")} />
-          ) : null}
-          {canOrder ? <AppChip label="Özel sıralama" icon="list" onPress={() => setOrderOpen(true)} /> : null}
-          {activeChips.map((c) => (
-            <AppChip key={c.key} label={c.label} icon="x" selected onPress={c.clear} />
-          ))}
-        </ScrollView>
-
+        {/* Sayaçlar bölmeli seçici: dokununca süzer; seçiliye tekrar dokunmak ya da toplam → tümü */}
         <View style={styles.summary}>
-          {/* Sayaçlar filtre kısayolu: çevrimiçi/çevrimdışı dokununca süzer; seçiliye tekrar dokunmak ya da toplam → tümü */}
-          <View style={styles.counts}>
+          <View style={styles.segment}>
             {counts ? (
               <>
                 <CountChip
@@ -216,7 +205,7 @@ export default function DevicesListScreen() {
                   selected={effectiveFilters.online === "all"}
                   onPress={() => setFilters((f) => ({ ...f, online: "all" }))}
                   testID="devices-count-total"
-                  strong
+                  wide
                 />
                 <CountChip
                   label={formatInteger(counts.online)}
@@ -236,7 +225,7 @@ export default function DevicesListScreen() {
                 />
               </>
             ) : (
-              <AppText variant="caption" color="textTertiary">
+              <AppText variant="caption" color="textTertiary" style={styles.countsPending}>
                 {list.isError ? "Sayaçlar alınamadı" : "Yükleniyor…"}
               </AppText>
             )}
@@ -250,6 +239,15 @@ export default function DevicesListScreen() {
             />
           ) : null}
         </View>
+
+        {/* Etkin filtreler: dokununca o filtre kalkar */}
+        {activeChips.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            {activeChips.map((c) => (
+              <AppChip key={c.key} label={c.label} icon="x" selected onPress={c.clear} />
+            ))}
+          </ScrollView>
+        ) : null}
         {effectiveFilters.sortBy !== "default" && sortLabel ? (
           <AppText variant="caption" color="textTertiary" style={styles.sortLabel}>
             Sıralama: {sortLabel}
@@ -286,19 +284,18 @@ export default function DevicesListScreen() {
         onApply={setFilters}
         onClose={() => setFiltersOpen(false)}
       />
-      {canOrder ? <DeviceOrderSheet visible={orderOpen} onClose={() => setOrderOpen(false)} /> : null}
     </View>
   );
 }
 
-/** Sayaç + filtre: seçiliyken altı çizili ve vurgulu */
+/** Bölmeli seçicinin bir dilimi: seçili dilim beyaz kabarık yüzey + mavi yazı */
 function CountChip({
   label,
   a11yLabel,
   dot,
   selected,
   onPress,
-  strong,
+  wide,
   testID,
 }: {
   label: string;
@@ -307,22 +304,34 @@ function CountChip({
   dot?: string;
   selected: boolean;
   onPress: () => void;
-  strong?: boolean;
+  /** Toplam dilimi metni uzun olduğu için daha geniş */
+  wide?: boolean;
   testID?: string;
 }) {
   const styles = useStyles();
+  const { isDark } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={`${a11yLabel ?? label}${selected ? ", seçili" : ""}`}
-      hitSlop={6}
-      style={({ pressed }) => [styles.countChip, selected && styles.countChipOn, pressed && styles.countPressed]}
+      style={({ pressed }) => [
+        styles.countChip,
+        wide && styles.countWide,
+        selected && styles.countChipOn,
+        selected && !isDark && styles.countChipShadow,
+        pressed && styles.countPressed,
+      ]}
       testID={testID}
     >
       {dot ? <View style={[styles.countDot, { backgroundColor: dot }]} /> : null}
-      <AppText variant="numericSm" color={selected || strong ? "text" : "textSecondary"} style={selected ? styles.countTextOn : undefined}>
+      <AppText
+        variant="numericSm"
+        weight={selected ? "700" : "600"}
+        color={selected ? "primary" : "textSecondary"}
+        numberOfLines={1}
+      >
         {label}
       </AppText>
     </Pressable>
@@ -338,40 +347,69 @@ const useStyles = makeStyles((t) =>
     toolbar: {
       backgroundColor: t.colors.background,
       paddingTop: t.spacing.sm,
+      gap: t.spacing.md,
+      paddingBottom: t.spacing.xs,
     },
-    searchRow: {
+    searchBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginHorizontal: t.layout.screenPadding,
+      paddingLeft: t.spacing.lg,
+      paddingRight: t.spacing.xs,
+      minHeight: 50,
+      borderRadius: 999,
+      backgroundColor: t.colors.surface,
+    },
+    barLight: {
+      shadowColor: "#0F172A",
+      shadowOpacity: 0.07,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+    barDark: { borderWidth: StyleSheet.hairlineWidth, borderColor: t.colors.border },
+    barDivider: { width: StyleSheet.hairlineWidth, height: 24, backgroundColor: t.colors.border, marginLeft: t.spacing.sm },
+    summary: {
       flexDirection: "row",
       alignItems: "center",
       gap: t.spacing.xs,
       paddingLeft: t.layout.screenPadding,
       paddingRight: t.spacing.sm,
     },
-    chips: { gap: t.spacing.sm, paddingHorizontal: t.layout.screenPadding, paddingVertical: t.spacing.sm },
-    summary: {
+    // Bölmeli seçici: gri ray, seçili dilim beyaz
+    segment: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      paddingLeft: t.layout.screenPadding,
-      paddingRight: t.spacing.sm,
-      minHeight: 48,
-    },
-    // Sayaçlar tek yuvarlak seçicide: toplam · ● çevrimiçi · ● çevrimdışı (seçili mavi)
-    counts: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 2,
       padding: 3,
       borderRadius: 999,
-      backgroundColor: t.colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: t.colors.border,
+      backgroundColor: "rgba(120,130,150,0.14)",
+      minHeight: 42,
     },
-    countChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-    countChipOn: { backgroundColor: t.colors.primarySubtle },
+    countsPending: { paddingHorizontal: t.spacing.md },
+    countChip: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    countWide: { flex: 1.6 },
+    countChipOn: { backgroundColor: t.colors.surface },
+    countChipShadow: {
+      shadowColor: "#0F172A",
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    },
     countPressed: { opacity: 0.6 },
-    countTextOn: { fontWeight: "700", color: t.colors.primary },
-    countDot: { width: 9, height: 9, borderRadius: 5 },
-    sortLabel: { paddingHorizontal: t.layout.screenPadding, paddingBottom: t.spacing.sm },
+    countDot: { width: 8, height: 8, borderRadius: 4 },
+    chips: { gap: t.spacing.sm, paddingHorizontal: t.layout.screenPadding },
+    sortLabel: { paddingHorizontal: t.layout.screenPadding },
     footer: { paddingVertical: t.spacing.lg },
   })
 );

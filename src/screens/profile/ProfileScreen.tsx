@@ -16,7 +16,7 @@ import {
 } from "@/design-system";
 import { errorMessage } from "@/api/client";
 import { useAuthStore, useSelectedCompany } from "@/store/authStore";
-import { canManageUsers, isOwner, moduleVisible } from "@/auth/permissions";
+import { canManageDeviceSettings, canManageUsers, isOwner, moduleVisible } from "@/auth/permissions";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { APP_ENV } from "@/config/env";
 import { LEGAL_DEFAULT_TITLES, LEGAL_SLUGS } from "@/types/legal";
@@ -127,6 +127,15 @@ export default function ProfileScreen() {
               subtitle="Teknisyen hesapları ve yetkileri"
               onPress={() => navigation.navigate("Users")}
               testID="row-users"
+            />
+          ) : null}
+          {canManageDeviceSettings(user) ? (
+            <AppListRow
+              icon="layers"
+              title="Ürün şablonları"
+              subtitle="POS cihazlarına toplu ürün listesi"
+              onPress={() => navigation.navigate("ProductTemplates")}
+              testID="row-product-templates"
             />
           ) : null}
           <AppListRow icon="bar-chart-2" title="Raporlar" onPress={() => navigation.navigate("Reports")} testID="row-reports" />

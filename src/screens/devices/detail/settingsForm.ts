@@ -21,7 +21,11 @@ import type {
 
 export interface SettingsForm {
   pos_name: string;
+  /** Marka yazısı (boş = yok) */
+  pos_text: string;
   location_id: number | null;
+  /** Makine tipi (MachineType) — yalnız select_machine_type yetkisinde yazılır */
+  machine_type_id: number | null;
   pos_odemetip: number | null;
   price_management: number | null;
   sales_notification_enabled: boolean;
@@ -35,7 +39,9 @@ export interface SettingsForm {
 export function formFromDetail(d: PosDeviceDetail): SettingsForm {
   return {
     pos_name: d.pos_name ?? "",
+    pos_text: d.pos_text ?? "",
     location_id: d.location?.id ?? null,
+    machine_type_id: d.machine_type?.id ?? null,
     pos_odemetip: d.pos_odemetip,
     price_management: d.price_management,
     sales_notification_enabled: d.sales_notification_enabled === true,
@@ -79,7 +85,13 @@ export function buildSettingsPatch(
     else if (name.length > 30) errors.pos_name = "En fazla 30 karakter.";
     else patch.pos_name = name;
   }
+  if (cur.pos_text !== base.pos_text) {
+    const text = cur.pos_text.trim();
+    if (text.length > 30) errors.pos_text = "En fazla 30 karakter.";
+    else patch.pos_text = text;
+  }
   if (cur.location_id !== base.location_id) patch.location_id = cur.location_id;
+  if (cur.machine_type_id !== base.machine_type_id) patch.machine_type_id = cur.machine_type_id;
 
   if (cur.pos_odemetip !== base.pos_odemetip) {
     if (cur.pos_odemetip === 0 || cur.pos_odemetip === 1) patch.pos_odemetip = cur.pos_odemetip;

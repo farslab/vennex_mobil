@@ -72,6 +72,13 @@ const productsBody = {
   fill: { qty: 11, max: 18, pct: 61 },
 };
 
+/** Ayar satırına dokunup alttan açılan sayfada metni girer ve "Tamam" ile forma yazar */
+async function editSetting(row: string, input: string, value: string) {
+  await fireEvent.press(await screen.findByTestId(row));
+  await fireEvent.changeText(await screen.findByTestId(input), value);
+  await fireEvent.press(screen.getByTestId("settings-text-apply"));
+}
+
 function setUser(perms: Permission[], role: "owner" | "tech" = "owner") {
   useAuthStore.setState({ user: makeUser({ role, permissions: perms }), selectedCompanyId: 10 });
 }
@@ -99,14 +106,14 @@ describe("DeviceDetailScreen", () => {
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
 
-    expect(await screen.findByText("₺250,50")).toBeOnTheScreen();
+    expect(await screen.findByText(/^₺250,50/)).toBeOnTheScreen(); // tutar + işlem sayısı tek metinde
     expect(screen.getByText("7 işlem")).toBeOnTheScreen();
-    expect(screen.getByText("Crane")).toBeOnTheScreen();
+    expect(screen.queryByText("Crane")).toBeNull(); // otomat adı Genel'de gösterilmez
     expect(screen.getByTestId("general-fill-pct")).toHaveTextContent("%61");
     expect(screen.getAllByText("Snack").length).toBeGreaterThan(0);
     expect(navigation.setOptions).toHaveBeenCalledWith({ title: "Lobi Otomatı" });
     // tüm sekmeler görünür; nakit & ciro ayrı sekme değil, Genel'in en altında
-    for (const t of ["Genel", "Satışlar", "Stok", "İstatistikler", "Ayarlar"]) expect(screen.getByText(t)).toBeOnTheScreen();
+    for (const t of ["Genel", "Satışlar", "Stok", "İstatistik", "Ayarlar"]) expect(screen.getByText(t)).toBeOnTheScreen();
     expect(screen.queryByText("Nakit & Ciro")).toBeNull();
     expect(screen.getByTestId("cash-section")).toBeOnTheScreen();
   });
@@ -136,7 +143,7 @@ describe("DeviceDetailScreen", () => {
     // Web: teknisyen nakit panelini görür (tutarlar gizli) — Genel'in en altında
     expect(screen.getByTestId("cash-section")).toBeOnTheScreen();
     expect(screen.queryByText("Nakit & Ciro")).toBeNull();
-    expect(screen.queryByText("İstatistikler")).toBeNull();
+    expect(screen.queryByText("İstatistik")).toBeNull();
     expect(mock.history.get.some((r) => r.url?.endsWith("/summary/"))).toBe(false);
     expect(navigation.setOptions).toHaveBeenCalledWith({ title: SN });
   });
@@ -197,6 +204,8 @@ describe("DeviceDetailScreen", () => {
     expect(req?.params).toMatchObject({ page: 1, start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
     expect(req?.params).not.toHaveProperty("page_size");
 
+    // kredi kartında listede yalnız son 4 hane; tam maskeli numara detayda
+    expect(within(screen.getByTestId("tx-row-5")).getByText("1234")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("tx-row-5"));
     expect(await screen.findByText("İşlem detayı")).toBeOnTheScreen();
     expect(screen.getByText("BR1")).toBeOnTheScreen();
@@ -210,14 +219,37 @@ describe("DeviceDetailScreen", () => {
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Ayarlar"));
-    await fireEvent.press(within(screen.getByTestId("settings-odemetip")).getByText("Kahve"));
-    await fireEvent.changeText(screen.getByTestId("settings-interval"), "15");
+    await fireEvent.press(await screen.findByTestId("settings-odemetip"));
+    await fireEvent.press(await screen.findByText("Kahve"));
+    await editSetting("settings-interval-row", "settings-interval", "15");
     await fireEvent.press(screen.getByTestId("settings-save"));
 
     await waitFor(() => expect(mock.history.patch).toHaveLength(1));
     expect(JSON.parse(mock.history.patch[0].data)).toEqual({ pos_odemetip: 1, sales_notification_interval: 15 });
     expect(await screen.findByText("Bazı değişiklikler uygulanmadı")).toBeOnTheScreen();
     expect(screen.getByText("machine_type_id atlandı: select_machine_type izni yok.")).toBeOnTheScreen();
+  });
+
+  it("Ayarlar: web ile aynı alanlar — marka yazısı PATCH'lenir, ücretsiz vend/dil seçici görünür, otomatik seçim ve yetkisiz makine tipi yok", async () => {
+    setUser(["owner", "manage_device_settings"]);
+    mock.onGet(`/pos-devices/${SN}/`).reply(
+      200,
+      detailBody({ pos_text: null, device_toggles: { audio: true, auto_select: false, login_button: true, cancel_button: false, free_mode: false, language_selector: true } })
+    );
+    mock.onGet("/overview/locations/").reply(200, { results: [] });
+    mock.onPatch(`/pos-devices/${SN}/`).reply(200, detailBody({ pos_text: "Serpet" }));
+
+    await renderWithProviders(<DeviceDetailScreen {...props} />);
+    await fireEvent.press(await screen.findByText("Ayarlar"));
+    expect(await screen.findByText("Ücretsiz vend")).toBeOnTheScreen();
+    expect(screen.getByText("Dil seçici")).toBeOnTheScreen();
+    expect(screen.getByText("Başlat butonu")).toBeOnTheScreen();
+    expect(screen.queryByText("Otomatik seçim")).toBeNull();
+    expect(screen.queryByTestId("settings-machine-type")).toBeNull(); // 'Makine Tipi' grubu yok
+    await editSetting("settings-brand-row", "settings-brand-text", "  Serpet ");
+    await fireEvent.press(screen.getByTestId("settings-save"));
+    await waitFor(() => expect(mock.history.patch).toHaveLength(1));
+    expect(JSON.parse(mock.history.patch[0].data)).toEqual({ pos_text: "Serpet" });
   });
 
   it("Ayarlar: kaydedilmemiş değişiklik varken sekme değişimi onay ister; 'Kal' formu korur, 'Değişiklikleri at' geçer", async () => {
@@ -235,14 +267,14 @@ describe("DeviceDetailScreen", () => {
     expect(screen.queryByText("Kaydedilmemiş değişiklikler")).toBeNull();
     await fireEvent.press(tabBtn("Ayarlar"));
 
-    await fireEvent.changeText(await screen.findByTestId("settings-interval"), "15");
+    await editSetting("settings-interval-row", "settings-interval", "15");
     await fireEvent.press(tabBtn("Genel"));
     expect(await screen.findByText("Kaydedilmemiş değişiklikler")).toBeOnTheScreen();
     expect(screen.getByTestId("tab-settings")).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByText("Kal"));
     await waitFor(() => expect(screen.queryByText("Kaydedilmemiş değişiklikler")).toBeNull());
-    expect(screen.getByTestId("settings-interval").props.value).toBe("15");
+    expect(screen.getByLabelText("Bildirim aralığı: 15 dk")).toBeOnTheScreen();
 
     await fireEvent.press(tabBtn("Genel"));
     await fireEvent.press(await screen.findByText("Değişiklikleri at"));
@@ -263,7 +295,7 @@ describe("DeviceDetailScreen", () => {
     });
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
-    await fireEvent.press(await screen.findByText("İstatistikler"));
+    await fireEvent.press(await screen.findByText("İstatistik"));
     expect(await screen.findByLabelText("Ciro: ₺30,00")).toBeOnTheScreen();
     const statsGets = () => mock.history.get.filter((r) => r.url === `/pos-devices/${SN}/stats/`);
     expect(statsGets()).toHaveLength(1);
@@ -325,6 +357,8 @@ describe("DeviceDetailScreen", () => {
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Stok"));
     expect(await screen.findByText("Su")).toBeOnTheScreen();
+    // Dolum sayfada açık durmaz: kısayol kutusundan alttan açılır
+    await fireEvent.press(screen.getByTestId("stock-fill-open"));
     await fireEvent.press(screen.getByTestId("fill-all-button"));
 
     expect(await screen.findByText("Dolacak slot (tahmini)")).toBeOnTheScreen();
@@ -334,6 +368,7 @@ describe("DeviceDetailScreen", () => {
     await waitFor(() => expect(mock.history.post).toHaveLength(1));
     expect(JSON.parse(mock.history.post[0].data)).toEqual({});
     // şablon işlemleri manage_device_settings ister
+    expect(screen.queryByTestId("stock-template-open")).toBeNull();
     expect(screen.queryByTestId("assign-template-button")).toBeNull();
   });
 
@@ -365,7 +400,8 @@ describe("DeviceDetailScreen", () => {
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Stok"));
-    await fireEvent.press(await screen.findByTestId("fill-all-button"));
+    await fireEvent.press(await screen.findByTestId("stock-fill-open"));
+    await fireEvent.press(screen.getByTestId("fill-all-button"));
     await doubleConfirm(() => h.release([200, { detail: "1 slot dolduruldu.", filled_count: 1 }]));
     expect(mock.history.post).toHaveLength(1);
   });
@@ -393,42 +429,37 @@ describe("DeviceDetailScreen", () => {
     mock.onDelete(`/pos-devices/${SN}/assign-template/`).reply(h.reply);
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Stok"));
-    await fireEvent.press(await screen.findByTestId("unassign-template-button"));
+    await fireEvent.press(await screen.findByTestId("stock-template-open"));
+    await fireEvent.press(screen.getByTestId("unassign-template-button"));
     await doubleConfirm(() => h.release([200, { detail: "Şablon eşlemesi kaldırıldı." }]));
     expect(mock.history.delete).toHaveLength(1);
   });
 
-  const lastHeaderRight = () => {
-    const calls = navigation.setOptions.mock.calls.filter((c) => "headerRight" in (c[0] as object));
-    return (calls[calls.length - 1]?.[0] as { headerRight?: () => React.ReactElement } | undefined)?.headerRight;
-  };
-
-  it("uzaktan satış: remote_vend ile başlığın sağ üstünde büyük ikon; dokununca satış sayfası açılır", async () => {
+  it("uzaktan satış: remote_vend ile başlığın sağ üstünde düğme; dokununca satış sayfası açılır", async () => {
     setUser(["owner", "view_sales", "manage_device_settings", "remote_vend"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
     mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await screen.findByTestId("device-detail");
-    const headerRight = lastHeaderRight();
-    expect(headerRight).toBeDefined();
-    const button = headerRight!() as React.ReactElement<{ size: string; testID: string; label: string; onPress: () => void }>;
-    expect(button.props).toMatchObject({ size: "lg", testID: "open-remote-sale", label: "Uzaktan satış" });
-    // Genel sekmesinde ayrıca kart/düğme yok
-    expect(screen.queryByTestId("open-remote-sale")).toBeNull();
+    // Yerel başlık gizli; düğme ekranın kendi başlığında
+    expect(navigation.setOptions).toHaveBeenCalledWith({ headerShown: false });
+    expect(screen.getByLabelText("Uzaktan satış")).toBeOnTheScreen();
 
-    await act(async () => button.props.onPress());
+    await fireEvent.press(screen.getByTestId("open-remote-sale"));
     expect(await screen.findByText("Lobi Otomatı · PAV1")).toBeOnTheScreen();
   });
 
-  it("uzaktan satış: remote_vend yoksa başlıkta ikon yok", async () => {
+  it("uzaktan satış: remote_vend yoksa başlıkta düğme yok; geri düğmesi önceki ekrana döner", async () => {
     setUser(["owner", "view_sales", "manage_device_settings"]);
     mock.onGet(`/pos-devices/${SN}/`).reply(200, detailBody());
     mock.onGet(`/pos-devices/${SN}/summary/`).reply(200, {});
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await screen.findByTestId("device-detail");
-    expect(lastHeaderRight()).toBeUndefined();
+    expect(screen.queryByTestId("open-remote-sale")).toBeNull();
+    await fireEvent.press(screen.getByTestId("device-header-back"));
+    expect(navigation.goBack).toHaveBeenCalled();
   });
 
   const renderStockWithTemplate = async (template: unknown) => {
@@ -439,6 +470,7 @@ describe("DeviceDetailScreen", () => {
     mock.onGet(`/pos-devices/${SN}/products/`).reply(200, { ...productsBody, template });
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Stok"));
+    await fireEvent.press(await screen.findByTestId("stock-template-open"));
   };
 
   it("Stok/şablon: eşli cihazda şablon adı ve yalnız 'Eşlemeyi kaldır' (web kuralı)", async () => {
@@ -466,6 +498,8 @@ describe("DeviceDetailScreen", () => {
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Stok"));
+    expect(await screen.findByLabelText("Dolum: Kaynak lokasyon seçin")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("stock-fill-open"));
     expect(await screen.findByText("Dolum için önce kaynak lokasyon seçin.")).toBeOnTheScreen();
     expect(screen.getByTestId("fill-all-button")).toBeDisabled();
 

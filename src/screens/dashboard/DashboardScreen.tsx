@@ -208,6 +208,6 @@ export default function DashboardScreen() {
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
     flex: { flex: 1 },
-    fetching: { flexDirection: "row", alignItems: "center", gap: t.spacing.xs, alignSelf: "flex-end", marginBottom: -t.spacing.sm },
+    fetching: { flexDirection: "row", alignItems: "center", gap: t.spacing.xs, alignSelf: "center", marginBottom: -t.spacing.sm },
   })
 );

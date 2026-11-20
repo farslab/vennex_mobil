@@ -8,17 +8,19 @@ export interface AppSearchFieldProps extends Omit<TextInputProps, "style" | "onC
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  /** "bare": zeminsiz — kendi yüzeyi olan bir çubuğun içinde kullanılır */
+  variant?: "filled" | "bare";
 }
 
 /**
  * Arama kutusu. Debounce bu bileşende değil, sorguyu tetikleyen tarafta
  * (`useDebouncedValue`) yapılır — böylece input anında tepki verir ve odak kaybolmaz.
  */
-export function AppSearchField({ value, onChangeText, placeholder = "Ara", ...rest }: AppSearchFieldProps) {
+export function AppSearchField({ value, onChangeText, placeholder = "Ara", variant = "filled", ...rest }: AppSearchFieldProps) {
   const { colors } = useTheme();
   const styles = useStyles();
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, variant === "bare" && styles.bare]}>
       <AppIcon name="search" size={18} color="textTertiary" />
       <TextInput
         {...rest}
@@ -60,6 +62,7 @@ const useStyles = makeStyles((t) =>
       alignItems: "center",
       gap: t.spacing.sm,
     },
+    bare: { backgroundColor: "transparent", paddingHorizontal: 0 },
     input: { flex: 1, fontSize: 15, paddingVertical: t.spacing.sm },
   })
 );

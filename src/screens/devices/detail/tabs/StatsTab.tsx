@@ -7,11 +7,14 @@
 import React, { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { AppCard, AppKpi, AppNotice, AppSkeleton, AppText, makeStyles, useTheme } from "@/design-system";
+import { AppIcon, AppKpi, AppNotice, AppSkeleton, AppText, makeStyles, useTheme } from "@/design-system";
+import { DashSection } from "@/components/dashboard/DashSection";
+import { HERO_DIVIDER, HERO_MUTED, HeroSurface } from "@/components/dashboard/HeroSurface";
+import { amountFontSize } from "@/utils/amountFontSize";
 import { devicesApi } from "@/api/devices";
 import { errorMessage } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
-import { FillBar, MetricCell } from "@/components/devices/DeviceUi";
+import { FillBar } from "@/components/devices/DeviceUi";
 import { ptBadge, ptTypeLabel } from "@/components/devices/deviceHelpers";
 import { formatCurrency, formatInteger, formatPercent, percentChange } from "@/utils/number";
 import { formatDateTime } from "@/utils/date";
@@ -33,8 +36,6 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
   const params: DeviceStatsParams = {
     start_date: range.start,
     end_date: range.end,
-    ...(filter.startTime ? { start_time: filter.startTime } : {}),
-    ...(filter.endTime ? { end_time: filter.endTime } : {}),
   };
   const stats = useQuery({
     queryKey: queryKeys.devices.stats(sn, { ...params }),
@@ -64,33 +65,60 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
       <StatsPeriodFilter value={filter} onChange={setFilter} />
 
       {stats.isLoading ? (
-        <AppSkeleton height={120} radius={12} />
+        <AppSkeleton height={150} radius={20} />
       ) : stats.isError ? (
         <AppNotice tone="warning" message={`İstatistik alınamadı: ${errorMessage(stats.error)}`} />
       ) : st ? (
         <>
-          <AppCard testID="stats-kpis">
-            <View style={styles.gap}>
-              <View style={styles.grid}>
-                <MetricCell label="Ciro" value={formatCurrency(tx?.revenue)} />
-                <MetricCell label="Toplam İşlem" value={formatInteger(tx?.total)} />
-                <MetricCell label="Başarılı" value={formatInteger(tx?.success)} />
-                <MetricCell label="Başarısız" value={formatInteger(tx?.failed)} />
+          {/* Özet: lacivert kart — ciro büyük, işlem sayısı, başarılı/başarısız ve başarı oranı çubuğu */}
+          <HeroSurface testID="stats-kpis">
+            <View style={styles.heroTop}>
+              <View style={styles.flex} accessible accessibilityLabel={`Ciro: ${formatCurrency(tx?.revenue)}`}>
+                <AppText variant="caption" weight="600" style={styles.heroMuted}>
+                  Ciro
+                </AppText>
+                <AppText numberOfLines={1} style={[styles.heroValue, { fontSize: amountFontSize(tx?.revenue, 30) }]}>
+                  {formatCurrency(tx?.revenue)}
+                </AppText>
               </View>
-              <FillBar
-                pct={successRate}
-                tone={successRate == null ? "neutral" : successRate >= 90 ? "success" : successRate >= 70 ? "warning" : "danger"}
-                height={6}
-                accessibilityLabel={`Başarı oranı ${formatPercent(successRate)}`}
-              />
-              <AppText variant="caption" color="textTertiary">
+              <View style={styles.heroCount} accessible accessibilityLabel={`Toplam İşlem: ${formatInteger(tx?.total)}`}>
+                <AppText style={styles.heroCountValue}>{formatInteger(tx?.total)}</AppText>
+                <AppText variant="caption" style={styles.heroMuted}>
+                  işlem
+                </AppText>
+              </View>
+            </View>
+            <View style={styles.heroTrack}>
+              {successRate != null ? <View style={[styles.heroFill, { width: `${successRate}%` }]} /> : null}
+            </View>
+            <View style={styles.heroStats}>
+              <View style={styles.inline} accessible accessibilityLabel={`Başarılı: ${formatInteger(tx?.success)}`}>
+                <View style={[styles.dot, { backgroundColor: "#4ADE80" }]} />
+                <AppText variant="caption" weight="700" style={styles.white}>
+                  {formatInteger(tx?.success)}
+                </AppText>
+                <AppText variant="caption" style={styles.heroMuted}>
+                  başarılı
+                </AppText>
+              </View>
+              <View style={styles.inline} accessible accessibilityLabel={`Başarısız: ${formatInteger(tx?.failed)}`}>
+                <View style={[styles.dot, { backgroundColor: "#F87171" }]} />
+                <AppText variant="caption" weight="700" style={styles.white}>
+                  {formatInteger(tx?.failed)}
+                </AppText>
+                <AppText variant="caption" style={styles.heroMuted}>
+                  başarısız
+                </AppText>
+              </View>
+              <View style={styles.flex} />
+              <AppText variant="caption" weight="600" style={styles.heroMuted}>
                 Başarı oranı {formatPercent(successRate)}
               </AppText>
             </View>
-          </AppCard>
+          </HeroSurface>
 
           {st.payment_types.length ? (
-            <AppCard title="Ödeme Tipine Göre" testID="stats-payment-types">
+            <DashSection title="Ödeme tipine göre" testID="stats-payment-types">
               <View style={styles.gap}>
                 {st.payment_types.map((p) => {
                   const pct = ptTotal > 0 ? (p.revenue / ptTotal) * 100 : 0;
@@ -98,11 +126,9 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
                   return (
                     <View key={p.pt_type} style={styles.bdRow}>
                       <View style={styles.bdHead}>
-                        <AppText variant="callout" style={styles.flex} numberOfLines={1}>
+                        <View style={[styles.dot, { backgroundColor: c.fg }]} />
+                        <AppText variant="calloutStrong" style={styles.flex} numberOfLines={1}>
                           {p.label}
-                        </AppText>
-                        <AppText variant="caption" color="textTertiary">
-                          {formatInteger(p.count)} işlem · {formatPercent(pct)}
                         </AppText>
                         <AppText variant="numericSm" style={styles.money}>
                           {formatCurrency(p.revenue)}
@@ -111,39 +137,48 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
                       <View style={[styles.track, { backgroundColor: colors.surfaceMuted }]}>
                         <View style={[styles.trackFill, { width: `${pct}%`, backgroundColor: c.fg }]} />
                       </View>
+                      <AppText variant="caption" color="textTertiary">
+                        {formatInteger(p.count)} işlem · {formatPercent(pct)}
+                      </AppText>
                     </View>
                   );
                 })}
               </View>
-            </AppCard>
+            </DashSection>
           ) : null}
 
           {st.failure_reasons.length ? (
-            <AppCard title="Başarısız Neden" testID="stats-failure-reasons">
-              <View style={styles.gap}>
-                {st.failure_reasons.map((f) => (
-                  <View key={f.key} style={styles.bdHead}>
-                    <AppText variant="callout" style={styles.flex}>
-                      {f.label}
-                    </AppText>
-                    <AppText variant="numericSm" color="textSecondary">
+            <DashSection title="Başarısızlık nedenleri" padded={false} testID="stats-failure-reasons">
+              {st.failure_reasons.map((f, i) => (
+                <View key={f.key} style={[styles.listRow, i > 0 && styles.listBorder]}>
+                  <View style={[styles.reasonIcon, { backgroundColor: colors.dangerSubtle }]}>
+                    <AppIcon name="x" size={14} color="danger" />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="calloutStrong">{f.label}</AppText>
+                    <AppText variant="caption" color="textTertiary">
                       {formatCurrency(f.amount)}
                     </AppText>
-                    <AppText variant="numeric" style={styles.count}>
-                      {formatInteger(f.count)}
-                    </AppText>
                   </View>
-                ))}
-              </View>
-            </AppCard>
+                  <AppText variant="numeric" style={styles.count}>
+                    {formatInteger(f.count)}
+                  </AppText>
+                </View>
+              ))}
+            </DashSection>
           ) : null}
 
           {st.product_sales.length ? (
-            <AppCard title="Ürün Bazında Satışlar" padded={false} testID="stats-product-sales">
+            <DashSection title="Ürün bazında satışlar" padded={false} testID="stats-product-sales">
               {st.product_sales.map((r, i) => (
-                <View key={r.product_no} style={[styles.productRow, i > 0 && styles.productBorder]}>
+                <View key={r.product_no} style={[styles.listRow, i > 0 && styles.listBorder]}>
+                  <View style={[styles.rank, i < 3 && styles.rankTop]}>
+                    <AppText variant="caption" weight="700" color={i < 3 ? "primary" : "textSecondary"}>
+                      {i + 1}
+                    </AppText>
+                  </View>
                   <View style={styles.flex}>
-                    <AppText variant="callout" numberOfLines={1}>
+                    <AppText variant="calloutStrong" numberOfLines={1}>
                       {r.name || "—"}
                     </AppText>
                     <AppText variant="caption" color="textTertiary">
@@ -151,19 +186,21 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
                     </AppText>
                   </View>
                   <View style={styles.productRight}>
-                    <AppText variant="numericSm">{formatCurrency(r.revenue)}</AppText>
+                    <AppText variant="numericSm" weight="700">
+                      {formatCurrency(r.revenue)}
+                    </AppText>
                     <AppText variant="caption" color="textTertiary">
                       {formatInteger(r.qty)} adet
                     </AppText>
                   </View>
                 </View>
               ))}
-            </AppCard>
+            </DashSection>
           ) : null}
         </>
       ) : null}
 
-      <AppText variant="overline" color="textTertiary">
+      <AppText variant="cardTitle" accessibilityRole="header" style={styles.sectionTitle}>
         Dönem karşılaştırması
       </AppText>
       {summary.isLoading ? (
@@ -197,7 +234,11 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
         </AppText>
       ) : null}
 
-      <AppCard testID="stats-count-breakdown" title="Ödeme türü kırılımı" subtitle={lastCount ? `Son ciro sayımı · ${formatDateTime(lastCount.datetime)}` : "Son ciro sayımına göre"}>
+      <DashSection
+        testID="stats-count-breakdown"
+        title="Ödeme türü kırılımı"
+        subtitle={lastCount ? `Son ciro sayımı · ${formatDateTime(lastCount.datetime)}` : "Son ciro sayımına göre"}
+      >
         {counts.isLoading ? (
           <AppSkeleton height={80} />
         ) : counts.isError ? (
@@ -227,26 +268,40 @@ export function StatsTab({ sn, refreshing, onRefresh }: { sn: string; refreshing
             </View>
           </View>
         )}
-      </AppCard>
+      </DashSection>
     </ScrollView>
   );
 }
 
 const useStyles = makeStyles((t) =>
   StyleSheet.create({
-    content: { padding: t.layout.screenPadding, gap: t.spacing.md, paddingBottom: t.spacing.huge },
-    row: { flexDirection: "row", gap: t.spacing.sm, flexWrap: "wrap" },
-    grid: { flexDirection: "row", flexWrap: "wrap", gap: t.spacing.sm },
+    content: { padding: t.layout.screenPadding, gap: t.spacing.lg, paddingBottom: t.spacing.huge },
+    row: { flexDirection: "row", gap: t.spacing.sm, flexWrap: "wrap", marginTop: -t.spacing.sm },
     gap: { gap: t.spacing.md },
-    bdRow: { gap: 4 },
-    bdHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing.sm },
     flex: { flex: 1, minWidth: 0 },
-    money: { minWidth: 84, textAlign: "right" },
-    count: { minWidth: 40, textAlign: "right" },
+    inline: { flexDirection: "row", alignItems: "center", gap: 5 },
+    dot: { width: 8, height: 8, borderRadius: 4 },
+    white: { color: "#FFFFFF" },
+    heroMuted: { color: HERO_MUTED },
+    heroTop: { flexDirection: "row", alignItems: "flex-end", gap: t.spacing.md },
+    heroValue: { color: "#FFFFFF", fontWeight: "700", lineHeight: 38, letterSpacing: -0.5 },
+    heroCount: { alignItems: "flex-end" },
+    heroCountValue: { color: "#FFFFFF", fontWeight: "700", fontSize: 22, lineHeight: 28 },
+    heroTrack: { height: 6, borderRadius: 3, backgroundColor: HERO_DIVIDER, overflow: "hidden" },
+    heroFill: { height: 6, borderRadius: 3, backgroundColor: "#4ADE80" },
+    heroStats: { flexDirection: "row", alignItems: "center", gap: t.spacing.md },
+    sectionTitle: { paddingHorizontal: 2 },
+    bdRow: { gap: 6 },
+    bdHead: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
+    money: { fontWeight: "700", textAlign: "right" },
+    count: { minWidth: 32, textAlign: "right", fontWeight: "700" },
     track: { height: 6, borderRadius: t.radius.pill, overflow: "hidden" },
     trackFill: { height: "100%", borderRadius: t.radius.pill },
-    productRow: { flexDirection: "row", alignItems: "center", gap: t.spacing.md, paddingHorizontal: t.layout.cardPadding, paddingVertical: t.spacing.sm },
-    productBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.colors.border },
+    listRow: { flexDirection: "row", alignItems: "center", gap: t.spacing.md, paddingHorizontal: t.layout.cardPadding, paddingVertical: t.spacing.md },
+    listBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.colors.border },
+    reasonIcon: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+    rank: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: t.colors.surfaceMuted },
+    rankTop: { backgroundColor: t.colors.primarySubtle },
     productRight: { alignItems: "flex-end", gap: 2 },
   })
 );

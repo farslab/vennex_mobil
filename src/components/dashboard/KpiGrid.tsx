@@ -8,11 +8,11 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import Svg, { Circle, Rect } from "react-native-svg";
-import { LinearGradient } from "expo-linear-gradient";
 import { AppIcon, AppText, makeStyles, useTheme } from "@/design-system";
 import { formatCurrency, formatInteger } from "@/utils/number";
 import type { DashboardData } from "@/types/overview";
 import { DashSurface } from "./DashSection";
+import { HeroSurface } from "./HeroSurface";
 
 export interface KpiGridProps {
   data: DashboardData;
@@ -20,9 +20,6 @@ export interface KpiGridProps {
   salesAllowed: boolean;
   onDevicesPress: () => void;
 }
-
-const HERO_LIGHT = ["#0B2E55", "#17589C"] as const;
-const HERO_DARK = ["#0C1E36", "#173A63"] as const;
 
 export function KpiGrid({ data, salesAllowed, onDevicesPress }: KpiGridProps) {
   const styles = useStyles();
@@ -43,7 +40,6 @@ function RevenueHero({
   periodLabel?: string | null;
 }) {
   const styles = useStyles();
-  const { isDark } = useTheme();
   // Grafikte seçili çubuk; kartın başka bir yerine dokununca kalkar
   const [selected, setSelected] = useState<number | null>(null);
   // Dönem/veri değişince seçim sıfırlanır (render sırasında ayarlama — ek efekt yok)
@@ -70,16 +66,7 @@ function RevenueHero({
       accessible={false}
       testID="revenue-hero"
     >
-      <LinearGradient
-        colors={isDark ? HERO_DARK : HERO_LIGHT}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.hero}
-      >
-        {/* Derinlik için yumuşak dekor halkaları */}
-        <View pointerEvents="none" style={[styles.ring, styles.ringA]} />
-        <View pointerEvents="none" style={[styles.ring, styles.ringB]} />
-
+      <HeroSurface>
         <View
           testID="kpi-revenue"
           accessible
@@ -139,7 +126,7 @@ function RevenueHero({
             }
           />
         </View>
-      </LinearGradient>
+      </HeroSurface>
     </Pressable>
   );
 }
@@ -426,20 +413,6 @@ const useStyles = makeStyles((t) =>
   StyleSheet.create({
     stack: { gap: t.spacing.md },
     flex: { flex: 1 },
-    hero: {
-      borderRadius: 20,
-      padding: t.spacing.lg,
-      overflow: "hidden",
-      gap: t.spacing.md,
-      shadowColor: "#0B2E55",
-      shadowOpacity: 0.25,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 4,
-    },
-    ring: { position: "absolute", borderRadius: 999, borderWidth: 28, borderColor: "rgba(255,255,255,0.05)" },
-    ringA: { width: 220, height: 220, top: -90, right: -70 },
-    ringB: { width: 140, height: 140, bottom: -70, right: 60 },
     heroTop: {
       flexDirection: "row",
       alignItems: "center",

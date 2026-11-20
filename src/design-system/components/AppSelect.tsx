@@ -28,10 +28,15 @@ interface BaseProps<V extends string | number> {
   sheetTitle?: string;
   loading?: boolean;
   testID?: string;
-  /** "bare": çerçevesiz, kompakt tetikleyici (kendi kabı içinde kullanılır, ör. filtre çubuğu) */
-  variant?: "field" | "bare";
+  /**
+   * "bare": çerçevesiz, kompakt tetikleyici (kendi kabı içinde kullanılır, ör. filtre çubuğu);
+   * "row": ayar satırı — solda renkli simge kutusu + etiket, sağda seçili değer ve ok
+   */
+  variant?: "field" | "bare" | "row";
   /** Tetikleyicide soldaki simge */
   icon?: IconName;
+  /** "row": simge kutusunun rengi */
+  iconBg?: string;
 }
 
 interface SingleProps<V extends string | number> extends BaseProps<V> {
@@ -92,45 +97,7 @@ export function AppSelect<V extends string | number>(props: AppSelectProps<V>) {
 
   const isSelected = (v: V) => (props.multiple ? draft.includes(v) : props.value === v);
 
-  return (
-    <View style={styles.root}>
-      {label ? (
-        <AppText variant="label" color="textSecondary">
-          {label}
-          {required ? <AppText variant="label" color="danger"> *</AppText> : null}
-        </AppText>
-      ) : null}
-      <Pressable
-        testID={testID}
-        onPress={openSheet}
-        disabled={disabled || loading}
-        accessibilityRole="button"
-        accessibilityLabel={`${label ?? placeholder}: ${selectedLabel ?? "seçilmedi"}`}
-        accessibilityState={{ disabled: !!disabled, expanded: open }}
-        style={({ pressed }) => [
-          props.variant === "bare" ? styles.fieldBare : styles.field,
-          error ? styles.fieldError : null,
-          disabled ? styles.fieldDisabled : null,
-          pressed ? styles.fieldPressed : null,
-        ]}
-      >
-        {props.icon ? <AppIcon name={props.icon} size={16} color="primary" /> : null}
-        <AppText
-          variant={props.variant === "bare" ? "calloutStrong" : "body"}
-          color={selectedLabel ? "text" : "textTertiary"}
-          numberOfLines={1}
-          style={styles.flex}
-        >
-          {loading ? "Yükleniyor…" : (selectedLabel ?? placeholder)}
-        </AppText>
-        <AppIcon name="chevron-down" size={18} color="textTertiary" />
-      </Pressable>
-      {error ? (
-        <AppText variant="caption" color="danger">
-          {error}
-        </AppText>
-      ) : null}
-
+  const sheet = (
       <AppSheet
         visible={open}
         onClose={() => setOpen(false)}
@@ -195,6 +162,78 @@ export function AppSelect<V extends string | number>(props: AppSelectProps<V>) {
           }}
         />
       </AppSheet>
+  );
+
+  if (props.variant === "row") {
+    return (
+      <View>
+        <Pressable
+          testID={testID}
+          onPress={openSheet}
+          disabled={disabled || loading}
+          accessibilityRole="button"
+          accessibilityLabel={`${label ?? placeholder}: ${selectedLabel ?? "seçilmedi"}`}
+          accessibilityState={{ disabled: !!disabled, expanded: open }}
+          style={({ pressed }) => [styles.row, pressed ? styles.fieldPressed : null, disabled ? styles.rowDisabled : null]}
+        >
+          {props.icon ? (
+            <View style={[styles.rowIcon, { backgroundColor: props.iconBg ?? "#64748B" }]}>
+              <AppIcon name={props.icon} size={16} color="#FFFFFF" />
+            </View>
+          ) : null}
+          <AppText variant="body" numberOfLines={1} style={styles.rowLabel}>
+            {label}
+          </AppText>
+          <AppText variant="callout" color={error ? "danger" : selectedLabel ? "textSecondary" : "textTertiary"} numberOfLines={1} style={styles.rowValue}>
+            {loading ? "Yükleniyor…" : (selectedLabel ?? placeholder)}
+          </AppText>
+          {!disabled ? <AppIcon name="chevron-right" size={18} color="textTertiary" /> : null}
+        </Pressable>
+        {sheet}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+      {label ? (
+        <AppText variant="label" color="textSecondary">
+          {label}
+          {required ? <AppText variant="label" color="danger"> *</AppText> : null}
+        </AppText>
+      ) : null}
+      <Pressable
+        testID={testID}
+        onPress={openSheet}
+        disabled={disabled || loading}
+        accessibilityRole="button"
+        accessibilityLabel={`${label ?? placeholder}: ${selectedLabel ?? "seçilmedi"}`}
+        accessibilityState={{ disabled: !!disabled, expanded: open }}
+        style={({ pressed }) => [
+          props.variant === "bare" ? styles.fieldBare : styles.field,
+          error ? styles.fieldError : null,
+          disabled ? styles.fieldDisabled : null,
+          pressed ? styles.fieldPressed : null,
+        ]}
+      >
+        {props.icon ? <AppIcon name={props.icon} size={16} color="primary" /> : null}
+        <AppText
+          variant={props.variant === "bare" ? "calloutStrong" : "body"}
+          color={selectedLabel ? "text" : "textTertiary"}
+          numberOfLines={1}
+          style={styles.flex}
+        >
+          {loading ? "Yükleniyor…" : (selectedLabel ?? placeholder)}
+        </AppText>
+        <AppIcon name="chevron-down" size={18} color="textTertiary" />
+      </Pressable>
+      {error ? (
+        <AppText variant="caption" color="danger">
+          {error}
+        </AppText>
+      ) : null}
+
+      {sheet}
     </View>
   );
 }
@@ -214,6 +253,18 @@ const useStyles = makeStyles((t) =>
       alignItems: "center",
       gap: t.spacing.sm,
     },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.spacing.md,
+      minHeight: 52,
+      paddingHorizontal: t.layout.cardPadding,
+      paddingVertical: t.spacing.sm,
+    },
+    rowDisabled: { opacity: 0.6 },
+    rowIcon: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+    rowLabel: { flexShrink: 0, maxWidth: "55%" },
+    rowValue: { flex: 1, textAlign: "right" },
     fieldBare: {
       minHeight: 44,
       paddingHorizontal: t.spacing.md,

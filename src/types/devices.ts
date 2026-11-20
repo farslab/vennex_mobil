@@ -114,9 +114,16 @@ export type PaymentMethodKey = keyof PaymentMethods;
 
 export interface DeviceToggles {
   audio: boolean;
+  /** Sunucu döndürür; web ayarlar formunda yok → mobilde de gösterilmez */
   auto_select: boolean;
+  /** Web "Başlat Butonu" (pos_button) */
   login_button: boolean;
+  /** Web "Vazgeç Butonu" (pos_cnButton) */
   cancel_button: boolean;
+  /** Web "Ücretsiz Vend" (pos_free_mode) */
+  free_mode: boolean;
+  /** Web "Dil Seçici" (pos_language_selector) */
+  language_selector: boolean;
 }
 export type DeviceToggleKey = keyof DeviceToggles;
 
@@ -162,6 +169,8 @@ export interface DeviceTimeouts {
 export interface PosDeviceDetail {
   sn: string;
   pos_name: string | null;
+  /** Web "Marka Yazısı" — cihaz ekranında; boşsa null */
+  pos_text: string | null;
   stat: boolean;
   is_online: boolean | null;
   last_seen: string | null;
@@ -199,6 +208,8 @@ export interface PosDeviceDetail {
 /** PATCH pos-devices/{sn}/ — yalnız yazılabilir alanlar (§3.11) */
 export interface DeviceSettingsPatch {
   pos_name?: string;
+  /** Boş string gönderilirse sunucu temizler (null) */
+  pos_text?: string;
   location_id?: number | null;
   machine_type_id?: number | null;
   pos_odemetip?: number;
@@ -209,6 +220,12 @@ export interface DeviceSettingsPatch {
   device_toggles?: Partial<DeviceToggles>;
   commands?: Partial<Record<DeviceCommandKey, boolean>>;
   operating_hours?: OperatingHoursWrite;
+}
+
+/** Makine tipi seçeneği — `GET machine-types/` (yalnız select_machine_type) */
+export interface MachineTypeOption {
+  id: number;
+  name: string;
 }
 
 /* ---------------------------------------------------------------- Özet */

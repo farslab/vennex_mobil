@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { usePagedList } from "@/hooks/usePagedList";
+import { mergePages, usePagedList } from "@/hooks/usePagedList";
 
 const PAGES = 25;
 const page = (n: number) => ({ count: PAGES * 2, page: n, num_pages: PAGES, results: [`p${n}a`, `p${n}b`] });
@@ -65,5 +65,26 @@ describe("usePagedList", () => {
     await waitFor(() => expect(result.current.items).toHaveLength(6));
     expect(result.current.loadMoreError).toBeNull();
   });
+
+  it("sonsuz kaydırmada yeni kayıt araya girip sıra kayınca sonraki sayfanın tekrar getirdiği kayıt bir kez görünür", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+    const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    // 1. sayfa: 5,4 · araya yeni kayıt (6) girdi → 2. sayfa 4'ü tekrar getirir: 4,3
+    const fetchPage = jest.fn((n: number) =>
+      Promise.resolve(n === 1 ? { count: 5, page: 1, num_pages: 2, results: [{ id: 5 }, { id: 4 }] } : { count: 5, page: 2, num_pages: 2, results: [{ id: 4 }, { id: 3 }] })
+    );
+    const { result } = await renderHook(() => usePagedList<{ id: number }>({ queryKey: ["dup"], fetchPage }), { wrapper });
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+    await act(async () => result.current.loadMore());
+    await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.items.map((i) => i.id)).toEqual([5, 4, 3]));
+  });
 });
 
+describe("mergePages", () => {
+  it("id yoksa sn ile, ikisi de yoksa ayıklamadan birleştirir", () => {
+    expect(mergePages([{ results: [{ sn: "A" }, { sn: "B" }] }, { results: [{ sn: "B" }, { sn: "C" }] }]).map((d) => d.sn)).toEqual(["A", "B", "C"]);
+    expect(mergePages([{ results: ["x", "x"] }, { results: ["x"] }])).toEqual(["x", "x", "x"]);
+    expect(mergePages([{ results: [{ code: 1 }] }, { results: [{ code: 1 }] }], (i) => i.code)).toHaveLength(1);
+  });
+});

@@ -5,19 +5,21 @@
  */
 import { EXPORTS } from "@/api/exports";
 import { useExcelExport } from "@/hooks/useExcelExport";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   AppBadge,
   AppButton,
-  AppCard,
   AppConfirmSheet,
   AppEmptyState,
   AppErrorState,
+  AppIcon,
+  AppIconButton,
   AppListSkeleton,
   AppNotice,
   AppSelect,
+  AppSheet,
   AppText,
   makeStyles,
   toast,
@@ -53,6 +55,8 @@ export function fillAllEstimate(items: PosProduct[]): { slots: number; units: nu
 }
 
 const TECH_DEFAULT = 0;
+/** Alttan açılan sayfa kapanmadan yenisi açılırsa iOS'ta görünmez kalabilir */
+const SHEET_HANDOFF_MS = 400;
 
 export function StockTab({
   sn,
@@ -64,7 +68,7 @@ export function StockTab({
   access: DeviceAccess;
 }) {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const invalidate = useInvalidateDevices();
   const excel = useExcelExport();
   const products = useDeviceProducts(sn);
@@ -80,6 +84,17 @@ export function StockTab({
   const [assignOpen, setAssignOpen] = useState(false);
   const [unassignConfirm, setUnassignConfirm] = useState(false);
   const [saveTplOpen, setSaveTplOpen] = useState(false);
+  // Dolum ve şablon işlemleri sayfada açık durmaz: kısayol kutularından alttan açılan sayfalarda
+  const [fillSheetOpen, setFillSheetOpen] = useState(false);
+  const [tplSheetOpen, setTplSheetOpen] = useState(false);
+  const handoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => (handoffTimer.current ? clearTimeout(handoffTimer.current) : undefined), []);
+  /** Kısayol sayfasını kapatıp ardından asıl sayfayı/onayı açar */
+  const handoff = (close: () => void, open: () => void) => {
+    close();
+    if (handoffTimer.current) clearTimeout(handoffTimer.current);
+    handoffTimer.current = setTimeout(open, SHEET_HANDOFF_MS);
+  };
   const [sourceId, setSourceId] = useState<number | null>(access.isTech ? TECH_DEFAULT : null);
 
   const locations = useQuery({
@@ -143,122 +158,63 @@ export function StockTab({
 
   const header = data ? (
     <View style={styles.header}>
-      <AppCard>
-        <View style={styles.fillHead}>
-          <View style={styles.flex}>
-            <AppText variant="overline" color="textTertiary">
+      {/* Doluluk özeti tek satır: yüzde · adet · mod · Excel (ince çubuk altta) */}
+      <View style={[styles.summary, isDark ? styles.tileDark : styles.tileLight]}>
+        <View style={styles.summaryRow}>
+          <View style={styles.flexMin}>
+            <AppText variant="caption" color="textTertiary">
               Toplam doluluk
             </AppText>
-            <AppText variant="metricMd" testID="stock-fill-pct">
-              {fill.label}
-            </AppText>
-          </View>
-          <View style={styles.headRight}>
-            <AppBadge tone="neutral" label={isStock ? "Stok modu" : "Normal mod"} />
-            {fill.source === "containers" ? (
-              <AppText variant="caption" color="textSecondary" testID="stock-fill-source">
-                Bileşen hazneleri
+            <View style={styles.summaryValue}>
+              <AppText variant="bodyStrong" testID="stock-fill-pct">
+                {fill.label}
               </AppText>
-            ) : fill.detail ? (
-              <AppText variant="numericSm" color="textSecondary">
-                {fill.detail} adet
-              </AppText>
-            ) : null}
-          </View>
-        </View>
-        <FillBar pct={fill.pct} tone={fill.tone} height={6} accessibilityLabel={`Toplam doluluk ${fill.label}`} />
-        <AppButton
-          title={excel.exporting ? "Excel hazırlanıyor…" : "Ürünleri Excel'e aktar"}
-          icon="download"
-          variant="ghost"
-          size="sm"
-          loading={excel.exporting}
-          onPress={() => excel.run(EXPORTS.deviceProducts(sn))}
-          testID="device-products-export"
-        />
-      </AppCard>
-
-      {isStock && access.manageStock ? (
-        <AppCard title="Dolum">
-          <View style={styles.gap}>
-            <AppSelect<number>
-              label="Kaynak lokasyon"
-              required={!access.isTech}
-              options={sourceOptions}
-              value={sourceId}
-              onChange={setSourceId}
-              loading={locations.isLoading}
-              placeholder="Depo / araç seçin"
-              testID="stock-source"
-            />
-            {locations.isError ? <AppNotice tone="warning" message={`Lokasyonlar alınamadı: ${errorMessage(locations.error)}`} /> : null}
-            <View style={styles.actions}>
-              <AppButton
-                title="Tümünü doldur"
-                icon="battery-charging"
-                onPress={() => {
-                  fillAll.reset();
-                  setFillConfirm(true);
-                }}
-                disabled={!sourceReady || data.items.length === 0}
-                style={styles.flex}
-                testID="fill-all-button"
-              />
-              <AppButton
-                title="Toplu dolum"
-                icon="edit-3"
-                variant="outline"
-                onPress={() => {
-                  bulk.reset();
-                  setBulkOpen(true);
-                }}
-                disabled={!sourceReady || data.items.length === 0}
-                style={styles.flex}
-                testID="bulk-button"
-              />
+              {fill.source === "containers" ? (
+                <AppText variant="caption" color="textSecondary" testID="stock-fill-source">
+                  Bileşen hazneleri
+                </AppText>
+              ) : fill.detail ? (
+                <AppText variant="caption" color="textSecondary">
+                  {fill.detail} adet
+                </AppText>
+              ) : null}
             </View>
-            {!sourceReady ? (
-              <AppText variant="caption" color="textTertiary">
-                Dolum için önce kaynak lokasyon seçin.
-              </AppText>
-            ) : null}
           </View>
-        </AppCard>
-      ) : null}
+          <AppBadge size="sm" tone="neutral" label={isStock ? "Stok modu" : "Normal mod"} />
+          <AppIconButton
+            icon="download"
+            label="Ürünleri Excel'e aktar"
+            loading={excel.exporting}
+            onPress={() => excel.run(EXPORTS.deviceProducts(sn))}
+            tone="primary"
+            testID="device-products-export"
+          />
+        </View>
+        <FillBar pct={fill.pct} tone={fill.tone} height={4} accessibilityLabel={`Toplam doluluk ${fill.label}`} />
+      </View>
 
-      {canTemplates ? (
-        <AppCard title="Şablon">
-          {/* Web kuralı: eşli cihazda yalnız "Eşlemeyi kaldır"; eşli değilken "Şablon ata" ve
-              (listesi varsa) "Şablon olarak kaydet". Bilgi gelmiyorsa (eski sunucu) hepsi. */}
-          {mappedTemplate ? (
-            <AppText variant="callout" color="textSecondary" testID="mapped-template">
-              Bu cihaz <AppText variant="callout" weight="600">{mappedTemplate.name}</AppText> şablonuna eşli.
-            </AppText>
-          ) : templateKnown ? (
-            <AppText variant="caption" color="textTertiary" testID="mapped-template-none">
-              Cihaz bir şablona eşli değil.
-            </AppText>
-          ) : null}
-          <View style={[styles.actions, templateKnown ? styles.mt : null]}>
-            {!mappedTemplate ? (
-              <AppButton title="Şablon ata" icon="layers" variant="outline" size="sm" onPress={() => setAssignOpen(true)} style={styles.flex} testID="assign-template-button" />
-            ) : null}
-            {mappedTemplate || !templateKnown ? (
-              <AppButton title="Eşlemeyi kaldır" variant="outline" size="sm" onPress={() => setUnassignConfirm(true)} style={styles.flex} testID="unassign-template-button" />
-            ) : null}
-          </View>
-          {!mappedTemplate && data.items.length > 0 ? (
-            <AppButton
-              title="Şablon olarak kaydet"
-              icon="save"
-              variant="ghost"
-              size="sm"
-              onPress={() => setSaveTplOpen(true)}
-              style={styles.mt}
-              testID="save-as-template-button"
+      {/* Dolum ve şablon: kısayol kutuları; dokununca alttan sayfa açılır */}
+      {(isStock && access.manageStock) || canTemplates ? (
+        <View style={styles.tiles}>
+          {isStock && access.manageStock ? (
+            <ActionTile
+              icon="battery-charging"
+              title="Dolum"
+              subtitle={sourceReady ? sourceLabel : "Kaynak lokasyon seçin"}
+              onPress={() => setFillSheetOpen(true)}
+              testID="stock-fill-open"
             />
           ) : null}
-        </AppCard>
+          {canTemplates ? (
+            <ActionTile
+              icon="layers"
+              title="Şablon"
+              subtitle={mappedTemplate ? mappedTemplate.name : templateKnown ? "Eşli değil" : "Şablon işlemleri"}
+              onPress={() => setTplSheetOpen(true)}
+              testID="stock-template-open"
+            />
+          ) : null}
+        </View>
       ) : null}
 
       <View style={styles.listHead}>
@@ -327,6 +283,61 @@ export function StockTab({
 
       {isStock && access.manageStock ? (
         <>
+          <AppSheet visible={fillSheetOpen} onClose={() => setFillSheetOpen(false)} title="Dolum" subtitle="Kaynak lokasyondan slotlara aktarım" testID="stock-fill-sheet">
+            <View style={styles.gap}>
+              <AppSelect<number>
+                label="Kaynak lokasyon"
+                required={!access.isTech}
+                options={sourceOptions}
+                value={sourceId}
+                onChange={setSourceId}
+                loading={locations.isLoading}
+                placeholder="Depo / araç seçin"
+                testID="stock-source"
+              />
+              {locations.isError ? <AppNotice tone="warning" message={`Lokasyonlar alınamadı: ${errorMessage(locations.error)}`} /> : null}
+              <View style={styles.actions}>
+                <AppButton
+                  title="Tümünü doldur"
+                  icon="battery-charging"
+                  onPress={() =>
+                    handoff(
+                      () => setFillSheetOpen(false),
+                      () => {
+                        fillAll.reset();
+                        setFillConfirm(true);
+                      }
+                    )
+                  }
+                  disabled={!sourceReady || data.items.length === 0}
+                  style={styles.flex}
+                  testID="fill-all-button"
+                />
+                <AppButton
+                  title="Toplu dolum"
+                  icon="edit-3"
+                  variant="outline"
+                  onPress={() =>
+                    handoff(
+                      () => setFillSheetOpen(false),
+                      () => {
+                        bulk.reset();
+                        setBulkOpen(true);
+                      }
+                    )
+                  }
+                  disabled={!sourceReady || data.items.length === 0}
+                  style={styles.flex}
+                  testID="bulk-button"
+                />
+              </View>
+              {!sourceReady ? (
+                <AppText variant="caption" color="textTertiary">
+                  Dolum için önce kaynak lokasyon seçin.
+                </AppText>
+              ) : null}
+            </View>
+          </AppSheet>
           <BulkQuantitiesSheet
             visible={bulkOpen}
             items={data.items}
@@ -358,6 +369,53 @@ export function StockTab({
 
       {canTemplates ? (
         <>
+          <AppSheet visible={tplSheetOpen} onClose={() => setTplSheetOpen(false)} title="Şablon" testID="stock-template-sheet">
+            {/* Web kuralı: eşli cihazda yalnız "Eşlemeyi kaldır"; eşli değilken "Şablon ata" ve
+                (listesi varsa) "Şablon olarak kaydet". Bilgi gelmiyorsa (eski sunucu) hepsi. */}
+            <View style={styles.gap}>
+              {mappedTemplate ? (
+                <AppText variant="callout" color="textSecondary" testID="mapped-template">
+                  Bu cihaz <AppText variant="callout" weight="600">{mappedTemplate.name}</AppText> şablonuna eşli.
+                </AppText>
+              ) : templateKnown ? (
+                <AppText variant="callout" color="textTertiary" testID="mapped-template-none">
+                  Cihaz bir şablona eşli değil.
+                </AppText>
+              ) : null}
+              <View style={styles.actions}>
+                {!mappedTemplate ? (
+                  <AppButton
+                    title="Şablon ata"
+                    icon="layers"
+                    variant="outline"
+                    onPress={() => handoff(() => setTplSheetOpen(false), () => setAssignOpen(true))}
+                    style={styles.flex}
+                    testID="assign-template-button"
+                  />
+                ) : null}
+                {mappedTemplate || !templateKnown ? (
+                  <AppButton
+                    title="Eşlemeyi kaldır"
+                    variant="outline"
+                    onPress={() => handoff(() => setTplSheetOpen(false), () => setUnassignConfirm(true))}
+                    style={styles.flex}
+                    testID="unassign-template-button"
+                  />
+                ) : null}
+              </View>
+              {!mappedTemplate && data.items.length > 0 ? (
+                <AppButton
+                  title="Şablon olarak kaydet"
+                  icon="save"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => handoff(() => setTplSheetOpen(false), () => setSaveTplOpen(true))}
+                  style={styles.start}
+                  testID="save-as-template-button"
+                />
+              ) : null}
+            </View>
+          </AppSheet>
           <AssignTemplateSheet
             visible={assignOpen}
             sn={sn}
@@ -388,6 +446,46 @@ export function StockTab({
         </>
       ) : null}
     </View>
+  );
+}
+
+/** Kısayol kutusu: ikon · başlık · durum özeti · ok */
+function ActionTile({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  testID,
+}: {
+  icon: React.ComponentProps<typeof AppIcon>["name"];
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  testID: string;
+}) {
+  const styles = useStyles();
+  const { isDark } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}: ${subtitle}`}
+      style={({ pressed }) => [styles.tile, isDark ? styles.tileDark : styles.tileLight, pressed && styles.tilePressed]}
+      testID={testID}
+    >
+      <View style={styles.tileIcon}>
+        <AppIcon name={icon} size={18} color="primary" />
+      </View>
+      <View style={styles.flexMin}>
+        <AppText variant="calloutStrong" numberOfLines={1}>
+          {title}
+        </AppText>
+        <AppText variant="caption" color="textTertiary" numberOfLines={1}>
+          {subtitle}
+        </AppText>
+      </View>
+      <AppIcon name="chevron-right" size={16} color="textTertiary" />
+    </Pressable>
   );
 }
 
@@ -449,10 +547,39 @@ const useStyles = makeStyles((t) =>
     root: { flex: 1 },
     flex: { flex: 1 },
     gap: { gap: t.spacing.md },
-    mt: { marginTop: t.spacing.sm, alignSelf: "flex-start" },
+    start: { alignSelf: "flex-start" },
+    flexMin: { flex: 1, minWidth: 0 },
+    tiles: { flexDirection: "row", gap: t.spacing.sm },
+    summary: {
+      gap: t.spacing.xs,
+      paddingLeft: t.spacing.md,
+      paddingRight: t.spacing.xs,
+      paddingVertical: t.spacing.sm,
+      borderRadius: 16,
+      backgroundColor: t.colors.surface,
+    },
+    summaryRow: { flexDirection: "row", alignItems: "center", gap: t.spacing.sm },
+    summaryValue: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+    tile: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.spacing.sm,
+      padding: t.spacing.md,
+      borderRadius: 16,
+      backgroundColor: t.colors.surface,
+    },
+    tileLight: {
+      shadowColor: "#0F172A",
+      shadowOpacity: 0.07,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+    tileDark: { borderWidth: StyleSheet.hairlineWidth, borderColor: t.colors.border },
+    tilePressed: { opacity: 0.7 },
+    tileIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: t.colors.primarySubtle, alignItems: "center", justifyContent: "center" },
     header: { padding: t.layout.screenPadding, gap: t.spacing.md, paddingBottom: t.spacing.sm },
-    fillHead: { flexDirection: "row", alignItems: "flex-end", marginBottom: t.spacing.sm },
-    headRight: { alignItems: "flex-end", gap: t.spacing.xs },
     actions: { flexDirection: "row", gap: t.spacing.sm },
     listHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: t.spacing.xs },
     hint: { marginTop: -t.spacing.sm },

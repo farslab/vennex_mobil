@@ -7,6 +7,42 @@ export interface UsePagedListOptions<T, R extends PageResponse<T>> {
   fetchPage: (page: number, signal?: AbortSignal) => Promise<R>;
   enabled?: boolean;
   staleTime?: number;
+  /**
+   * Kayıt kimliği (yinelenenleri ayıklamak için). Verilmezse `id`, yoksa `sn` alanı kullanılır.
+   */
+  getKey?: (item: T) => string | number | null | undefined;
+}
+
+/** Varsayılan kimlik: `id`, yoksa `sn` (POS cihazı); ikisi de yoksa ayıklanmaz */
+function defaultKey(item: unknown): string | number | null {
+  if (item && typeof item === "object") {
+    const o = item as { id?: unknown; sn?: unknown };
+    if (typeof o.id === "number" || typeof o.id === "string") return o.id;
+    if (typeof o.sn === "string") return o.sn;
+  }
+  return null;
+}
+
+/**
+ * Sayfaları birleştirir; aynı kimlikli kaydı yalnız ilk göründüğü yerde tutar.
+ * Neden: sunucu sayfalaması sıra kaydırmalı (offset). En yeni → eski sıralı listede (satışlar, bildirimler,
+ * hareketler) iki sayfa isteği arasında yeni kayıt gelince her şey bir sıra kayar ve sonraki sayfa önceki
+ * sayfanın son kaydını tekrar getirir → listede aynı kayıt iki kez + React "aynı key" uyarısı.
+ */
+export function mergePages<T>(pages: { results?: T[] }[], getKey: (item: T) => string | number | null | undefined = defaultKey): T[] {
+  const seen = new Set<string | number>();
+  const out: T[] = [];
+  for (const p of pages) {
+    for (const item of p.results ?? []) {
+      const k = getKey(item);
+      if (k != null) {
+        if (seen.has(k)) continue;
+        seen.add(k);
+      }
+      out.push(item);
+    }
+  }
+  return out;
 }
 
 /**
@@ -33,6 +69,7 @@ export function usePagedList<T, R extends PageResponse<T> = PageResponse<T>>({
   fetchPage,
   enabled = true,
   staleTime,
+  getKey,
 }: UsePagedListOptions<T, R>) {
   const [manualRefreshing, setManualRefreshing] = useState(false);
   const queryClient = useQueryClient();
@@ -48,7 +85,7 @@ export function usePagedList<T, R extends PageResponse<T> = PageResponse<T>>({
     refetchOnReconnect: fewPagesLoaded,
   });
 
-  const items = useMemo(() => query.data?.pages.flatMap((p) => p.results ?? []) ?? [], [query.data]);
+  const items = useMemo(() => (query.data ? mergePages(query.data.pages, getKey) : []), [query.data, getKey]);
   const firstPage = query.data?.pages[0];
 
   const refresh = useCallback(async () => {

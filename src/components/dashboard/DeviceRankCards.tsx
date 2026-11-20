@@ -24,7 +24,6 @@ function DeviceRow({
   last,
   testID,
   flush,
-  share,
 }: {
   rank: number;
   name: string;
@@ -36,8 +35,6 @@ function DeviceRow({
   testID?: string;
   /** Alttan açılan sayfa içinde: yatay iç boşluk sayfadan gelir */
   flush?: boolean;
-  /** 0..1 — listedeki en yüksek değere göre pay çubuğu (verilirse) */
-  share?: number;
 }) {
   const styles = useStyles();
   const medal = rank <= 3 ? MEDALS[rank - 1] : null;
@@ -55,26 +52,19 @@ function DeviceRow({
           {rank}
         </AppText>
       </View>
-      <View style={styles.flex}>
-        <AppText variant="calloutStrong" numberOfLines={1}>
+      {/* Ad tam genişlikte (2 satıra kadar); altında seri no + işlem solda, tutar sağda */}
+      <View style={styles.body}>
+        <AppText variant="calloutStrong" numberOfLines={2}>
           {name}
         </AppText>
-        <AppText variant="mono" color="textTertiary" numberOfLines={1}>
-          {sn}
-        </AppText>
-        {share != null ? (
-          <View style={styles.shareTrack}>
-            <View style={[styles.shareFill, { width: `${Math.max(4, Math.round(share * 100))}%` }]} />
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.right}>
-        <AppText variant="numeric" weight="700">
-          {value}
-        </AppText>
-        <AppText variant="caption" color="textTertiary">
-          {caption}
-        </AppText>
+        <View style={styles.meta}>
+          <AppText variant="caption" color="textTertiary" numberOfLines={1} style={styles.flex}>
+            {sn !== name ? `${sn} · ${caption}` : caption}
+          </AppText>
+          <AppText variant="numeric" weight="700" numberOfLines={1}>
+            {value}
+          </AppText>
+        </View>
       </View>
       <AppIcon name="chevron-right" size={16} color="textTertiary" />
     </Pressable>
@@ -84,7 +74,6 @@ function DeviceRow({
 /** En çok ciro yapan cihazlar — dokununca cihaz detayı */
 export function TopDevicesCard({ items, onOpenDevice }: { items: TopDevice[]; onOpenDevice: OpenDevice }) {
   const styles = useStyles();
-  const topRevenue = Math.max(0, ...items.map((d) => d.revenue));
   return (
     <DashSection title="En Çok Satan Cihazlar" padded={false} testID="top-devices">
       {items.length === 0 ? (
@@ -102,7 +91,6 @@ export function TopDevicesCard({ items, onOpenDevice }: { items: TopDevice[]; on
               caption={`${formatInteger(d.tx_count)} işlem`}
               onPress={() => onOpenDevice(d.sn, d.pos_name ?? undefined)}
               last={i === items.length - 1}
-              share={topRevenue > 0 ? d.revenue / topRevenue : undefined}
             />
           ))}
         </View>
@@ -177,7 +165,7 @@ const useStyles = makeStyles((t) =>
       alignItems: "center",
       gap: t.spacing.md,
       minHeight: 56,
-      paddingVertical: t.spacing.sm,
+      paddingVertical: t.spacing.md,
       paddingHorizontal: t.layout.cardPadding,
     },
     rowFlush: { paddingHorizontal: 0 },
@@ -192,8 +180,7 @@ const useStyles = makeStyles((t) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    right: { alignItems: "flex-end" },
-    shareTrack: { height: 4, borderRadius: 2, backgroundColor: t.colors.surfaceMuted, marginTop: 6, overflow: "hidden" },
-    shareFill: { height: 4, borderRadius: 2, backgroundColor: t.colors.chart[0] },
+    body: { flex: 1, minWidth: 0, gap: 4 },
+    meta: { flexDirection: "row", alignItems: "baseline", gap: t.spacing.sm },
   })
 );
