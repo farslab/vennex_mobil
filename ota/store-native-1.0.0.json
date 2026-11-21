@@ -14,10 +14,13 @@
     "permissions": [
       "INTERNET",
       "android.permission.POST_NOTIFICATIONS"
-    ]
+    ],
+    "versionCode": 3
   },
   "icon": "./assets/images/icon.png",
   "ios": {
+    "appleTeamId": "5PM8J6CL93",
+    "buildNumber": "2",
     "bundleIdentifier": "tr.com.vennex",
     "entitlements": {
       "aps-environment": "production"
@@ -63,11 +66,17 @@
     [
       "expo-build-properties",
       {
+        "android": {
+          "enableMinifyInReleaseBuilds": true,
+          "enableShrinkResourcesInReleaseBuilds": true
+        },
         "ios": {
           "useFrameworks": "dynamic"
         }
       }
     ],
+    "./plugins/withVennexUploadSigning",
+    "./plugins/withOptionalHardwareFeatures",
     [
       "expo-splash-screen",
       {
