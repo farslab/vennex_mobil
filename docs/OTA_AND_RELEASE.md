@@ -53,6 +53,8 @@ OTA, POS uygulamasındaki (vennexRN) gibi **yerel bilgisayardan** betikle yayın
 
 Betik sırasıyla şunları yapar: dal `ota-release` ve GitHub ile aynı mı → git temiz mi → native değişiklik yok mu → tip, lint, test → OTA numarası ayır → iOS+Android canlı paketi → sunucu içinden Xavia'ya yükle → yayın kaydı.
 
+Ayrılan OTA numarası pakete `EXPO_PUBLIC_OTA_LABEL` olarak gömülür; Menü'deki sürüm satırı `1.0.0-5` gibi görünür (1.0.0'ın 5. OTA'sı). Mağazadaki gömülü pakette numara yoktur, yalnız `1.0.0` yazar (`src/config/build.ts`).
+
 ## Zorunlu güncelleme (mağaza sürümü)
 
 Admin → **Mobil Sürüm Politikaları** (platform başına bir kayıt):

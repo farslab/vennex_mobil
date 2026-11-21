@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Constants from "expo-constants";
+import { displayVersion } from "../../config/build";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -40,7 +41,7 @@ export default function ProfileScreen() {
   const { data: config } = useAppConfig();
   // Sunucudaki modül listesi (web ile aynı kaynak); yoksa yerel kural
   const regionsVisible = moduleVisible(config?.modules, "regions", () => owner);
-  const version = Constants.expoConfig?.version;
+  const version = displayVersion(Constants.expoConfig?.version);
 
   const doLogout = async () => {
     setLoggingOut(true);
