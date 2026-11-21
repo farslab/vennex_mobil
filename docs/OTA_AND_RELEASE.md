@@ -13,12 +13,13 @@ App Store ve Google Play kuralları, uygulamanın amacını değiştirmeyen JS g
 ## Runtime ve sürümleme
 
 - `app.config.ts`: `APP_VERSION = "1.0.0"` (mağaza sürümü, tek kaynak).
-- `runtimeVersion = "vm-<APP_VERSION>"`; staging için `-stg` eki. Aynı runtime'daki derlemeler aynı OTA paketlerini alır. Staging canlı paketini asla almaz.
+- `runtimeVersion = "vm-<APP_VERSION>"`. Aynı runtime'daki derlemeler aynı OTA paketlerini alır. Uygulamanın tek ortamı canlıdır (geliştirme/staging sürümü yok).
 - Build numarası / versionCode: EAS uzak sayaç (`appVersionSource: remote`, production `autoIncrement`).
-- Mağazaya gönderilen commit `store-<sürüm>` etiketiyle işaretlenir. OTA betiği bu etiketten beri native dosya değişmediğini doğrular.
+- Mağazaya gönderilen commit `store-<sürüm>` etiketiyle işaretlenir ve native özeti kaydedilir. OTA betiği bu etiketten beri bağımlılık, ikon/sertifika ve native ayar (`ota/store-native-<sürüm>.json`) değişmediğini doğrular.
 
 ```bash
-git tag store-1.0.0 && git push origin store-1.0.0
+git tag -a store-1.0.1 <commit> -m "App Store 1.0.1" && git push origin store-1.0.1
+bash tools/store-native-snapshot.sh ota/store-native-1.0.1.json   # aynı commit'te, sonra commit + push
 ```
 
 ## OTA altyapısı
@@ -29,24 +30,28 @@ git tag store-1.0.0 && git push origin store-1.0.0
 - İstemci (`src/updates/otaUpdater.ts`):
   - Kontrol açılışta ve uygulama ön plana geldiğinde yapılır, en sık 30 dakikada bir. Açılışı bekletmez.
   - İndirilen paket bir sonraki açılışta devreye girer; ekranda "Yeni sürüm hazır → Yeniden başlat" bandı çıkar.
-  - Geliştirme derlemelerinde kapalıdır; bozuk pakette expo-updates gömülü pakete geri döner.
+  - Bozuk pakette expo-updates gömülü pakete geri döner.
 
 ### Yayınlamak
 
-1. Backend dalı (`feature/mobil-ortak-yetki-ota`) canlıda olmalı (`ota_release --app` desteği).
-2. `ota-secrets/publish.env` dosyası (git dışı) oluşturulmalı:
+OTA, POS uygulamasındaki (vennexRN) gibi **yerel bilgisayardan** betikle yayınlanır; CI/pipeline kullanılmaz
+(yükleme anahtarı ve canlı sunucu SSH erişimi GitHub'a konmaz). Yayın yalnız `ota-release` dalından çıkar.
+
+1. `ota-secrets/publish.env` dosyası (git dışı) olmalı:
 
    ```
    OTA_UPLOAD_KEY=<sunucudaki /opt/vennex-ota/.env UPLOAD_KEY>
    ```
 
-3. Değişiklikleri commit edin, ardından:
+2. Yayınlanacak değişiklik `main`'de commit'li olmalı; sonra:
 
    ```bash
+   git switch ota-release && git merge --ff-only main && git push origin ota-release
    npm run ota -- "panel grafiği düzeltildi"
+   git switch main
    ```
 
-Betik sırasıyla şunları yapar: git temiz mi → native değişiklik yok mu → tip, lint, test → OTA numarası ayır → iOS+Android production paketi → sunucu içinden Xavia'ya yükle → yayın kaydı.
+Betik sırasıyla şunları yapar: dal `ota-release` ve GitHub ile aynı mı → git temiz mi → native değişiklik yok mu → tip, lint, test → OTA numarası ayır → iOS+Android canlı paketi → sunucu içinden Xavia'ya yükle → yayın kaydı.
 
 ## Zorunlu güncelleme (mağaza sürümü)
 
