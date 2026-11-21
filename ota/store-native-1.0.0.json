@@ -1,0 +1,96 @@
+{
+  "android": {
+    "adaptiveIcon": {
+      "backgroundColor": "#1C5A96",
+      "foregroundImage": "./assets/images/adaptive-icon.png"
+    },
+    "blockedPermissions": [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.SYSTEM_ALERT_WINDOW"
+    ],
+    "googleServicesFile": "./firebase/google-services.json",
+    "package": "tr.com.vennex",
+    "permissions": [
+      "INTERNET",
+      "android.permission.POST_NOTIFICATIONS"
+    ]
+  },
+  "icon": "./assets/images/icon.png",
+  "ios": {
+    "bundleIdentifier": "tr.com.vennex",
+    "entitlements": {
+      "aps-environment": "production"
+    },
+    "googleServicesFile": "./firebase/GoogleService-Info.plist",
+    "infoPlist": {
+      "NSAppTransportSecurity": {
+        "NSAllowsArbitraryLoads": false
+      },
+      "UIBackgroundModes": [
+        "remote-notification"
+      ]
+    },
+    "privacyManifests": {
+      "NSPrivacyAccessedAPITypes": [
+        {
+          "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+          "NSPrivacyAccessedAPITypeReasons": [
+            "CA92.1"
+          ]
+        },
+        {
+          "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+          "NSPrivacyAccessedAPITypeReasons": [
+            "C617.1"
+          ]
+        }
+      ],
+      "NSPrivacyCollectedDataTypes": [],
+      "NSPrivacyTracking": false,
+      "NSPrivacyTrackingDomains": []
+    },
+    "supportsTablet": true
+  },
+  "name": "Vennex",
+  "orientation": "portrait",
+  "plugins": [
+    "expo-secure-store",
+    "expo-sharing",
+    "expo-updates",
+    "@react-native-firebase/app",
+    "@react-native-firebase/messaging",
+    [
+      "expo-build-properties",
+      {
+        "ios": {
+          "useFrameworks": "dynamic"
+        }
+      }
+    ],
+    [
+      "expo-splash-screen",
+      {
+        "backgroundColor": "#FFFFFF",
+        "dark": {
+          "backgroundColor": "#0A0F17",
+          "image": "./assets/images/splash-logo-dark.png"
+        },
+        "image": "./assets/images/splash-logo.png",
+        "imageWidth": 240,
+        "resizeMode": "contain"
+      }
+    ]
+  ],
+  "runtimeVersion": "vm-1.0.0",
+  "scheme": "vennex",
+  "slug": "vennex-mobile-app",
+  "updates": {
+    "checkAutomatically": "NEVER",
+    "enabled": true,
+    "fallbackToCacheTimeout": 0,
+    "url": "https://ota.vennex.com.tr/api/manifest"
+  },
+  "userInterfaceStyle": "automatic",
+  "version": "1.0.0"
+}
