@@ -10,8 +10,9 @@ const API_BASE_URL = "https://tms.vennex.com.tr";
 
 /** Mağaza (native) sürümü — App Store / Google Play'e gönderilen sürüm. */
 const APP_VERSION = "1.0.0";
-/** Mağazaya her yüklemede bir artar (Android versionCode, iOS CFBundleVersion). */
-const BUILD_NUMBER = 2;
+/** Mağazaya her yüklemede bir artar; iki mağazanın numarası birbirinden bağımsızdır. */
+const ANDROID_VERSION_CODE = 3;
+const IOS_BUILD_NUMBER = 2;
 
 /**
  * OTA runtime: yalnız aynı native sürüme sahip uygulamalar aynı JS paketini alır.
@@ -89,7 +90,9 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: APP_ID,
-    buildNumber: String(BUILD_NUMBER),
+    buildNumber: String(IOS_BUILD_NUMBER),
+    // İmzalama ekibi (prebuild sonrası Xcode projesine yazılır)
+    appleTeamId: "5PM8J6CL93",
     // Firebase (FCM) istemci yapılandırması — yalnız APP_ID'ye aitse (bkz. FIREBASE_FILES)
     ...(googleServicesIos ? { googleServicesFile: googleServicesIos } : {}),
     config: { usesNonExemptEncryption: false },
@@ -116,7 +119,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: APP_ID,
-    versionCode: BUILD_NUMBER,
+    versionCode: ANDROID_VERSION_CODE,
     ...(googleServicesAndroid ? { googleServicesFile: googleServicesAndroid } : {}),
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
@@ -147,6 +150,7 @@ const config: ExpoConfig = {
       },
     ],
     "./plugins/withVennexUploadSigning",
+    "./plugins/withOptionalHardwareFeatures",
     [
       "expo-splash-screen",
       {
