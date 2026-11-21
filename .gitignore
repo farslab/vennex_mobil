@@ -268,3 +268,4 @@ coverage/
 
 # OTA yayın gizlileri (yükleme anahtarı)
 /ota-secrets
+/release

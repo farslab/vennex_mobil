@@ -241,9 +241,9 @@ describe("DeviceDetailScreen", () => {
 
     await renderWithProviders(<DeviceDetailScreen {...props} />);
     await fireEvent.press(await screen.findByText("Ayarlar"));
-    expect(await screen.findByText("Ücretsiz vend")).toBeOnTheScreen();
+    expect(await screen.findByText("Ücretsiz satış")).toBeOnTheScreen();
     expect(screen.getByText("Dil seçici")).toBeOnTheScreen();
-    expect(screen.getByText("Başlat butonu")).toBeOnTheScreen();
+    expect(screen.getByText("Oturum aç butonu")).toBeOnTheScreen();
     expect(screen.queryByText("Otomatik seçim")).toBeNull();
     expect(screen.queryByTestId("settings-machine-type")).toBeNull(); // 'Makine Tipi' grubu yok
     await editSetting("settings-brand-row", "settings-brand-text", "  Serpet ");

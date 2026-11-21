@@ -3,7 +3,6 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "re
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppText, makeStyles } from "@/design-system";
 import { VennexLogo } from "@/components/brand/VennexLogo";
-import { APP_ENV } from "@/config/env";
 
 /** Giriş akışı ekranlarının ortak düzeni: logo, başlık, form kartı, alt bilgi */
 export function AuthLayout({
@@ -27,13 +26,6 @@ export function AuthLayout({
       >
         <View style={styles.brand}>
           <VennexLogo height={40} />
-          {APP_ENV !== "production" ? (
-            <View style={styles.envBadge}>
-              <AppText variant="caption" color="warning" weight="700">
-                {APP_ENV === "staging" ? "TEST ORTAMI" : "GELİŞTİRME ORTAMI"}
-              </AppText>
-            </View>
-          ) : null}
         </View>
         <View style={styles.header}>
           <AppText variant="title" accessibilityRole="header">
@@ -64,12 +56,6 @@ const useStyles = makeStyles((t) =>
       gap: t.spacing.xxl,
     },
     brand: { alignItems: "flex-start", gap: t.spacing.md },
-    envBadge: {
-      paddingHorizontal: t.spacing.sm,
-      paddingVertical: 2,
-      borderRadius: t.radius.xs,
-      backgroundColor: t.colors.warningSubtle,
-    },
     header: { gap: t.spacing.xs },
     card: { gap: t.spacing.lg },
     footer: { marginTop: "auto", alignItems: "center", gap: t.spacing.sm },

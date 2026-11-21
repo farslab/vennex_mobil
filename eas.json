@@ -4,23 +4,15 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
-      "distribution": "internal",
-      "env": { "APP_ENV": "development" },
-      "ios": { "simulator": true }
-    },
-    "staging": {
-      "distribution": "internal",
-      "channel": "staging",
-      "env": { "APP_ENV": "staging", "EXPO_PUBLIC_API_BASE_URL": "https://REPLACE-WITH-STAGING-HOST" },
-      "android": { "buildType": "apk" }
-    },
     "production": {
       "channel": "production",
       "autoIncrement": true,
-      "env": { "APP_ENV": "production" },
-      "android": { "buildType": "app-bundle" },
-      "ios": { "resourceClass": "m-medium" }
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     }
   },
   "submit": {

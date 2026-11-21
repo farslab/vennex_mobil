@@ -43,3 +43,13 @@ jest.mock("@react-native-firebase/messaging", () => ({
   isDeviceRegisteredForRemoteMessages: jest.fn(() => false),
   registerDeviceForRemoteMessages: jest.fn(async () => undefined),
 }));
+
+// Testler canlı sunucuya asla gidemesin: uygulama yalnız canlı yapılandırmayla derlenir, testte API adresi
+// erişilemeyen bir test alan adına çevrilir (istekler zaten axios-mock-adapter ile yakalanır).
+jest.mock("expo-constants", () => {
+  const actual = jest.requireActual("expo-constants");
+  const C = actual.default ?? actual;
+  const expoConfig = { ...(C.expoConfig ?? {}), extra: { ...(C.expoConfig?.extra ?? {}), apiBaseUrl: "https://api.test.invalid" } };
+  const patched = { ...C, expoConfig };
+  return { __esModule: true, ...actual, default: patched };
+});

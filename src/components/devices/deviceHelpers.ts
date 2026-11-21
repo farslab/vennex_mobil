@@ -238,9 +238,9 @@ export const PAYMENT_METHOD_LABELS: { key: PaymentMethodKey; label: string }[] =
  */
 export const DEVICE_TOGGLE_LABELS: { key: DeviceToggleKey; label: string; description: string }[] = [
   { key: "audio", label: "Ses", description: "Cihaz sesli uyarıları" },
-  { key: "login_button", label: "Başlat butonu", description: "Ekranda başlat butonunu göster" },
+  { key: "login_button", label: "Oturum aç butonu", description: "Ekranda oturum aç butonunu göster" },
   { key: "cancel_button", label: "Vazgeç butonu", description: "Ekranda vazgeç butonunu göster" },
-  { key: "free_mode", label: "Ücretsiz vend", description: "Ödeme almadan ürün verir" },
+  { key: "free_mode", label: "Ücretsiz satış", description: "Ödeme almadan ürün verir" },
   { key: "language_selector", label: "Dil seçici", description: "Ekranda dil seçimini göster" },
 ];
 

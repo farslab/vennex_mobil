@@ -18,17 +18,11 @@ import { errorMessage } from "@/api/client";
 import { useAuthStore, useSelectedCompany } from "@/store/authStore";
 import { canManageDeviceSettings, canManageUsers, isOwner, moduleVisible } from "@/auth/permissions";
 import { useAppConfig } from "@/hooks/useAppConfig";
-import { APP_ENV } from "@/config/env";
 import { LEGAL_DEFAULT_TITLES, LEGAL_SLUGS } from "@/types/legal";
 import type { RootStackParamList } from "@/navigation/types";
 import { IdentityCard } from "./components/IdentityCard";
 import { ThemePreferenceControl } from "./components/ThemePreferenceControl";
 
-const ENV_LABELS: Record<string, string> = {
-  development: "Geliştirme ortamı",
-  staging: "Test ortamı",
-  production: "Canlı",
-};
 
 const LEGAL_ICONS = { kvkk: "shield", privacy: "lock", terms: "file-text" } as const;
 
@@ -186,7 +180,6 @@ export default function ProfileScreen() {
         <AppDivider />
         <AppText variant="caption" color="textTertiary" align="center" testID="app-version">
           Vennex Mobile {version ? `· Sürüm ${version}` : ""}
-          {APP_ENV !== "production" ? ` · ${ENV_LABELS[APP_ENV] ?? APP_ENV}` : ""}
         </AppText>
       </View>
 
