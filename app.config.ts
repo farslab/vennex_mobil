@@ -10,6 +10,8 @@ const API_BASE_URL = "https://tms.vennex.com.tr";
 
 /** Mağaza (native) sürümü — App Store / Google Play'e gönderilen sürüm. */
 const APP_VERSION = "1.0.0";
+/** Mağazaya her yüklemede bir artar (Android versionCode, iOS CFBundleVersion). */
+const BUILD_NUMBER = 2;
 
 /**
  * OTA runtime: yalnız aynı native sürüme sahip uygulamalar aynı JS paketini alır.
@@ -87,6 +89,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: APP_ID,
+    buildNumber: String(BUILD_NUMBER),
     // Firebase (FCM) istemci yapılandırması — yalnız APP_ID'ye aitse (bkz. FIREBASE_FILES)
     ...(googleServicesIos ? { googleServicesFile: googleServicesIos } : {}),
     config: { usesNonExemptEncryption: false },
@@ -113,6 +116,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: APP_ID,
+    versionCode: BUILD_NUMBER,
     ...(googleServicesAndroid ? { googleServicesFile: googleServicesAndroid } : {}),
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
@@ -134,7 +138,15 @@ const config: ExpoConfig = {
     "@react-native-firebase/app",
     "@react-native-firebase/messaging",
     // RN Firebase 27: Firebase iOS SDK yalnız SPM ile gelir ve dinamik framework bağlaması ister
-    ["expo-build-properties", { ios: { useFrameworks: "dynamic" } }],
+    [
+      "expo-build-properties",
+      {
+        ios: { useFrameworks: "dynamic" },
+        // R8: kod küçültme/karartma + kullanılmayan kaynakları atma; mapping dosyası AAB'ye girer (Play çökme raporları)
+        android: { enableMinifyInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true },
+      },
+    ],
+    "./plugins/withVennexUploadSigning",
     [
       "expo-splash-screen",
       {

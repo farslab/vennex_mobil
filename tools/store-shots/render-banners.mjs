@@ -1,6 +1,7 @@
 /**
  * App Store ürün sayfası "Header" (3840×1646) ve "Search Results" (3840×2560) görselleri.
  *   node tools/store-shots/render-banners.mjs <ham-klasör> <çıkış-klasör>
+ * Google Play öne çıkan görseli (1024×500): render-banners.mjs <ham> <çıkış> feature
  * Ham klasörde iphone-1..7.png beklenir (render.mjs ile aynı kaynak). Önemli içerik ortadaki güvenli alanda.
  */
 import { execFileSync } from "node:child_process";
@@ -63,10 +64,27 @@ const search = `<!doctype html><html><head><meta charset="utf-8">${BASE}</head>
   ${phone(6, { w: 720, left: 2820, top: 760 })}
 </body></html>`;
 
+// Google Play "öne çıkan görsel" 1024×500: solda başlık, sağda iki telefon (üst/alt kenardan taşar)
+const feature = `<!doctype html><html><head><meta charset="utf-8">${BASE}</head>
+<body style="width:1024px;height:500px">
+  <div class="glow" style="width:700px;height:700px;right:-220px;top:-300px;background:radial-gradient(circle,rgba(237,108,70,.32),rgba(237,108,70,0) 62%)"></div>
+  <div class="glow" style="width:600px;height:600px;left:-220px;bottom:-380px;background:radial-gradient(circle,rgba(54,166,221,.30),rgba(54,166,221,0) 62%)"></div>
+  <div style="position:absolute;left:64px;top:150px;width:520px">
+    <div class="brand" style="font-size:18px;letter-spacing:6px;margin-bottom:20px">VENNEX</div>
+    <h1 style="font-size:50px;letter-spacing:-1px">Otomatlarınız<br>tek uygulamada</h1>
+    <p style="font-size:21px;margin-top:18px">Satış, stok ve cihaz durumu anlık.</p>
+  </div>
+  ${phone(2, { w: 190, left: 610, top: 120, rot: -6, z: 1 })}
+  ${phone(1, { w: 210, left: 770, top: 60, rot: 0, z: 2 })}
+</body></html>`;
+
+const ONLY = process.argv[4] ? process.argv[4].split(",") : null;
 for (const [name, html, w, h] of [
+  ["feature-1024x500", feature, 1024, 500],
   ["header-3840x1646", header, 3840, 1646],
   ["search-3840x2560", search, 3840, 2560],
 ]) {
+  if (ONLY && !ONLY.some((k) => name.startsWith(k))) continue;
   const page = path.resolve(outDir, `${name}.html`);
   fs.writeFileSync(page, html);
   const out = path.resolve(outDir, `${name}.png`);

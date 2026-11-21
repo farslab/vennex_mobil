@@ -178,7 +178,6 @@ export default function EditProfileScreen() {
               autoCorrect={false}
               autoComplete="email"
               textContentType="emailAddress"
-              helper="Şifre sıfırlama bağlantısı bu adrese gönderilir."
               testID="input-email"
             />
             <AppInput

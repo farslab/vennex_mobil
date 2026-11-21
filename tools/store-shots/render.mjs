@@ -3,6 +3,7 @@
  *   node tools/store-shots/render.mjs <ham-klasör> <çıkış-klasör>
  * Ham klasörde iphone-1.png … iphone-7.png ve ipad-1.png … ipad-7.png beklenir.
  * Çıkış boyutları App Store'un istediği tam piksel: iPhone 6,9" 1320×2868, iPad 13" 2064×2752.
+ * Google Play için:  node tools/store-shots/render.mjs <ham> <çıkış> play-phone,play-tablet
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -27,6 +28,9 @@ export const CAPTIONS = [
 const SIZES = {
   iphone: { w: 1320, h: 2868, shotW: 1010, radius: 120, bezel: 34, title: 92, sub: 46, top: 190, gap: 110 },
   ipad: { w: 2064, h: 2752, shotW: 1560, radius: 70, bezel: 40, title: 104, sub: 52, top: 170, gap: 100 },
+  // Google Play: telefon 9:16 (öne çıkarma için önerilen 1080×1920), tablet 3:4 (7" ve 10" için aynı görsel)
+  "play-phone": { raw: "iphone", w: 1080, h: 1920, shotW: 700, radius: 66, bezel: 22, title: 64, sub: 34, top: 110, gap: 60 },
+  "play-tablet": { raw: "ipad", w: 1800, h: 2400, shotW: 1300, radius: 60, bezel: 34, title: 84, sub: 42, top: 140, gap: 80 },
 };
 
 function html(kind, i, img) {
@@ -51,10 +55,11 @@ function html(kind, i, img) {
 <div class="device"><img src="file://${img}"></div></body></html>`;
 }
 
-for (const kind of ["iphone", "ipad"]) {
+const KINDS = process.argv[4] ? process.argv[4].split(",") : ["iphone", "ipad"];
+for (const kind of KINDS) {
   const s = SIZES[kind];
   for (let i = 0; i < 7; i++) {
-    const img = path.resolve(rawDir, `${kind}-${i + 1}.png`);
+    const img = path.resolve(rawDir, `${s.raw ?? kind}-${i + 1}.png`);
     if (!fs.existsSync(img)) {
       console.log("eksik", img);
       continue;
